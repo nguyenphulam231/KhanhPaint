@@ -38,7 +38,6 @@
           <h2>Bảng điều khiển</h2>
           <div id="admin-content">Đang tải dữ liệu hệ thống...</div>
         </div>
-
         <div id="add-job" class="content-section">
           <h2>Tạo vị trí công việc</h2>
           <div class="form-section">
@@ -47,13 +46,17 @@
               id="jobTitle"
               placeholder="Tên vị trí"
               required
-            />
-            <input type="number" id="minSalary" placeholder="Lương tối thiểu" />
-            <input type="number" id="maxSalary" placeholder="Lương tối đa" />
-            <button onclick="createJob()">Lưu vị trí</button>
+            /><input
+              type="number"
+              id="minSalary"
+              placeholder="Lương tối thiểu"
+            /><input
+              type="number"
+              id="maxSalary"
+              placeholder="Lương tối đa"
+            /><button onclick="createJob()">Lưu vị trí</button>
           </div>
         </div>
-
         <div id="add-employee" class="content-section">
           <h2>Thêm nhân viên mới</h2>
           <div class="form-section">
@@ -62,22 +65,26 @@
               id="full_name"
               placeholder="Họ và tên"
               required
-            />
-            <input type="email" id="email" placeholder="Email" required />
-            <input type="text" id="phone" placeholder="Số điện thoại" />
-            <input type="date" id="hire_date" />
-            <input type="password" id="password" placeholder="Mật khẩu" />
-            <select id="job_id">
-              <option value="">-- Chọn vị trí --</option>
-            </select>
-            <select id="role">
+            /><input
+              type="email"
+              id="email"
+              placeholder="Email"
+              required
+            /><input type="text" id="phone" placeholder="Số điện thoại" /><input
+              type="date"
+              id="hire_date"
+            /><input
+              type="password"
+              id="password"
+              placeholder="Mật khẩu"
+            /><select id="job_id">
+              <option value="">-- Chọn vị trí --</option></select
+            ><select id="role">
               <option value="staff">Nhân viên</option>
-              <option value="admin">Admin</option>
-            </select>
-            <button onclick="createEmployee()">Tạo tài khoản</button>
+              <option value="admin">Admin</option></select
+            ><button onclick="createEmployee()">Tạo tài khoản</button>
           </div>
         </div>
-
         <div id="add-brand" class="content-section">
           <h2>Thêm Thương hiệu mới</h2>
           <div class="form-section">
@@ -86,37 +93,40 @@
               id="brandName"
               placeholder="Tên thương hiệu"
               required
-            />
-            <input type="text" id="brandOrigin" placeholder="Xuất xứ" />
-            <input type="text" id="brandDesc" placeholder="Mô tả" />
-            <button onclick="createBrand()">Lưu thương hiệu</button>
+            /><input type="text" id="brandOrigin" placeholder="Xuất xứ" /><input
+              type="text"
+              id="brandDesc"
+              placeholder="Mô tả"
+            /><button onclick="createBrand()">Lưu thương hiệu</button>
           </div>
         </div>
-
         <div id="add-line" class="content-section">
           <h2>Thêm Dòng sản phẩm mới</h2>
           <div class="form-section">
             <select id="brandSelect" required>
-              <option value="">-- Chọn thương hiệu --</option>
-            </select>
-            <input
+              <option value="">-- Chọn thương hiệu --</option></select
+            ><input
               type="text"
               id="lineName"
               placeholder="Tên dòng sản phẩm"
               required
-            />
-            <select id="isInterior">
+            /><select id="isInterior">
               <option value="1">Nội thất</option>
-              <option value="0">Ngoại thất</option>
-            </select>
-            <input type="text" id="lineDesc" placeholder="Mô tả" />
-            <button onclick="createLine()">Lưu dòng sản phẩm</button>
+              <option value="0">Ngoại thất</option></select
+            ><input type="text" id="lineDesc" placeholder="Mô tả" /><button
+              onclick="createLine()"
+            >
+              Lưu dòng sản phẩm
+            </button>
           </div>
         </div>
 
         <div id="add-basetype" class="content-section">
           <h2>Thêm BaseType mới</h2>
           <div class="form-section">
+            <select id="brandFilter" onchange="loadLinesByBrand()" required>
+              <option value="">-- Chọn thương hiệu trước --</option>
+            </select>
             <select id="lineSelect" required>
               <option value="">-- Chọn dòng sản phẩm --</option>
             </select>
@@ -151,31 +161,143 @@
         document.getElementById(sectionId).classList.add("active");
       }
 
-      // Load dữ liệu ban đầu
+      async function loadJobs() {
+        try {
+          const res = await fetch("/api/admin/jobs", {
+            headers: { Authorization: "Bearer " + token },
+          });
+          const jobs = await res.json();
+          const select = document.getElementById("job_id");
+          select.innerHTML =
+            '<option value="">-- Chọn vị trí công việc --</option>';
+          jobs.forEach((job) => {
+            select.innerHTML += `<option value="${job.job_id}">${job.job_title}</option>`;
+          });
+        } catch (err) {
+          console.error("Không thể tải Jobs");
+        }
+      }
+      loadJobs();
+
+      async function createJob() {
+        const jobData = {
+          job_title: document.getElementById("jobTitle").value,
+          min_salary: document.getElementById("minSalary").value,
+          max_salary: document.getElementById("maxSalary").value,
+        };
+        const res = await fetch("/api/admin/add-job", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + token,
+          },
+          body: JSON.stringify(jobData),
+        });
+        if (res.ok) {
+          alert("Đã thêm vị trí!");
+          location.reload();
+        } else {
+          alert("Lỗi khi tạo vị trí!");
+        }
+      }
+
+      async function createEmployee() {
+        const data = {
+          full_name: document.getElementById("full_name").value,
+          email: document.getElementById("email").value,
+          phone: document.getElementById("phone").value,
+          hire_date: document.getElementById("hire_date").value,
+          password: document.getElementById("password").value,
+          job_id: document.getElementById("job_id").value,
+          role: document.getElementById("role").value,
+        };
+        const res = await fetch("/api/admin/add-employee", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + token,
+          },
+          body: JSON.stringify(data),
+        });
+        if (res.ok) {
+          alert("Thêm nhân viên thành công!");
+          location.reload();
+        } else {
+          alert("Lỗi tạo nhân viên!");
+        }
+      }
+
+      function logout() {
+        localStorage.removeItem("token");
+        window.location.href = "/admin-login.html";
+      }
+
+      // Load dữ liệu dashboard
+      fetch("/api/admin/dashboard", {
+        headers: { Authorization: "Bearer " + token },
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          document.getElementById("admin-content").innerHTML =
+            `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+        });
+
+      async function createBrand() {
+        const brandData = {
+          name: document.getElementById("brandName").value,
+          origin: document.getElementById("brandOrigin").value,
+          description: document.getElementById("brandDesc").value,
+        };
+
+        const res = await fetch("/api/products/add-brand", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + localStorage.getItem("token"),
+          },
+          body: JSON.stringify(brandData),
+        });
+
+        if (res.ok) {
+          alert("Thêm thương hiệu thành công!");
+          location.reload();
+        } else {
+          alert("Lỗi khi thêm thương hiệu!");
+        }
+      }
+      module.exports = router;
+      // Load danh sách thương hiệu cho cả Add-Line và Add-BaseType Filter
       async function initData() {
-        // Load Brands
         const resB = await fetch("/api/products/brands", {
           headers: { Authorization: "Bearer " + token },
         });
         const brands = await resB.json();
         const brandSelect = document.getElementById("brandSelect");
-        brands.forEach(
-          (b) =>
-            (brandSelect.innerHTML += `<option value="${b.brand_id}">${b.name}</option>`),
-        );
+        const brandFilter = document.getElementById("brandFilter");
+        brands.forEach((b) => {
+          brandSelect.innerHTML += `<option value="${b.brand_id}">${b.name}</option>`;
+          brandFilter.innerHTML += `<option value="${b.brand_id}">${b.name}</option>`;
+        });
+      }
+      initData();
 
-        // Load Lines
-        const resL = await fetch("/api/products/lines", {
+      // Hàm lọc dòng sản phẩm dựa trên thương hiệu
+      async function loadLinesByBrand() {
+        const brandId = document.getElementById("brandFilter").value;
+        const lineSelect = document.getElementById("lineSelect");
+        lineSelect.innerHTML =
+          '<option value="">-- Chọn dòng sản phẩm --</option>';
+        if (!brandId) return;
+
+        const res = await fetch(`/api/products/lines-by-brand/${brandId}`, {
           headers: { Authorization: "Bearer " + token },
         });
-        const lines = await resL.json();
-        const lineSelect = document.getElementById("lineSelect");
+        const lines = await res.json();
         lines.forEach(
           (l) =>
             (lineSelect.innerHTML += `<option value="${l.line_id}">${l.name}</option>`),
         );
       }
-      initData();
 
       async function createBrand() {
         const brandData = {
@@ -252,8 +374,6 @@
         localStorage.removeItem("token");
         window.location.href = "/admin-login.html";
       }
-
-      // Các hàm loadJobs, createJob, createEmployee giữ nguyên...
     </script>
   </body>
 </html>

@@ -10,10 +10,11 @@ app.use(express.static(path.join(__dirname, "public")));
 app.use(express.json());
 
 // 3. Routes: Cấu hình các API
-app.use("/api/auth", require("./routes/auth"));
-app.use("/api/admin", require("./routes/admin"));
+app.use("/api/auth/admin", require("./routes/admin/auth"));
+app.use("/api/auth/public", require("./routes/public/auth"));
+app.use("/api/admin", require("./routes/admin/admin"));
 app.use("/api/orders", require("./routes/order"));
-app.use("/api/products", require("./routes/product"));
+app.use("/api/products", require("./routes/admin/product"));
 
 // 4. Route trang chủ: Tự động phục vụ file index.html
 app.get("/", (req, res) => {

@@ -1,15 +1,17 @@
 const express = require("express");
 const router = express.Router();
+const bcrypt = require("bcrypt");
 const {
   authenticate,
   authorizeAdmin,
-} = require("../middleware/authMiddleware");
-const db = require("../db");
+} = require("../../middleware/authMiddleware");
+const db = require("../../db");
 
-// Sử dụng cả 2 middleware nối tiếp nhau
-router.get("/dashboard", authenticate, authorizeAdmin, async (req, res) => {
+// Áp dụng middleware cho tất cả các route bên dưới
+router.use(authenticate, authorizeAdmin);
+
+router.get("/dashboard", async (req, res) => {
   try {
-    // Truy vấn dữ liệu cho admin
     const [orders] = await db.query("SELECT * FROM Orders");
     res.json({ message: "Chào mừng Admin", data: orders });
   } catch (err) {
@@ -32,13 +34,11 @@ router.post("/add-employee", async (req, res) => {
   }
 });
 
-// API lấy danh sách Jobs để đổ vào dropdown chọn Job
 router.get("/jobs", async (req, res) => {
   const [jobs] = await db.query("SELECT * FROM Jobs");
   res.json(jobs);
 });
 
-// Thêm vị trí mới
 router.post("/add-job", async (req, res) => {
   const { job_title, min_salary, max_salary } = req.body;
   await db.query(
@@ -48,27 +48,4 @@ router.post("/add-job", async (req, res) => {
   res.status(201).json({ message: "Đã tạo vị trí mới!" });
 });
 
-async function createBrand() {
-  const brandData = {
-    name: document.getElementById("brandName").value,
-    origin: document.getElementById("brandOrigin").value,
-    description: document.getElementById("brandDesc").value,
-  };
-
-  const res = await fetch("/api/products/add-brand", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: "Bearer " + localStorage.getItem("token"),
-    },
-    body: JSON.stringify(brandData),
-  });
-
-  if (res.ok) {
-    alert("Thêm thương hiệu thành công!");
-    location.reload();
-  } else {
-    alert("Lỗi khi thêm thương hiệu!");
-  }
-}
 module.exports = router;

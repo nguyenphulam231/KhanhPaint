@@ -42,7 +42,7 @@
             password: document.getElementById("password").value,
           };
 
-          const response = await fetch("/api/auth/register", {
+          const response = await fetch("/api/auth/public/register", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(userData),

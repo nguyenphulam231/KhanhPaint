@@ -2,20 +2,20 @@ const express = require("express");
 const router = express.Router();
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const db = require("../db");
+const db = require("../../db");
 
 const SECRET_KEY = "your_secret_key_sieu_bi_mat";
 
-// --- ĐĂNG NHẬP (Dùng cho cả Khách hàng và Nhân viên) ---
+// --- ĐĂNG NHẬP KHÁCH HÀNG ---
 router.post("/login", async (req, res) => {
   const { email, password, type } = req.body;
 
-  if (!type || (type !== "employee" && type !== "customer")) {
+  if (!type || type !== "customer") {
     return res.status(400).json({ error: "Loại tài khoản không hợp lệ!" });
   }
 
-  const table = type === "employee" ? "Employees" : "Customers";
-  const idField = type === "employee" ? "employee_id" : "customer_id";
+  const table = "Customers";
+  const idField = "customer_id";
 
   try {
     const [rows] = await db.query(`SELECT * FROM ${table} WHERE email = ?`, [
@@ -32,7 +32,7 @@ router.post("/login", async (req, res) => {
       const payload = {
         id: user[idField],
         email: user.email,
-        role: user.role || (type === "employee" ? "staff" : "customer"),
+        role: user.role || "customer",
         type: type,
       };
 
@@ -57,7 +57,6 @@ router.post("/register", async (req, res) => {
   const { name, phone, email, password } = req.body;
 
   try {
-    // 1. Kiểm tra email tồn tại
     const [existing] = await db.query(
       "SELECT * FROM Customers WHERE email = ?",
       [email],
@@ -66,11 +65,9 @@ router.post("/register", async (req, res) => {
       return res.status(400).json({ error: "Email này đã được đăng ký!" });
     }
 
-    // 2. Hash mật khẩu
     const saltRounds = 10;
     const password_hash = await bcrypt.hash(password, saltRounds);
 
-    // 3. Lưu vào database
     await db.query(
       "INSERT INTO Customers (name, phone, email, password_hash, role) VALUES (?, ?, ?, ?, 'customer')",
       [name, phone, email, password_hash],

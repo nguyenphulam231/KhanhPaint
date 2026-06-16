@@ -32,7 +32,39 @@
         .getElementById("loginForm")
         .addEventListener("submit", async (e) => {
           e.preventDefault();
-          // Chèn logic đăng nhập của bạn vào đây...
+
+          const email = document.getElementById("email").value;
+          const password = document.getElementById("password").value;
+          const message = document.getElementById("message");
+
+          try {
+            const response = await fetch("/api/auth/public/login", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email, password, type: "customer" }),
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+              // Lưu token để các trang khác như admin.html dùng để xác thực
+              localStorage.setItem("token", data.token);
+
+              message.style.color = "green";
+              message.innerText = "Đăng nhập thành công! Đang chuyển hướng...";
+
+              // Chuyển hướng đến chính
+              window.location.href = "/index.html";
+            } else {
+              message.style.color = "red";
+              message.innerText =
+                data.message || "Email hoặc mật khẩu không chính xác!";
+            }
+          } catch (error) {
+            message.style.color = "red";
+            message.innerText = "Lỗi kết nối máy chủ!";
+            console.error("Login error:", error);
+          }
         });
     </script>
   </body>
