@@ -1,27 +1,32 @@
 const express = require("express");
 const app = express();
 const path = require("path");
-const db = require("./db"); // Giả định file kết nối DB của bạn là db.js
+const db = require("./db");
 
-// 1. Middleware: Phục vụ file tĩnh (HTML, CSS, JS) từ thư mục 'public'
+// Middleware
 app.use(express.static(path.join(__dirname, "public")));
-
-// 2. Middleware: Xử lý dữ liệu JSON
 app.use(express.json());
 
-// 3. Routes: Cấu hình các API
-app.use("/api/auth/admin", require("./routes/admin/auth"));
-app.use("/api/auth/public", require("./routes/public/auth"));
-app.use("/api/admin", require("./routes/admin/admin"));
-app.use("/api/orders", require("./routes/order"));
-app.use("/api/products", require("./routes/admin/product"));
+// --- ROUTES ĐÃ CẬP NHẬT ---
 
-// 4. Route trang chủ: Tự động phục vụ file index.html
+// 1. Auth routes (Giữ nguyên hoặc tùy chỉnh theo ý bạn)
+app.use("/api/auth/admin", require("./routes/admin/auth"));
+app.use("/api/auth/public", require("./routes/client/auth"));
+
+// 2. Admin routes (Đã gom nhóm thành một cửa ngõ duy nhất)
+// Khi gọi "/api/admin", nó sẽ nhảy vào file routes/admin/index.js
+app.use("/api/admin", require("./routes/admin"));
+
+// 3. Các routes khác
+//app.use("/api/orders", require("./routes/order"));
+//app.use("/api/products", require("./routes/admin/product"));
+
+// --- KẾT THÚC CẬP NHẬT ---
+
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-// 5. Khởi động Server sau khi kết nối DB thành công
 db.query("SELECT 1")
   .then(() => {
     console.log("Kết nối Database thành công!");

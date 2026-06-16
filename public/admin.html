@@ -46,15 +46,10 @@
               id="jobTitle"
               placeholder="Tên vị trí"
               required
-            /><input
-              type="number"
-              id="minSalary"
-              placeholder="Lương tối thiểu"
-            /><input
-              type="number"
-              id="maxSalary"
-              placeholder="Lương tối đa"
-            /><button onclick="createJob()">Lưu vị trí</button>
+            />
+            <input type="number" id="minSalary" placeholder="Lương tối thiểu" />
+            <input type="number" id="maxSalary" placeholder="Lương tối đa" />
+            <button onclick="createJob()">Lưu vị trí</button>
           </div>
         </div>
         <div id="add-employee" class="content-section">
@@ -65,24 +60,19 @@
               id="full_name"
               placeholder="Họ và tên"
               required
-            /><input
-              type="email"
-              id="email"
-              placeholder="Email"
-              required
-            /><input type="text" id="phone" placeholder="Số điện thoại" /><input
-              type="date"
-              id="hire_date"
-            /><input
-              type="password"
-              id="password"
-              placeholder="Mật khẩu"
-            /><select id="job_id">
-              <option value="">-- Chọn vị trí --</option></select
-            ><select id="role">
+            />
+            <input type="email" id="email" placeholder="Email" required />
+            <input type="text" id="phone" placeholder="Số điện thoại" />
+            <input type="date" id="hire_date" />
+            <input type="password" id="password" placeholder="Mật khẩu" />
+            <select id="job_id">
+              <option value="">-- Chọn vị trí --</option>
+            </select>
+            <select id="role">
               <option value="staff">Nhân viên</option>
-              <option value="admin">Admin</option></select
-            ><button onclick="createEmployee()">Tạo tài khoản</button>
+              <option value="admin">Admin</option>
+            </select>
+            <button onclick="createEmployee()">Tạo tài khoản</button>
           </div>
         </div>
         <div id="add-brand" class="content-section">
@@ -93,34 +83,32 @@
               id="brandName"
               placeholder="Tên thương hiệu"
               required
-            /><input type="text" id="brandOrigin" placeholder="Xuất xứ" /><input
-              type="text"
-              id="brandDesc"
-              placeholder="Mô tả"
-            /><button onclick="createBrand()">Lưu thương hiệu</button>
+            />
+            <input type="text" id="brandOrigin" placeholder="Xuất xứ" />
+            <input type="text" id="brandDesc" placeholder="Mô tả" />
+            <button onclick="createBrand()">Lưu thương hiệu</button>
           </div>
         </div>
         <div id="add-line" class="content-section">
           <h2>Thêm Dòng sản phẩm mới</h2>
           <div class="form-section">
             <select id="brandSelect" required>
-              <option value="">-- Chọn thương hiệu --</option></select
-            ><input
+              <option value="">-- Chọn thương hiệu --</option>
+            </select>
+            <input
               type="text"
               id="lineName"
               placeholder="Tên dòng sản phẩm"
               required
-            /><select id="isInterior">
+            />
+            <select id="isInterior">
               <option value="1">Nội thất</option>
-              <option value="0">Ngoại thất</option></select
-            ><input type="text" id="lineDesc" placeholder="Mô tả" /><button
-              onclick="createLine()"
-            >
-              Lưu dòng sản phẩm
-            </button>
+              <option value="0">Ngoại thất</option>
+            </select>
+            <input type="text" id="lineDesc" placeholder="Mô tả" />
+            <button onclick="createLine()">Lưu dòng sản phẩm</button>
           </div>
         </div>
-
         <div id="add-basetype" class="content-section">
           <h2>Thêm BaseType mới</h2>
           <div class="form-section">
@@ -150,6 +138,7 @@
       </div>
     </div>
 
+    <script src="js/api.js"></script>
     <script>
       const token = localStorage.getItem("token");
       if (!token) window.location.href = "/admin-login.html";
@@ -163,7 +152,7 @@
 
       async function loadJobs() {
         try {
-          const res = await fetch("/api/admin/jobs", {
+          const res = await fetch(API_ROUTES.GET_JOBS, {
             headers: { Authorization: "Bearer " + token },
           });
           const jobs = await res.json();
@@ -185,19 +174,52 @@
           min_salary: document.getElementById("minSalary").value,
           max_salary: document.getElementById("maxSalary").value,
         };
-        const res = await fetch("/api/admin/add-job", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: "Bearer " + token,
-          },
-          body: JSON.stringify(jobData),
-        });
-        if (res.ok) {
+
+        try {
+          const res = await fetch(API_ROUTES.ADD_JOB, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + localStorage.getItem("token"),
+            },
+            body: JSON.stringify(jobData),
+          });
+
+          // 1. CHẶN ĐẦU: Lấy toàn bộ nội dung phản hồi dưới dạng văn bản
+          const responseText = await res.text();
+          console.log("--- BẮT ĐẦU CHẨN ĐOÁN ---");
+          console.log("Trạng thái HTTP:", res.status);
+          console.log(
+            "Nội dung phản hồi thô (có thể là HTML hoặc JSON):",
+            responseText,
+          );
+          console.log("--- KẾT THÚC CHẨN ĐOÁN ---");
+
+          // 2. Xử lý logic
+          if (res.status === 401 || res.status === 403) {
+            alert(
+              "Token hết hạn hoặc không có quyền! Kiểm tra Console để xem lỗi chi tiết.",
+            );
+            return;
+          }
+
+          if (!res.ok) {
+            alert(
+              "Lỗi server: " + res.status + ". Xem chi tiết ở Console F12.",
+            );
+            return;
+          }
+
+          // Nếu ok thì mới parse JSON
+          const data = JSON.parse(responseText);
           alert("Đã thêm vị trí!");
           location.reload();
-        } else {
-          alert("Lỗi khi tạo vị trí!");
+        } catch (err) {
+          // 3. BẮT LỖI: In lỗi cú pháp (nếu không phải JSON) ra đây
+          console.error("LỖI CỐT LÕI (Parsing Error):", err);
+          alert(
+            "Lỗi không thể đọc dữ liệu từ server. Hãy mở F12 -> Tab Console để xem nội dung log chẩn đoán.",
+          );
         }
       }
 
@@ -211,7 +233,7 @@
           job_id: document.getElementById("job_id").value,
           role: document.getElementById("role").value,
         };
-        const res = await fetch("/api/admin/add-employee", {
+        const res = await fetch(API_ROUTES.ADD_EMPLOYEE, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -227,13 +249,8 @@
         }
       }
 
-      function logout() {
-        localStorage.removeItem("token");
-        window.location.href = "/admin-login.html";
-      }
-
       // Load dữ liệu dashboard
-      fetch("/api/admin/dashboard", {
+      fetch(API_ROUTES.DASHBOARD, {
         headers: { Authorization: "Bearer " + token },
       })
         .then((res) => res.json())
@@ -242,33 +259,8 @@
             `<pre>${JSON.stringify(data, null, 2)}</pre>`;
         });
 
-      async function createBrand() {
-        const brandData = {
-          name: document.getElementById("brandName").value,
-          origin: document.getElementById("brandOrigin").value,
-          description: document.getElementById("brandDesc").value,
-        };
-
-        const res = await fetch("/api/products/add-brand", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: "Bearer " + localStorage.getItem("token"),
-          },
-          body: JSON.stringify(brandData),
-        });
-
-        if (res.ok) {
-          alert("Thêm thương hiệu thành công!");
-          location.reload();
-        } else {
-          alert("Lỗi khi thêm thương hiệu!");
-        }
-      }
-      module.exports = router;
-      // Load danh sách thương hiệu cho cả Add-Line và Add-BaseType Filter
       async function initData() {
-        const resB = await fetch("/api/products/brands", {
+        const resB = await fetch(API_ROUTES.GET_BRANDS, {
           headers: { Authorization: "Bearer " + token },
         });
         const brands = await resB.json();
@@ -281,7 +273,6 @@
       }
       initData();
 
-      // Hàm lọc dòng sản phẩm dựa trên thương hiệu
       async function loadLinesByBrand() {
         const brandId = document.getElementById("brandFilter").value;
         const lineSelect = document.getElementById("lineSelect");
@@ -289,7 +280,7 @@
           '<option value="">-- Chọn dòng sản phẩm --</option>';
         if (!brandId) return;
 
-        const res = await fetch(`/api/products/lines-by-brand/${brandId}`, {
+        const res = await fetch(`${API_ROUTES.GET_LINES_BY_BRAND}/${brandId}`, {
           headers: { Authorization: "Bearer " + token },
         });
         const lines = await res.json();
@@ -305,7 +296,7 @@
           origin: document.getElementById("brandOrigin").value,
           description: document.getElementById("brandDesc").value,
         };
-        const res = await fetch("/api/products/add-brand", {
+        const res = await fetch(API_ROUTES.ADD_BRAND, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -328,7 +319,7 @@
           is_interior: document.getElementById("isInterior").value,
           description: document.getElementById("lineDesc").value,
         };
-        const res = await fetch("/api/products/add-line", {
+        const res = await fetch(API_ROUTES.ADD_LINE, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -354,7 +345,7 @@
           recommended_layers:
             document.getElementById("recommendedLayers").value,
         };
-        const res = await fetch("/api/products/add-basetype", {
+        const res = await fetch(API_ROUTES.ADD_BASETYPE, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
