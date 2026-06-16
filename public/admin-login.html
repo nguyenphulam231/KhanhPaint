@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Đăng nhập Nội bộ</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="login-page-wrapper">
+      <div class="login-container">
+        <form id="loginForm">
+          <h2>Đăng nhập Nội bộ</h2>
+          <input
+            type="email"
+            id="email"
+            placeholder="Email nhân viên"
+            required
+          />
+          <input
+            type="password"
+            id="password"
+            placeholder="Mật khẩu"
+            required
+          />
+          <button type="submit">Đăng nhập Quản trị</button>
+
+          <p style="text-align: center; margin-top: 15px">
+            <a href="login.html">Quay lại trang khách hàng</a>
+          </p>
+          <p id="message"></p>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      document
+        .getElementById("loginForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const email = document.getElementById("email").value;
+          const password = document.getElementById("password").value;
+          const message = document.getElementById("message");
+
+          try {
+            const response = await fetch("/api/auth/login", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email, password, type: "employee" }),
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+              localStorage.setItem("token", data.token);
+              window.location.href = "/admin.html";
+            } else {
+              message.innerText = data.error || "Đăng nhập thất bại!";
+            }
+          } catch (err) {
+            message.innerText = "Lỗi kết nối tới máy chủ.";
+          }
+        });
+    </script>
+  </body>
+</html>

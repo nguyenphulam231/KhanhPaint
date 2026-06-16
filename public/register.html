@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Đăng ký tài khoản</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="login-page-wrapper">
+      <div class="login-container">
+        <h2>Đăng ký khách hàng</h2>
+        <form id="registerForm">
+          <input type="text" id="name" placeholder="Họ và tên" required />
+          <input type="text" id="phone" placeholder="Số điện thoại" required />
+          <input type="email" id="email" placeholder="Email" required />
+          <input
+            type="password"
+            id="password"
+            placeholder="Mật khẩu"
+            required
+          />
+          <button type="submit">Đăng ký</button>
+        </form>
+        <p id="message" style="text-align: center; margin-top: 15px"></p>
+        <p style="text-align: center">
+          <a href="login.html">Đã có tài khoản? Đăng nhập ngay</a>
+        </p>
+      </div>
+    </div>
+
+    <script>
+      document
+        .getElementById("registerForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+
+          const userData = {
+            name: document.getElementById("name").value,
+            phone: document.getElementById("phone").value,
+            email: document.getElementById("email").value,
+            password: document.getElementById("password").value,
+          };
+
+          const response = await fetch("/api/auth/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(userData),
+          });
+
+          const data = await response.json();
+          const message = document.getElementById("message");
+
+          if (response.ok) {
+            message.innerText =
+              "Đăng ký thành công! Chuyển hướng đến trang đăng nhập...";
+            setTimeout(() => (window.location.href = "/login.html"), 2000);
+          } else {
+            message.innerText = data.error || "Đăng ký thất bại!";
+          }
+        });
+    </script>
+  </body>
+</html>

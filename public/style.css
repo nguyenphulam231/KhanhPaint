@@ -1,0 +1,239 @@
+/* Thiết lập chung */
+body {
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #f4f7f6;
+  margin: 0;
+  padding: 0;
+
+  flex-direction: column;
+}
+
+header {
+  background-color: #333;
+  color: white;
+  width: 100%;
+  padding: 1rem 0;
+  text-align: center;
+}
+
+nav a {
+  color: white;
+  text-decoration: none;
+  margin: 0 10px;
+}
+
+/* Container cho Form đăng nhập/đăng ký */
+.login-container {
+  background: white;
+  padding: 30px;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 400px;
+  margin-top: 50px;
+}
+
+h2 {
+  text-align: center;
+  color: #333;
+}
+
+input {
+  width: 100%;
+  padding: 12px;
+  margin: 10px 0;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-sizing: border-box; /* Quan trọng để không bị tràn khung */
+}
+
+button {
+  width: 100%;
+  padding: 12px;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  margin-top: 10px;
+}
+
+button:hover {
+  background-color: #218838;
+}
+
+/* Thông báo lỗi/thành công */
+#message {
+  text-align: center;
+  font-size: 14px;
+  margin-top: 15px;
+  color: #d9534f;
+}
+
+/* Link chuyển đổi */
+a {
+  color: #007bff;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Bổ sung cho Admin */
+.admin-layout {
+  max-width: 1000px;
+  margin: 20px auto;
+  padding: 20px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+.header-admin {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid #eee;
+  padding-bottom: 10px;
+  margin-bottom: 20px;
+}
+.logout-btn {
+  background-color: #dc3545 !important;
+  width: auto !important;
+  padding: 8px 15px !important;
+  border: none;
+  color: white;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.form-section {
+  margin-bottom: 30px;
+  padding: 20px;
+  background: #f9f9f9;
+  border-radius: 8px;
+}
+
+.form-section input,
+.form-section select {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 10px;
+  box-sizing: border-box;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+.form-section button {
+  width: 100%;
+  padding: 10px;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+/* --- BỔ SUNG GIAO DIỆN ADMIN MỚI --- */
+.admin-container {
+  display: flex;
+  min-height: 100vh;
+}
+.sidebar {
+  width: 250px;
+  background: #343a40;
+  color: white;
+  padding: 20px;
+  flex-shrink: 0;
+}
+.main-content {
+  flex: 1;
+  padding: 40px;
+  background: #f8f9fa;
+}
+.menu-item {
+  cursor: pointer;
+  padding: 15px;
+  border-bottom: 1px solid #495057;
+  display: block;
+  color: #ced4da;
+  text-decoration: none;
+  transition: 0.3s;
+}
+.menu-item:hover {
+  background: #495057;
+  color: white;
+  padding-left: 20px;
+}
+.content-section {
+  display: none;
+}
+.content-section.active {
+  display: block;
+}
+.form-section {
+  margin-bottom: 30px;
+  padding: 20px;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e9ecef;
+}
+.form-section input,
+.form-section select {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 15px;
+  box-sizing: border-box;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+.form-section button {
+  width: 100%;
+  padding: 12px;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+}
+.form-section button:hover {
+  background-color: #218838;
+}
+
+/* --- SỬA LỖI LAYOUT ĐĂNG NHẬP & ADMIN --- */
+
+/* 1. Reset lỗi do 'flex-direction: column' ở body cũ gây ra cho trang đăng nhập */
+.login-page-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  width: 100%;
+}
+
+/* 2. Ép buộc admin-container không bị ảnh hưởng bởi các cài đặt body chung */
+.admin-container {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+  align-items: stretch; /* Đảm bảo sidebar luôn cao bằng main-content */
+}
+
+/* 3. Tinh chỉnh sidebar để không bị co bóp */
+.sidebar {
+  width: 250px;
+  background: #343a40;
+  color: white;
+  padding: 20px;
+  flex-shrink: 0; /* Quan trọng: Ngăn không cho sidebar co lại */
+}
+
+/* 4. Đảm bảo main-content không bị đẩy vỡ nếu dữ liệu dài */
+.main-content {
+  flex: 1;
+  padding: 40px;
+  background: #f8f9fa;
+  min-width: 0; /* Quan trọng: Giúp flex container co giãn hợp lý */
+}

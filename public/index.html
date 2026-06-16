@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PaintSystem - Trang chủ</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>KhanhPaint</h1>
+      <nav id="navbar">
+        <a href="index.html">Trang chủ</a>
+        <span id="auth-actions">
+          <a href="login.html">Đăng nhập</a> |
+          <a href="register.html">Đăng ký</a>
+        </span>
+      </nav>
+    </header>
+
+    <main>
+      <p>Đây là trang mua sắm dành cho khách hàng.</p>
+    </main>
+
+    <script>
+      // Kiểm tra xem khách đã đăng nhập chưa
+      const token = localStorage.getItem("token");
+      if (token) {
+        document.getElementById("auth-actions").innerHTML =
+          `<button onclick="logout()">Đăng xuất</button>`;
+      }
+
+      function logout() {
+        localStorage.removeItem("token");
+        window.location.reload();
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="style.css" />
+    <title>Trang Quản Trị</title>
+  </head>
+  <body>
+    <div class="admin-container">
+      <div class="sidebar">
+        <h3>Quản trị hệ thống</h3>
+        <a class="menu-item" onclick="showSection('dashboard')"
+          >Bảng điều khiển</a
+        >
+        <a class="menu-item" onclick="showSection('add-job')"
+          >Tạo vị trí công việc</a
+        >
+        <a class="menu-item" onclick="showSection('add-employee')"
+          >Thêm nhân viên</a
+        >
+        <a class="menu-item" onclick="showSection('add-brand')"
+          >Quản lý Thương hiệu</a
+        >
+        <a class="menu-item" onclick="showSection('add-line')"
+          >Quản lý Dòng SP</a
+        >
+        <a class="menu-item" onclick="showSection('add-basetype')"
+          >Quản lý BaseTypes</a
+        >
+        <a class="menu-item" onclick="logout()" style="color: #ffcccc"
+          >Đăng xuất</a
+        >
+      </div>
+
+      <div class="main-content">
+        <div id="dashboard" class="content-section active">
+          <h2>Bảng điều khiển</h2>
+          <div id="admin-content">Đang tải dữ liệu hệ thống...</div>
+        </div>
+
+        <div id="add-job" class="content-section">
+          <h2>Tạo vị trí công việc</h2>
+          <div class="form-section">
+            <input
+              type="text"
+              id="jobTitle"
+              placeholder="Tên vị trí"
+              required
+            />
+            <input type="number" id="minSalary" placeholder="Lương tối thiểu" />
+            <input type="number" id="maxSalary" placeholder="Lương tối đa" />
+            <button onclick="createJob()">Lưu vị trí</button>
+          </div>
+        </div>
+
+        <div id="add-employee" class="content-section">
+          <h2>Thêm nhân viên mới</h2>
+          <div class="form-section">
+            <input
+              type="text"
+              id="full_name"
+              placeholder="Họ và tên"
+              required
+            />
+            <input type="email" id="email" placeholder="Email" required />
+            <input type="text" id="phone" placeholder="Số điện thoại" />
+            <input type="date" id="hire_date" />
+            <input type="password" id="password" placeholder="Mật khẩu" />
+            <select id="job_id">
+              <option value="">-- Chọn vị trí --</option>
+            </select>
+            <select id="role">
+              <option value="staff">Nhân viên</option>
+              <option value="admin">Admin</option>
+            </select>
+            <button onclick="createEmployee()">Tạo tài khoản</button>
+          </div>
+        </div>
+
+        <div id="add-brand" class="content-section">
+          <h2>Thêm Thương hiệu mới</h2>
+          <div class="form-section">
+            <input
+              type="text"
+              id="brandName"
+              placeholder="Tên thương hiệu"
+              required
+            />
+            <input type="text" id="brandOrigin" placeholder="Xuất xứ" />
+            <input type="text" id="brandDesc" placeholder="Mô tả" />
+            <button onclick="createBrand()">Lưu thương hiệu</button>
+          </div>
+        </div>
+
+        <div id="add-line" class="content-section">
+          <h2>Thêm Dòng sản phẩm mới</h2>
+          <div class="form-section">
+            <select id="brandSelect" required>
+              <option value="">-- Chọn thương hiệu --</option>
+            </select>
+            <input
+              type="text"
+              id="lineName"
+              placeholder="Tên dòng sản phẩm"
+              required
+            />
+            <select id="isInterior">
+              <option value="1">Nội thất</option>
+              <option value="0">Ngoại thất</option>
+            </select>
+            <input type="text" id="lineDesc" placeholder="Mô tả" />
+            <button onclick="createLine()">Lưu dòng sản phẩm</button>
+          </div>
+        </div>
+
+        <div id="add-basetype" class="content-section">
+          <h2>Thêm BaseType mới</h2>
+          <div class="form-section">
+            <select id="lineSelect" required>
+              <option value="">-- Chọn dòng sản phẩm --</option>
+            </select>
+            <input type="text" id="baseName" placeholder="Tên Base" required />
+            <input
+              type="number"
+              step="0.01"
+              id="coverageRate"
+              placeholder="Độ phủ (m²/l)"
+            />
+            <input type="text" id="dryingTime" placeholder="Thời gian khô" />
+            <input type="text" id="glossLevel" placeholder="Độ bóng" />
+            <input
+              type="text"
+              id="recommendedLayers"
+              placeholder="Số lớp khuyên dùng"
+            />
+            <button onclick="createBaseType()">Lưu BaseType</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const token = localStorage.getItem("token");
+      if (!token) window.location.href = "/admin-login.html";
+
+      function showSection(sectionId) {
+        document
+          .querySelectorAll(".content-section")
+          .forEach((sec) => sec.classList.remove("active"));
+        document.getElementById(sectionId).classList.add("active");
+      }
+
+      // Load dữ liệu ban đầu
+      async function initData() {
+        // Load Brands
+        const resB = await fetch("/api/products/brands", {
+          headers: { Authorization: "Bearer " + token },
+        });
+        const brands = await resB.json();
+        const brandSelect = document.getElementById("brandSelect");
+        brands.forEach(
+          (b) =>
+            (brandSelect.innerHTML += `<option value="${b.brand_id}">${b.name}</option>`),
+        );
+
+        // Load Lines
+        const resL = await fetch("/api/products/lines", {
+          headers: { Authorization: "Bearer " + token },
+        });
+        const lines = await resL.json();
+        const lineSelect = document.getElementById("lineSelect");
+        lines.forEach(
+          (l) =>
+            (lineSelect.innerHTML += `<option value="${l.line_id}">${l.name}</option>`),
+        );
+      }
+      initData();
+
+      async function createBrand() {
+        const brandData = {
+          name: document.getElementById("brandName").value,
+          origin: document.getElementById("brandOrigin").value,
+          description: document.getElementById("brandDesc").value,
+        };
+        const res = await fetch("/api/products/add-brand", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + token,
+          },
+          body: JSON.stringify(brandData),
+        });
+        if (res.ok) {
+          alert("Thêm thương hiệu thành công!");
+          location.reload();
+        } else {
+          alert("Lỗi khi thêm thương hiệu!");
+        }
+      }
+
+      async function createLine() {
+        const data = {
+          brand_id: document.getElementById("brandSelect").value,
+          name: document.getElementById("lineName").value,
+          is_interior: document.getElementById("isInterior").value,
+          description: document.getElementById("lineDesc").value,
+        };
+        const res = await fetch("/api/products/add-line", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + token,
+          },
+          body: JSON.stringify(data),
+        });
+        if (res.ok) {
+          alert("Đã thêm dòng sản phẩm!");
+          location.reload();
+        } else {
+          alert("Lỗi khi thêm dòng sản phẩm!");
+        }
+      }
+
+      async function createBaseType() {
+        const data = {
+          line_id: document.getElementById("lineSelect").value,
+          base_name: document.getElementById("baseName").value,
+          coverage_rate: document.getElementById("coverageRate").value,
+          drying_time: document.getElementById("dryingTime").value,
+          gloss_level: document.getElementById("glossLevel").value,
+          recommended_layers:
+            document.getElementById("recommendedLayers").value,
+        };
+        const res = await fetch("/api/products/add-basetype", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + token,
+          },
+          body: JSON.stringify(data),
+        });
+        if (res.ok) {
+          alert("Đã thêm BaseType!");
+          location.reload();
+        } else {
+          alert("Lỗi khi thêm BaseType!");
+        }
+      }
+
+      function logout() {
+        localStorage.removeItem("token");
+        window.location.href = "/admin-login.html";
+      }
+
+      // Các hàm loadJobs, createJob, createEmployee giữ nguyên...
+    </script>
+  </body>
+</html>
