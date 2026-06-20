@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/style.css" />
+    <title>Bảng điều khiển Admin</title>
+  </head>
+  <body>
+    <div class="admin-container">
+      <div id="admin-sidebar"></div>
+
+      <main class="main-content">
+        <div class="page-header">
+          <div>
+            <p class="eyebrow">Khu vực quản trị</p>
+            <h1>Bảng điều khiển</h1>
+          </div>
+          <div class="page-actions">
+            <a class="action-link" href="/admin/job-manage.html">Thêm vị trí</a>
+            <a class="action-link" href="/admin/brand-manage.html"
+              >Thêm thương hiệu</a
+            >
+          </div>
+        </div>
+
+        <div id="dashboard-summary" class="admin-card">
+          Đang tải dữ liệu hệ thống...
+        </div>
+      </main>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/admin-common.js"></script>
+    <script>
+      mountAdminSidebar("dashboard");
+      initAdminShell();
+      renderDashboardSummary("dashboard-summary");
+    </script>
+  </body>
+</html>

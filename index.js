@@ -17,14 +17,50 @@ app.use("/api/auth/public", require("./routes/client/auth"));
 // Khi gọi "/api/admin", nó sẽ nhảy vào file routes/admin/index.js
 app.use("/api/admin", require("./routes/admin"));
 
-// 3. Các routes khác
-//app.use("/api/orders", require("./routes/order"));
-//app.use("/api/products", require("./routes/admin/product"));
-
 // --- KẾT THÚC CẬP NHẬT ---
 
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
+  res.redirect("/client/index.html");
+});
+
+app.get("/client", (req, res) => {
+  res.redirect("/client/index.html");
+});
+
+app.get("/client/login", (req, res) => {
+  res.redirect("/client/login.html");
+});
+
+app.get("/client/register", (req, res) => {
+  res.redirect("/client/register.html");
+});
+
+app.get("/admin", (req, res) => {
+  res.redirect("/admin/index.html");
+});
+
+app.get("/admin/login", (req, res) => {
+  res.redirect("/admin/login.html");
+});
+
+app.get("/index.html", (req, res) => {
+  res.redirect("/client/index.html");
+});
+
+app.get("/login.html", (req, res) => {
+  res.redirect("/client/login.html");
+});
+
+app.get("/register.html", (req, res) => {
+  res.redirect("/client/register.html");
+});
+
+app.get("/admin.html", (req, res) => {
+  res.redirect("/admin/index.html");
+});
+
+app.get("/admin-login.html", (req, res) => {
+  res.redirect("/admin/login.html");
 });
 
 db.query("SELECT 1")

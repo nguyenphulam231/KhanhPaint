@@ -9,10 +9,14 @@ const API_ROUTES = {
   // Employees
   ADD_EMPLOYEE: "/api/admin/employees/add",
 
-  // Products (Brand, Line, BaseType)
-  GET_BRANDS: "/api/products/brands",
-  ADD_BRAND: "/api/products/add-brand",
-  ADD_LINE: "/api/products/add-line",
-  GET_LINES_BY_BRAND: "/api/products/lines-by-brand", // Gọi kèm id
-  ADD_BASETYPE: "/api/products/add-basetype",
+  // Products managed by admin
+  GET_BRANDS: "/api/admin/brands",
+  ADD_BRAND: "/api/admin/brands/add",
+  GET_LINES_BY_BRAND: "/api/admin/lines/by-brand",
+  ADD_LINE: "/api/admin/lines/add",
+  ADD_BASETYPE: "/api/admin/base/add",
+  GET_VARIANTS: "/api/admin/variants",
+  ADD_VARIANT: "/api/admin/variants/add",
+  UPDATE_VARIANT: "/api/admin/variants/update",
+  DELETE_VARIANT: "/api/admin/variants/delete",
 };

@@ -12,5 +12,9 @@ router.use(authenticate, authorizeAdmin);
 router.use("/dashboard", require("./dashboard"));
 router.use("/employees", require("./employee"));
 router.use("/jobs", require("./job"));
+router.use("/brands", require("./brand"));
+router.use("/lines", require("./line"));
+router.use("/base", require("./base"));
+router.use("/variants", require("./variant"));
 
 module.exports = router;

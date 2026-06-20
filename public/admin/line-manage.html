@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/style.css" />
+    <title>Quản lý dòng sản phẩm</title>
+  </head>
+  <body>
+    <div class="admin-container">
+      <div id="admin-sidebar"></div>
+
+      <main class="main-content">
+        <div class="page-header">
+          <div>
+            <p class="eyebrow">Quản trị sản phẩm</p>
+            <h1>Thêm dòng sản phẩm mới</h1>
+          </div>
+        </div>
+
+        <section class="admin-card">
+          <div class="form-section">
+            <select id="brandSelect" required>
+              <option value="">-- Chọn thương hiệu --</option>
+            </select>
+            <input
+              type="text"
+              id="lineName"
+              placeholder="Tên dòng sản phẩm"
+              required
+            />
+            <select id="isInterior">
+              <option value="1">Nội thất</option>
+              <option value="0">Ngoại thất</option>
+            </select>
+            <input
+              type="number"
+              step="0.01"
+              id="coverageRate"
+              placeholder="Độ phủ (m²/lít/lớp)"
+            />
+            <input
+              type="text"
+              id="dryingTime"
+              placeholder="Thời gian khô (VD: 1-2 giờ)"
+            />
+            <select id="glossLevel">
+              <option value="">-- Chọn độ bóng --</option>
+              <option value="Mờ">Mờ</option>
+              <option value="Vỏ trứng">Vỏ trứng</option>
+              <option value="Bóng nhẹ">Bóng nhẹ</option>
+              <option value="Bán bóng">Bán bóng</option>
+              <option value="Siêu bóng">Siêu bóng</option>
+            </select>
+            <input
+              type="text"
+              id="recommendedLayers"
+              placeholder="Số lớp khuyên dùng (VD: 2 lớp)"
+            />
+            <input type="text" id="lineDesc" placeholder="Mô tả" />
+            <button id="saveLineBtn" type="button">Lưu dòng sản phẩm</button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/admin-common.js"></script>
+    <script>
+      mountAdminSidebar("lines");
+      initAdminShell();
+      loadBrandsIntoSelect("brandSelect");
+
+      document
+        .getElementById("saveLineBtn")
+        .addEventListener("click", async () => {
+          const data = {
+            brand_id: document.getElementById("brandSelect").value,
+            name: document.getElementById("lineName").value,
+            is_interior: document.getElementById("isInterior").value,
+            coverage_rate: document.getElementById("coverageRate").value,
+            drying_time: document.getElementById("dryingTime").value,
+            gloss_level: document.getElementById("glossLevel").value,
+            recommended_layers:
+              document.getElementById("recommendedLayers").value,
+            description: document.getElementById("lineDesc").value,
+          };
+
+          const response = await fetch(API_ROUTES.ADD_LINE, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + getAdminToken(),
+            },
+            body: JSON.stringify(data),
+          });
+
+          const result = await response.json().catch(() => null);
+
+          if (response.ok && result?.success) {
+            alert("Đã thêm dòng sản phẩm!");
+            window.location.href = "/admin/";
+            return;
+          }
+
+          alert(result?.error || "Lỗi khi thêm dòng sản phẩm!");
+        });
+    </script>
+  </body>
+</html>
