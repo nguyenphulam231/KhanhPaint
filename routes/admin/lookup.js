@@ -352,6 +352,7 @@ router.get("/customers/:customer_id/orders", async (req, res) => {
         o.order_id,
         o.order_date,
         o.total_amount,
+        o.payment_method,
         o.status,
         sales.full_name AS sales_rep_name,
         tech.full_name AS tech_name,
@@ -361,7 +362,7 @@ router.get("/customers/:customer_id/orders", async (req, res) => {
        LEFT JOIN employees tech ON o.tech_id = tech.employee_id
        LEFT JOIN orderdetails od ON o.order_id = od.order_id
        WHERE o.customer_id = ?
-       GROUP BY o.order_id, o.order_date, o.total_amount, o.status, sales.full_name, tech.full_name
+       GROUP BY o.order_id, o.order_date, o.total_amount, o.payment_method, o.status, sales.full_name, tech.full_name
        ORDER BY o.order_date DESC`,
       [req.params.customer_id]
     );
@@ -408,6 +409,7 @@ router.get("/orders", async (req, res) => {
         o.order_id,
         o.order_date,
         o.total_amount,
+        o.payment_method,
         o.status,
         c.customer_id,
         c.name AS customer_name,
@@ -423,7 +425,7 @@ router.get("/orders", async (req, res) => {
        LEFT JOIN shifts s ON o.shift_id = s.shift_id
        LEFT JOIN orderdetails od ON o.order_id = od.order_id
        ${where}
-       GROUP BY o.order_id, o.order_date, o.total_amount, o.status, c.customer_id, c.name, c.phone, sales.full_name, tech.full_name, s.shift_name
+       GROUP BY o.order_id, o.order_date, o.total_amount, o.payment_method, o.status, c.customer_id, c.name, c.phone, sales.full_name, tech.full_name, s.shift_name
        ORDER BY o.order_date DESC
        LIMIT ${limit}`,
       params
@@ -442,6 +444,7 @@ router.get("/orders/:order_id", async (req, res) => {
         o.order_id,
         o.order_date,
         o.total_amount,
+        o.payment_method,
         o.status,
         c.customer_id,
         c.name AS customer_name,

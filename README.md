@@ -12,8 +12,29 @@ Project demo quản lý đại lý sơn KhanhPaint bằng Node.js, Express và M
   - Tinh màu theo ml.
 - Tra cứu mã màu và công thức pha màu theo lượng tinh màu.
 - Tra cứu khách hàng, công nợ và lịch sử mua hàng.
-- Tra cứu đơn hàng và xem chi tiết hóa đơn.
+- Tra cứu đơn hàng, xem chi tiết hóa đơn và log tồn kho.
+- Tạo đơn hàng mới bằng transaction.
+- Trigger trong database tự động:
+  - Kiểm tra base của mã màu có tương thích với sản phẩm hay không.
+  - Kiểm tra tồn kho sơn gốc và tinh màu.
+  - Trừ tồn kho ProductVariants.
+  - Trừ stock_ml của Colorants theo công thức.
+  - Tính total_amount của Orders.
+  - Cập nhật current_debt khi bán công nợ.
+  - Ghi inventory_logs để truy vết biến động kho.
 - Báo cáo doanh thu, top sản phẩm bán chạy, top mã màu được pha nhiều.
+
+## Kỹ thuật database đã dùng
+
+- Primary Key, Foreign Key.
+- Quan hệ 1-N và N-N.
+- Bảng trung gian: `orderdetails`, `colorsystem_colorants`, `employees_shifts`.
+- CHECK constraint cho số lượng, giá tiền, công nợ, role, trạng thái đơn hàng.
+- UNIQUE constraint cho email, SKU, mã màu, tên brand.
+- INDEX cho các khóa ngoại và trường tìm kiếm.
+- VIEW: `v_product_inventory`, `v_order_summary`.
+- TRIGGER: tự động xử lý tồn kho kép và log giao dịch.
+- TRANSACTION trong API tạo đơn hàng.
 
 ## Cài đặt
 
@@ -56,7 +77,7 @@ source C:/Users/LENOVO/OneDrive/Desktop/dtb/prj/KhanhPaint/khanhpaintdealerdatab
 
 Hoặc dùng MySQL Workbench: mở file `khanhpaintdealerdatabase.sql` rồi chạy toàn bộ script.
 
-File SQL đã có dữ liệu mẫu để demo dashboard, tồn kho, công thức màu, đơn hàng và báo cáo.
+File SQL đã có dữ liệu mẫu để demo dashboard, tồn kho, công thức màu, đơn hàng, trigger, log kho và báo cáo.
 
 ## Tạo admin đầu tiên
 
@@ -81,6 +102,17 @@ Trang admin:
 ```text
 http://localhost:3000/admin/login.html
 ```
+
+## Luồng demo đề xuất
+
+1. Đăng nhập admin.
+2. Mở Dashboard để xem tổng quan.
+3. Vào Tồn kho kép để xem tồn sơn gốc và tinh màu.
+4. Vào Công thức màu để tra cứu mã màu.
+5. Vào Đơn hàng để tạo đơn hàng mới.
+6. Mở chi tiết đơn hàng để xem tổng tiền, dòng hàng và log tồn kho do trigger sinh ra.
+7. Quay lại Tồn kho để thấy số lượng đã bị trừ.
+8. Vào Khách hàng & công nợ để xem công nợ nếu đơn hàng thanh toán bằng debt.
 
 ## Lưu ý
 

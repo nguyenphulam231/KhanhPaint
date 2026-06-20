@@ -610,3 +610,82 @@ tr:hover td {
     background: #fff;
   }
 }
+
+/* Order transaction form */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.form-grid.four-cols {
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+}
+
+.form-grid label,
+.order-item-row label {
+  display: grid;
+  gap: 7px;
+  color: #495057;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.form-grid input,
+.form-grid select,
+.order-item-row input,
+.order-item-row select {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 10px;
+  background: white;
+  box-sizing: border-box;
+}
+
+.compact-row {
+  margin-top: 10px;
+}
+
+.order-items {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.order-item-row {
+  display: grid;
+  grid-template-columns: minmax(240px, 1.5fr) minmax(220px, 1fr) 110px auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid #e9ecef;
+  background: #f8f9fa;
+  border-radius: 12px;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.message-panel.success {
+  background: #ebfbee;
+  color: #2b8a3e;
+  border-color: #b7e4c7;
+}
+
+.subsection-heading {
+  margin-top: 22px;
+  margin-bottom: 10px;
+  font-size: 18px;
+  color: #343a40;
+}
+
+@media (max-width: 900px) {
+  .order-item-row {
+    grid-template-columns: 1fr;
+  }
+}

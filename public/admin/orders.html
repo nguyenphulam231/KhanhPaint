@@ -13,12 +13,70 @@
         <div class="page-header">
           <div>
             <p class="eyebrow">Sales & CRM</p>
-            <h1>Tra cứu đơn hàng</h1>
-            <p class="page-subtitle">Xem danh sách đơn hàng, chi tiết hóa đơn và dữ liệu truy vết nhân viên.</p>
+            <h1>Đơn hàng & nghiệp vụ bán sơn</h1>
+            <p class="page-subtitle">Tạo đơn hàng bằng transaction; trigger trong database tự tính tổng tiền, trừ tồn kho sơn gốc, trừ tinh màu và ghi log.</p>
           </div>
         </div>
 
         <section class="content-card">
+          <div class="section-title-row">
+            <h2>Tạo đơn hàng mới</h2>
+            <span class="badge success">Transaction + Trigger</span>
+          </div>
+
+          <div id="createOrderMessage"></div>
+
+          <form id="createOrderForm" class="order-form">
+            <div class="form-grid four-cols">
+              <label>
+                Khách hàng
+                <select id="customerSelect" required></select>
+              </label>
+              <label>
+                Nhân viên bán hàng
+                <select id="salesRepSelect"></select>
+              </label>
+              <label>
+                Kỹ thuật viên pha màu
+                <select id="techSelect"></select>
+              </label>
+              <label>
+                Ca làm việc
+                <select id="shiftSelect"></select>
+              </label>
+              <label>
+                Thanh toán
+                <select id="paymentMethod">
+                  <option value="cash">Tiền mặt</option>
+                  <option value="debt">Ghi công nợ</option>
+                </select>
+              </label>
+              <label>
+                Trạng thái
+                <select id="newOrderStatus">
+                  <option value="completed">completed</option>
+                  <option value="pending">pending</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="section-title-row compact-row">
+              <h3>Dòng sản phẩm</h3>
+              <button class="mini-btn" type="button" onclick="addOrderItemRow()">+ Thêm dòng</button>
+            </div>
+
+            <div id="orderItems" class="order-items"></div>
+
+            <div class="form-actions">
+              <button class="secondary-btn" type="submit">Tạo đơn hàng</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="content-card">
+          <div class="section-title-row">
+            <h2>Tra cứu đơn hàng</h2>
+          </div>
           <div class="toolbar wide">
             <input id="orderSearch" type="search" placeholder="Tìm mã đơn, tên KH, SĐT, email..." />
             <input id="dateFrom" type="date" />
@@ -50,12 +108,149 @@
       mountAdminSidebar("orders");
       initAdminShell();
 
+      let orderOptions = { customers: [], employees: [], shifts: [], variants: [], colors: [] };
+      let orderRowCounter = 0;
+
+      function optionTextForCustomer(customer) {
+        const debtInfo = `${formatCurrency(customer.current_debt)} / ${formatCurrency(customer.credit_limit)}`;
+        return `${customer.name} - ${customer.phone || customer.email || ""} - Nợ: ${debtInfo}`;
+      }
+
+      function optionTextForVariant(variant) {
+        return `${variant.brand_name} / ${variant.line_name} / ${variant.base_name} ${variant.volume || ""} - ${variant.sku_code} - ${formatCurrency(variant.unit_price)} - tồn ${variant.stock_quantity}`;
+      }
+
+      function optionTextForColor(color) {
+        return `${color.color_code} - ${color.color_name} (${color.base_name})`;
+      }
+
+      function setOptions(select, options, placeholder, valueKey, labelFn) {
+        select.innerHTML = "";
+        const placeholderOption = document.createElement("option");
+        placeholderOption.value = "";
+        placeholderOption.textContent = placeholder;
+        select.appendChild(placeholderOption);
+
+        options.forEach((item) => {
+          const option = document.createElement("option");
+          option.value = item[valueKey];
+          option.textContent = typeof labelFn === "function" ? labelFn(item) : item[labelFn];
+          select.appendChild(option);
+        });
+      }
+
+      async function loadOrderOptions() {
+        orderOptions = await apiRequest(API_ROUTES.GET_ORDER_OPTIONS);
+
+        setOptions(document.getElementById("customerSelect"), orderOptions.customers, "-- Chọn khách hàng --", "customer_id", optionTextForCustomer);
+        setOptions(document.getElementById("salesRepSelect"), orderOptions.employees, "-- Chọn nhân viên bán --", "employee_id", (employee) => `${employee.full_name} - ${employee.job_title || employee.role}`);
+        setOptions(document.getElementById("techSelect"), orderOptions.employees, "-- Chọn kỹ thuật viên --", "employee_id", (employee) => `${employee.full_name} - ${employee.job_title || employee.role}`);
+        setOptions(document.getElementById("shiftSelect"), orderOptions.shifts, "-- Chọn ca --", "shift_id", (shift) => `${shift.shift_name} (${shift.start_time} - ${shift.end_time})`);
+      }
+
+      function addOrderItemRow(defaultValues = {}) {
+        orderRowCounter += 1;
+        const rowId = `order-row-${orderRowCounter}`;
+        const row = document.createElement("div");
+        row.className = "order-item-row";
+        row.id = rowId;
+        row.innerHTML = `
+          <select class="variant-select" required></select>
+          <select class="color-select" required></select>
+          <input class="quantity-input" type="number" min="1" step="1" value="${escapeHtml(defaultValues.quantity || 1)}" required />
+          <button class="mini-btn warning-outline" type="button" onclick="removeOrderItemRow('${rowId}')">Xóa</button>
+        `;
+
+        document.getElementById("orderItems").appendChild(row);
+
+        const variantSelect = row.querySelector(".variant-select");
+        const colorSelect = row.querySelector(".color-select");
+        setOptions(variantSelect, orderOptions.variants, "-- Chọn sản phẩm/SKU --", "variant_id", optionTextForVariant);
+
+        variantSelect.addEventListener("change", () => updateColorOptionsForRow(row));
+
+        if (defaultValues.variant_id) {
+          variantSelect.value = String(defaultValues.variant_id);
+        }
+
+        updateColorOptionsForRow(row);
+
+        if (defaultValues.color_id) {
+          colorSelect.value = String(defaultValues.color_id);
+        }
+      }
+
+      function updateColorOptionsForRow(row) {
+        const variantSelect = row.querySelector(".variant-select");
+        const colorSelect = row.querySelector(".color-select");
+        const selectedVariant = orderOptions.variants.find((variant) => String(variant.variant_id) === String(variantSelect.value));
+        const colors = selectedVariant
+          ? orderOptions.colors.filter((color) => Number(color.base_id) === Number(selectedVariant.base_id))
+          : orderOptions.colors;
+
+        setOptions(colorSelect, colors, selectedVariant ? "-- Chọn mã màu tương thích --" : "-- Chọn sản phẩm trước --", "color_id", optionTextForColor);
+      }
+
+      function removeOrderItemRow(rowId) {
+        const rows = document.querySelectorAll(".order-item-row");
+        if (rows.length <= 1) {
+          showInlineMessage("createOrderMessage", "Đơn hàng cần ít nhất một dòng sản phẩm.", "error");
+          return;
+        }
+        document.getElementById(rowId)?.remove();
+      }
+
+      function collectOrderPayload() {
+        const items = Array.from(document.querySelectorAll(".order-item-row")).map((row) => ({
+          variant_id: row.querySelector(".variant-select").value,
+          color_id: row.querySelector(".color-select").value,
+          quantity: row.querySelector(".quantity-input").value,
+        }));
+
+        return {
+          customer_id: document.getElementById("customerSelect").value,
+          sales_rep_id: document.getElementById("salesRepSelect").value || null,
+          tech_id: document.getElementById("techSelect").value || null,
+          shift_id: document.getElementById("shiftSelect").value || null,
+          payment_method: document.getElementById("paymentMethod").value,
+          status: document.getElementById("newOrderStatus").value,
+          items,
+        };
+      }
+
+      function showInlineMessage(targetId, message, type = "info") {
+        const target = document.getElementById(targetId);
+        if (!target) return;
+        target.innerHTML = `<div class="message-panel ${type}">${escapeHtml(message)}</div>`;
+      }
+
+      async function createOrder(event) {
+        event.preventDefault();
+        try {
+          const data = await apiRequest(API_ROUTES.CREATE_ORDER, {
+            method: "POST",
+            body: JSON.stringify(collectOrderPayload()),
+          });
+
+          showInlineMessage("createOrderMessage", data.message || "Tạo đơn hàng thành công.", "success");
+          document.getElementById("createOrderForm").reset();
+          document.getElementById("orderItems").innerHTML = "";
+          await loadOrderOptions();
+          addOrderItemRow();
+          await loadOrders();
+          document.getElementById("orderDetail").innerHTML = renderOrderDetail(data);
+          document.getElementById("orderDetailCard").scrollIntoView({ behavior: "smooth" });
+        } catch (error) {
+          showInlineMessage("createOrderMessage", error.message, "error");
+        }
+      }
+
       function renderOrders(rows) {
         if (!rows.length) return '<div class="empty-state">Không có đơn hàng phù hợp.</div>';
         return `
           <table>
             <thead>
-              <tr><th>Mã đơn</th><th>Ngày</th><th>Khách hàng</th><th>NV bán</th><th>Kỹ thuật</th><th>SL dòng</th><th>Tổng tiền</th><th>Trạng thái</th><th></th></tr>
+              <tr><th>Mã đơn</th><th>Ngày</th><th>Khách hàng</th><th>NV bán</th><th>Kỹ thuật</th><th>SL dòng</th><th>Tổng tiền</th><th>Thanh toán</th><th>Trạng thái</th><th></th></tr>
             </thead>
             <tbody>
               ${rows.map((item) => `
@@ -67,6 +262,7 @@
                   <td>${escapeHtml(item.tech_name || "-")}</td>
                   <td>${escapeHtml(item.item_count)}</td>
                   <td>${formatCurrency(item.total_amount)}</td>
+                  <td><span class="badge ${item.payment_method === "debt" ? "warning" : "success"}">${escapeHtml(item.payment_method || "cash")}</span></td>
                   <td><span class="badge neutral">${escapeHtml(item.status)}</span></td>
                   <td><button class="mini-btn" onclick="loadOrderDetail(${Number(item.order_id)})">Xem</button></td>
                 </tr>`).join("")}
@@ -77,12 +273,14 @@
       function renderOrderDetail(data) {
         const order = data.order;
         const details = data.details || [];
+        const logs = data.logs || [];
         return `
           <div class="invoice-header">
             <div>
               <p class="eyebrow">KHANHPAINT INVOICE</p>
               <h2>Đơn hàng #${escapeHtml(order.order_id)}</h2>
               <p>Ngày tạo: ${formatDateTime(order.order_date)}</p>
+              <p>Thanh toán: <strong>${escapeHtml(order.payment_method || "cash")}</strong> · Trạng thái: <strong>${escapeHtml(order.status)}</strong></p>
             </div>
             <div class="invoice-total">${formatCurrency(order.total_amount)}</div>
           </div>
@@ -105,6 +303,23 @@
                     <td>${formatCurrency(item.price_at_sale)}</td>
                     <td>${formatCurrency(item.line_total)}</td>
                   </tr>`).join("") || '<tr><td colspan="6">Đơn hàng chưa có dòng chi tiết.</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+          <h3 class="subsection-heading">Log tồn kho do trigger sinh ra</h3>
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>Loại log</th><th>Variant</th><th>Colorant</th><th>SL thay đổi</th><th>ML thay đổi</th><th>Ghi chú</th></tr></thead>
+              <tbody>
+                ${logs.map((log) => `
+                  <tr>
+                    <td>${escapeHtml(log.movement_type)}</td>
+                    <td>${escapeHtml(log.variant_id || "-")}</td>
+                    <td>${escapeHtml(log.colorant_id || "-")}</td>
+                    <td>${escapeHtml(log.quantity_change ?? "-")}</td>
+                    <td>${log.ml_change === null || log.ml_change === undefined ? "-" : formatNumber(log.ml_change, " ml")}</td>
+                    <td>${escapeHtml(log.note || "")}</td>
+                  </tr>`).join("") || '<tr><td colspan="6">Chưa có log tồn kho.</td></tr>'}
               </tbody>
             </table>
           </div>`;
@@ -134,7 +349,18 @@
         }
       }
 
-      loadOrders();
+      async function initPage() {
+        try {
+          await loadOrderOptions();
+          addOrderItemRow();
+          await loadOrders();
+          document.getElementById("createOrderForm").addEventListener("submit", createOrder);
+        } catch (error) {
+          showInlineMessage("createOrderMessage", error.message, "error");
+        }
+      }
+
+      initPage();
     </script>
   </body>
 </html>
