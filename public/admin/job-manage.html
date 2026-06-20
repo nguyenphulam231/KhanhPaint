@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/style.css" />
+    <title>Quản lý vị trí công việc</title>
+  </head>
+  <body>
+    <div class="admin-container">
+      <div id="admin-sidebar"></div>
+
+      <main class="main-content">
+        <div class="page-header">
+          <div>
+            <p class="eyebrow">Quản trị nhân sự</p>
+            <h1>Tạo vị trí công việc</h1>
+          </div>
+        </div>
+
+        <section class="admin-card">
+          <div class="form-section">
+            <input
+              type="text"
+              id="jobTitle"
+              placeholder="Tên vị trí"
+              required
+            />
+            <input type="number" id="minSalary" placeholder="Lương tối thiểu" />
+            <input type="number" id="maxSalary" placeholder="Lương tối đa" />
+            <button id="saveJobBtn" type="button">Lưu vị trí</button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/admin-common.js"></script>
+    <script>
+      mountAdminSidebar("jobs");
+      initAdminShell();
+
+      document
+        .getElementById("saveJobBtn")
+        .addEventListener("click", async () => {
+          const jobData = {
+            job_title: document.getElementById("jobTitle").value,
+            min_salary: document.getElementById("minSalary").value,
+            max_salary: document.getElementById("maxSalary").value,
+          };
+
+          const response = await fetch(API_ROUTES.ADD_JOB, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + getAdminToken(),
+            },
+            body: JSON.stringify(jobData),
+          });
+
+          if (response.ok) {
+            alert("Đã thêm vị trí!");
+            window.location.href = "/admin/";
+            return;
+          }
+
+          alert("Lỗi server khi tạo vị trí!");
+        });
+    </script>
+  </body>
+</html>

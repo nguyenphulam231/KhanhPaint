@@ -4,16 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>PaintSystem - Trang chủ</title>
-    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="/style.css" />
   </head>
   <body>
     <header>
       <h1>KhanhPaint</h1>
       <nav id="navbar">
-        <a href="index.html">Trang chủ</a>
+        <a href="/client/">Trang chủ</a>
         <span id="auth-actions">
-          <a href="login.html">Đăng nhập</a> |
-          <a href="register.html">Đăng ký</a>
+          <a href="/client/login">Đăng nhập</a> |
+          <a href="/client/register">Đăng ký</a>
         </span>
       </nav>
     </header>
@@ -23,7 +23,6 @@
     </main>
 
     <script>
-      // Kiểm tra xem khách đã đăng nhập chưa
       const token = localStorage.getItem("token");
       if (token) {
         document.getElementById("auth-actions").innerHTML =

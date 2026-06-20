@@ -29,6 +29,7 @@ app.use((err, req, res, next) => {
 db.query("SELECT 1")
   .then(() => {
     console.log("Kết nối Database thành công!");
+
     app.listen(PORT, () => {
       console.log(`Server đang chạy tại: http://localhost:${PORT}`);
     });

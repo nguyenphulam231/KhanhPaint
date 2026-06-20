@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/style.css" />
+    <title>Quản lý thương hiệu</title>
+  </head>
+  <body>
+    <div class="admin-container">
+      <div id="admin-sidebar"></div>
+
+      <main class="main-content">
+        <div class="page-header">
+          <div>
+            <p class="eyebrow">Quản trị sản phẩm</p>
+            <h1>Thêm thương hiệu mới</h1>
+          </div>
+        </div>
+
+        <section class="admin-card">
+          <div class="form-section">
+            <input
+              type="text"
+              id="brandName"
+              placeholder="Tên thương hiệu"
+              required
+            />
+            <input type="text" id="brandOrigin" placeholder="Xuất xứ" />
+            <input type="text" id="brandDesc" placeholder="Mô tả" />
+            <button id="saveBrandBtn" type="button">Lưu thương hiệu</button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/admin-common.js"></script>
+    <script>
+      mountAdminSidebar("brands");
+      initAdminShell();
+
+      document
+        .getElementById("saveBrandBtn")
+        .addEventListener("click", async () => {
+          const brandData = {
+            name: document.getElementById("brandName").value,
+            origin: document.getElementById("brandOrigin").value,
+            description: document.getElementById("brandDesc").value,
+          };
+
+          const response = await fetch(API_ROUTES.ADD_BRAND, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + getAdminToken(),
+            },
+            body: JSON.stringify(brandData),
+          });
+
+          if (response.ok) {
+            alert("Thêm thương hiệu thành công!");
+            window.location.href = "/admin/";
+            return;
+          }
+
+          alert("Lỗi khi thêm thương hiệu!");
+        });
+    </script>
+  </body>
+</html>

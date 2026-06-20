@@ -3,24 +3,30 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" href="style.css" />
-    <title>Đăng nhập</title>
+    <title>Đăng nhập Nội bộ</title>
+    <link rel="stylesheet" href="/style.css" />
   </head>
   <body>
     <div class="login-page-wrapper">
       <div class="login-container">
         <form id="loginForm">
-          <h2>Đăng nhập</h2>
-          <input type="email" id="email" placeholder="Email" required />
+          <h2>Đăng nhập Nội bộ</h2>
+          <input
+            type="email"
+            id="email"
+            placeholder="Email nhân viên"
+            required
+          />
           <input
             type="password"
             id="password"
             placeholder="Mật khẩu"
             required
           />
-          <button type="submit">Đăng nhập</button>
+          <button type="submit">Đăng nhập Quản trị</button>
+
           <p style="text-align: center; margin-top: 15px">
-            Chưa có tài khoản? <a href="register.html">Đăng ký ngay</a>
+            <a href="/client/">Quay lại trang khách hàng</a>
           </p>
           <p id="message"></p>
         </form>
@@ -32,38 +38,27 @@
         .getElementById("loginForm")
         .addEventListener("submit", async (e) => {
           e.preventDefault();
-
           const email = document.getElementById("email").value;
           const password = document.getElementById("password").value;
           const message = document.getElementById("message");
 
           try {
-            const response = await fetch("/api/auth/public/login", {
+            const response = await fetch("/api/auth/admin/login", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ email, password, type: "customer" }),
+              body: JSON.stringify({ email, password, type: "employee" }),
             });
 
             const data = await response.json();
 
             if (response.ok) {
-              // Lưu token để các trang khác như admin.html dùng để xác thực
               localStorage.setItem("token", data.token);
-
-              message.style.color = "green";
-              message.innerText = "Đăng nhập thành công! Đang chuyển hướng...";
-
-              // Chuyển hướng đến chính
-              window.location.href = "/index.html";
+              window.location.href = "/admin/";
             } else {
-              message.style.color = "red";
-              message.innerText =
-                data.message || "Email hoặc mật khẩu không chính xác!";
+              message.innerText = data.error || "Đăng nhập thất bại!";
             }
-          } catch (error) {
-            message.style.color = "red";
-            message.innerText = "Lỗi kết nối máy chủ!";
-            console.error("Login error:", error);
+          } catch (err) {
+            message.innerText = "Lỗi kết nối tới máy chủ.";
           }
         });
     </script>
