@@ -2,91 +2,125 @@ const express = require("express");
 const router = express.Router();
 const db = require("../../db");
 
-// Lấy toàn bộ danh sách sản phẩm (Product Variants)
+function toNullWhenEmpty(value) {
+  return value === "" || value === undefined ? null : value;
+}
+
 router.get("/", async (req, res) => {
   try {
     const [rows] = await db.query(`
-            SELECT p.sku_code, b.base_name, pl.name as line_name, p.unit_price 
-            FROM ProductVariants p
-            JOIN BaseTypes b ON p.base_id = b.base_id
-            JOIN ProductLines pl ON b.line_id = pl.line_id
-        `);
+      SELECT
+        pv.variant_id,
+        pv.sku_code,
+        b.name AS brand_name,
+        pl.name AS line_name,
+        bt.base_name,
+        pv.volume,
+        pv.unit_price,
+        pv.stock_quantity,
+        pv.warehouse_location
+      FROM productvariants pv
+      JOIN basetypes bt ON pv.base_id = bt.base_id
+      JOIN productlines pl ON bt.line_id = pl.line_id
+      JOIN brands b ON pl.brand_id = b.brand_id
+      ORDER BY b.name, pl.name, bt.base_name, pv.volume
+    `);
     res.json(rows);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("Get products error:", err);
+    res.status(500).json({ error: "Lỗi tải sản phẩm." });
   }
 });
 
-// Thêm vào routes/product.js
 router.post("/add-brand", async (req, res) => {
-  const { name, origin, description } = req.body;
+  const name = String(req.body.name || "").trim();
+  const origin = toNullWhenEmpty(String(req.body.origin || "").trim());
+  const description = toNullWhenEmpty(String(req.body.description || "").trim());
+
+  if (!name) {
+    return res.status(400).json({ error: "Tên thương hiệu không được để trống." });
+  }
+
   try {
-    const sql =
-      "INSERT INTO brands (name, origin, description) VALUES (?, ?, ?)";
-    await db.execute(sql, [name, origin, description]);
-    res.status(200).json({ message: "Thêm thương hiệu thành công!" });
+    await db.execute(
+      "INSERT INTO brands (name, origin, description) VALUES (?, ?, ?)",
+      [name, origin, description]
+    );
+    res.status(201).json({ message: "Thêm thương hiệu thành công!" });
   } catch (err) {
-    console.error(err);
+    console.error("Create brand error:", err);
     res.status(500).json({ error: "Lỗi thêm thương hiệu." });
   }
 });
 
-// Lấy danh sách thương hiệu để đổ vào dropdown
 router.get("/brands", async (req, res) => {
   try {
-    const [rows] = await db.execute("SELECT brand_id, name FROM brands");
+    const [rows] = await db.execute(
+      "SELECT brand_id, name FROM brands ORDER BY name"
+    );
     res.json(rows);
   } catch (err) {
-    res.status(500).json({ error: "Lỗi tải thương hiệu" });
+    console.error("Get brands error:", err);
+    res.status(500).json({ error: "Lỗi tải thương hiệu." });
   }
 });
 
-// Lưu ProductLine
 router.post("/add-line", async (req, res) => {
-  const { brand_id, name, is_interior, description } = req.body;
+  const brand_id = req.body.brand_id;
+  const name = String(req.body.name || "").trim();
+  const is_interior = Number(req.body.is_interior) === 1 ? 1 : 0;
+  const description = toNullWhenEmpty(String(req.body.description || "").trim());
+
+  if (!brand_id || !name) {
+    return res.status(400).json({ error: "Vui lòng chọn thương hiệu và nhập tên dòng sản phẩm." });
+  }
+
   try {
-    const sql =
-      "INSERT INTO productlines (brand_id, name, is_interior, description) VALUES (?, ?, ?, ?)";
-    await db.execute(sql, [brand_id, name, is_interior, description]);
-    res.status(200).json({ message: "Thêm dòng sản phẩm thành công!" });
+    await db.execute(
+      "INSERT INTO productlines (brand_id, name, is_interior, description) VALUES (?, ?, ?, ?)",
+      [brand_id, name, is_interior, description]
+    );
+    res.status(201).json({ message: "Thêm dòng sản phẩm thành công!" });
   } catch (err) {
+    console.error("Create product line error:", err);
     res.status(500).json({ error: "Lỗi thêm dòng sản phẩm." });
   }
 });
 
-// Lấy danh sách Dòng sản phẩm (để chọn khi thêm BaseType)
 router.get("/lines", async (req, res) => {
   try {
-    const [rows] = await db.execute("SELECT line_id, name FROM productlines");
+    const [rows] = await db.execute(
+      "SELECT line_id, brand_id, name FROM productlines ORDER BY name"
+    );
     res.json(rows);
   } catch (err) {
-    res.status(500).json({ error: "Lỗi tải dòng sản phẩm" });
+    console.error("Get lines error:", err);
+    res.status(500).json({ error: "Lỗi tải dòng sản phẩm." });
   }
 });
 
-// Lưu BaseType mới
 router.post("/add-basetype", async (req, res) => {
-  const {
-    line_id,
-    base_name,
-    coverage_rate,
-    drying_time,
-    gloss_level,
-    recommended_layers,
-  } = req.body;
+  const line_id = req.body.line_id;
+  const base_name = String(req.body.base_name || "").trim();
+  const coverage_rate = toNullWhenEmpty(req.body.coverage_rate);
+  const drying_time = toNullWhenEmpty(String(req.body.drying_time || "").trim());
+  const gloss_level = toNullWhenEmpty(String(req.body.gloss_level || "").trim());
+  const recommended_layers = toNullWhenEmpty(String(req.body.recommended_layers || "").trim());
+
+  if (!line_id || !base_name) {
+    return res.status(400).json({ error: "Vui lòng chọn dòng sản phẩm và nhập tên base." });
+  }
+
   try {
-    const sql = `INSERT INTO basetypes (line_id, base_name, coverage_rate, drying_time, gloss_level, recommended_layers) 
-                     VALUES (?, ?, ?, ?, ?, ?)`;
-    await db.execute(sql, [
-      line_id,
-      base_name,
-      coverage_rate,
-      drying_time,
-      gloss_level,
-      recommended_layers,
-    ]);
-    res.status(200).json({ message: "Thêm BaseType thành công!" });
+    await db.execute(
+      `INSERT INTO basetypes
+       (line_id, base_name, coverage_rate, drying_time, gloss_level, recommended_layers)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [line_id, base_name, coverage_rate, drying_time, gloss_level, recommended_layers]
+    );
+    res.status(201).json({ message: "Thêm BaseType thành công!" });
   } catch (err) {
+    console.error("Create base type error:", err);
     res.status(500).json({ error: "Lỗi thêm BaseType." });
   }
 });
@@ -94,12 +128,13 @@ router.post("/add-basetype", async (req, res) => {
 router.get("/lines-by-brand/:brand_id", async (req, res) => {
   try {
     const [rows] = await db.execute(
-      "SELECT line_id, name FROM productlines WHERE brand_id = ?",
-      [req.params.brand_id],
+      "SELECT line_id, name FROM productlines WHERE brand_id = ? ORDER BY name",
+      [req.params.brand_id]
     );
     res.json(rows);
   } catch (err) {
-    res.status(500).json({ error: "Lỗi tải dòng sản phẩm" });
+    console.error("Get lines by brand error:", err);
+    res.status(500).json({ error: "Lỗi tải dòng sản phẩm." });
   }
 });
 

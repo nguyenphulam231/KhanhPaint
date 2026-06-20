@@ -3,79 +3,107 @@ const router = express.Router();
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const db = require("../../db");
+const { JWT_SECRET, JWT_EXPIRES_IN } = require("../../config/auth");
 
-const SECRET_KEY = "your_secret_key_sieu_bi_mat";
+function normalizeEmail(email) {
+  return String(email || "").trim().toLowerCase();
+}
 
-// --- ĐĂNG NHẬP KHÁCH HÀNG ---
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
 router.post("/login", async (req, res) => {
-  const { email, password, type } = req.body;
+  const email = normalizeEmail(req.body.email);
+  const password = String(req.body.password || "");
+  const type = req.body.type;
 
-  if (!type || type !== "customer") {
+  if (type !== "customer") {
     return res.status(400).json({ error: "Loại tài khoản không hợp lệ!" });
   }
 
-  const table = "Customers";
-  const idField = "customer_id";
+  if (!email || !password) {
+    return res.status(400).json({ error: "Vui lòng nhập email và mật khẩu!" });
+  }
 
   try {
-    const [rows] = await db.query(`SELECT * FROM ${table} WHERE email = ?`, [
-      email,
-    ]);
+    const [rows] = await db.query(
+      "SELECT customer_id, name, email, password_hash, role FROM customers WHERE email = ? LIMIT 1",
+      [email]
+    );
 
-    if (rows.length === 0)
-      return res.status(401).json({ error: "Email không tồn tại!" });
+    if (rows.length === 0 || !rows[0].password_hash) {
+      return res.status(401).json({ error: "Email hoặc mật khẩu không chính xác!" });
+    }
 
     const user = rows[0];
     const match = await bcrypt.compare(password, user.password_hash);
 
-    if (match) {
-      const payload = {
-        id: user[idField],
-        email: user.email,
-        role: user.role || "customer",
-        type: type,
-      };
-
-      const token = jwt.sign(payload, SECRET_KEY, { expiresIn: "1h" });
-
-      res.json({
-        message: "Đăng nhập thành công!",
-        token,
-        role: payload.role,
-        type: type,
-      });
-    } else {
-      res.status(401).json({ error: "Sai mật khẩu!" });
+    if (!match) {
+      return res.status(401).json({ error: "Email hoặc mật khẩu không chính xác!" });
     }
+
+    const payload = {
+      id: user.customer_id,
+      email: user.email,
+      role: user.role || "customer",
+      type: "customer",
+    };
+
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+
+    res.json({
+      message: "Đăng nhập thành công!",
+      token,
+      role: payload.role,
+      type: payload.type,
+      name: user.name,
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("Customer login error:", err);
+    res.status(500).json({ error: "Lỗi hệ thống." });
   }
 });
 
-// --- ĐĂNG KÝ (Dành riêng cho Khách hàng) ---
 router.post("/register", async (req, res) => {
-  const { name, phone, email, password } = req.body;
+  const name = String(req.body.name || "").trim();
+  const phone = String(req.body.phone || "").trim();
+  const email = normalizeEmail(req.body.email);
+  const password = String(req.body.password || "");
+
+  if (!name || !phone || !email || !password) {
+    return res.status(400).json({ error: "Vui lòng nhập đầy đủ thông tin!" });
+  }
+
+  if (!isValidEmail(email)) {
+    return res.status(400).json({ error: "Email không hợp lệ!" });
+  }
+
+  if (password.length < 6) {
+    return res.status(400).json({ error: "Mật khẩu phải có ít nhất 6 ký tự!" });
+  }
 
   try {
     const [existing] = await db.query(
-      "SELECT * FROM Customers WHERE email = ?",
-      [email],
+      "SELECT customer_id FROM customers WHERE email = ? LIMIT 1",
+      [email]
     );
+
     if (existing.length > 0) {
-      return res.status(400).json({ error: "Email này đã được đăng ký!" });
+      return res.status(409).json({ error: "Email này đã được đăng ký!" });
     }
 
-    const saltRounds = 10;
-    const password_hash = await bcrypt.hash(password, saltRounds);
+    const password_hash = await bcrypt.hash(password, 10);
 
     await db.query(
-      "INSERT INTO Customers (name, phone, email, password_hash, role) VALUES (?, ?, ?, ?, 'customer')",
-      [name, phone, email, password_hash],
+      "INSERT INTO customers (name, phone, email, password_hash, role) VALUES (?, ?, ?, ?, 'customer')",
+      [name, phone, email, password_hash]
     );
 
     res.status(201).json({ message: "Đăng ký thành công!" });
   } catch (err) {
-    res.status(500).json({ error: "Lỗi hệ thống: " + err.message });
+    console.error("Customer register error:", err);
+    res.status(500).json({ error: "Lỗi hệ thống." });
   }
 });
 

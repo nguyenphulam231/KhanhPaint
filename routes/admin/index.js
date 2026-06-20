@@ -5,12 +5,11 @@ const {
   authorizeAdmin,
 } = require("../../middleware/authMiddleware");
 
-// 1. Áp dụng middleware NGAY ĐẦU TIÊN
 router.use(authenticate, authorizeAdmin);
 
-// 2. Sau đó mới đến các route (lúc này các route đã nằm sau middleware)
 router.use("/dashboard", require("./dashboard"));
 router.use("/employees", require("./employee"));
 router.use("/jobs", require("./job"));
+router.use("/products", require("./product"));
 
 module.exports = router;
