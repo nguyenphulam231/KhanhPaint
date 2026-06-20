@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/style.css" />
+    <title>Công thức màu</title>
+  </head>
+  <body>
+    <div class="admin-container">
+      <div id="admin-sidebar"></div>
+      <main class="main-content">
+        <div class="page-header">
+          <div>
+            <p class="eyebrow">Color Science</p>
+            <h1>Tra cứu công thức màu</h1>
+            <p class="page-subtitle">Tìm mã màu và xem lượng tinh màu cần chiết theo ml.</p>
+          </div>
+        </div>
+
+        <section class="content-card">
+          <div class="toolbar">
+            <input id="colorSearch" type="search" placeholder="Nhập mã màu hoặc tên màu, ví dụ KP-001" />
+            <button class="secondary-btn" type="button" onclick="loadColors()">Tìm</button>
+          </div>
+          <div id="colorList" class="table-wrapper">Đang tải...</div>
+        </section>
+
+        <section class="content-card" id="formulaCard">
+          <h2>Chi tiết công thức</h2>
+          <div id="formulaDetail" class="empty-state">Chọn một mã màu để xem công thức pha.</div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/admin-common.js"></script>
+    <script>
+      mountAdminSidebar("colors");
+      initAdminShell();
+
+      function renderColorRows(rows) {
+        if (!rows.length) return '<div class="empty-state">Không tìm thấy mã màu.</div>';
+        return `
+          <table>
+            <thead>
+              <tr><th>Mã màu</th><th>Tên màu</th><th>Brand/Line</th><th>Base</th><th>Số tinh màu</th><th>Tổng ml</th><th></th></tr>
+            </thead>
+            <tbody>
+              ${rows.map((item) => `
+                <tr>
+                  <td><strong>${escapeHtml(item.color_code)}</strong></td>
+                  <td>${escapeHtml(item.color_name)}</td>
+                  <td>${escapeHtml(item.brand_name)} / ${escapeHtml(item.line_name)}</td>
+                  <td>${escapeHtml(item.base_name)}</td>
+                  <td>${escapeHtml(item.colorant_count)}</td>
+                  <td>${formatNumber(item.total_amount_ml, " ml")}</td>
+                  <td><button class="mini-btn" onclick="loadFormula(${Number(item.color_id)})">Xem</button></td>
+                </tr>`).join("")}
+            </tbody>
+          </table>`;
+      }
+
+      function renderFormula(data) {
+        const color = data.color;
+        const rows = data.formula || [];
+        return `
+          <div class="formula-summary">
+            <div class="color-preview">${escapeHtml(color.color_code)}</div>
+            <div>
+              <h3>${escapeHtml(color.color_name)}</h3>
+              <p><strong>Mã màu:</strong> ${escapeHtml(color.color_code)}</p>
+              <p><strong>Base phù hợp:</strong> ${escapeHtml(color.brand_name)} / ${escapeHtml(color.line_name)} / ${escapeHtml(color.base_name)}</p>
+              <p><strong>Tổng tinh màu:</strong> ${formatNumber(data.total_amount_ml, " ml")}</p>
+              <p><strong>Ước tính chi phí tinh màu:</strong> ${formatCurrency(data.estimated_colorant_cost)}</p>
+            </div>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>Tinh màu</th><th>Lượng cần dùng</th><th>Tồn hiện tại</th><th>Giá/ml</th><th>Ước tính</th></tr></thead>
+              <tbody>
+                ${rows.map((item) => `
+                  <tr>
+                    <td>${escapeHtml(item.colorant_name)}</td>
+                    <td>${formatNumber(item.amount_ml, " ml")}</td>
+                    <td>${formatNumber(item.stock_ml, " ml")}</td>
+                    <td>${formatCurrency(item.unit_price_per_ml)}</td>
+                    <td>${formatCurrency(item.estimated_colorant_cost)}</td>
+                  </tr>`).join("") || '<tr><td colspan="5">Mã màu này chưa có công thức tinh màu.</td></tr>'}
+              </tbody>
+            </table>
+          </div>`;
+      }
+
+      async function loadColors() {
+        try {
+          const rows = await apiRequest(`${API_ROUTES.GET_COLORS}${buildQuery({ search: document.getElementById("colorSearch").value })}`);
+          document.getElementById("colorList").innerHTML = renderColorRows(rows);
+        } catch (error) {
+          showPanelMessage("colorList", error.message, "error");
+        }
+      }
+
+      async function loadFormula(colorId) {
+        try {
+          const data = await apiRequest(`${API_ROUTES.GET_COLOR_FORMULA}/${colorId}/formula`);
+          document.getElementById("formulaDetail").innerHTML = renderFormula(data);
+          document.getElementById("formulaCard").scrollIntoView({ behavior: "smooth" });
+        } catch (error) {
+          showPanelMessage("formulaDetail", error.message, "error");
+        }
+      }
+
+      loadColors();
+    </script>
+  </body>
+</html>

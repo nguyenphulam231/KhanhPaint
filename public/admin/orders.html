@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/style.css" />
+    <title>Đơn hàng</title>
+  </head>
+  <body>
+    <div class="admin-container">
+      <div id="admin-sidebar"></div>
+      <main class="main-content">
+        <div class="page-header">
+          <div>
+            <p class="eyebrow">Sales & CRM</p>
+            <h1>Tra cứu đơn hàng</h1>
+            <p class="page-subtitle">Xem danh sách đơn hàng, chi tiết hóa đơn và dữ liệu truy vết nhân viên.</p>
+          </div>
+        </div>
+
+        <section class="content-card">
+          <div class="toolbar wide">
+            <input id="orderSearch" type="search" placeholder="Tìm mã đơn, tên KH, SĐT, email..." />
+            <input id="dateFrom" type="date" />
+            <input id="dateTo" type="date" />
+            <select id="orderStatus">
+              <option value="">Tất cả trạng thái</option>
+              <option value="pending">pending</option>
+              <option value="completed">completed</option>
+              <option value="cancelled">cancelled</option>
+            </select>
+            <button class="secondary-btn" type="button" onclick="loadOrders()">Lọc</button>
+          </div>
+          <div id="orderList" class="table-wrapper">Đang tải...</div>
+        </section>
+
+        <section class="content-card invoice-card" id="orderDetailCard">
+          <div class="section-title-row">
+            <h2>Chi tiết đơn hàng</h2>
+            <button class="mini-btn" type="button" onclick="window.print()">In hóa đơn</button>
+          </div>
+          <div id="orderDetail" class="empty-state">Chọn một đơn hàng để xem chi tiết.</div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/admin-common.js"></script>
+    <script>
+      mountAdminSidebar("orders");
+      initAdminShell();
+
+      function renderOrders(rows) {
+        if (!rows.length) return '<div class="empty-state">Không có đơn hàng phù hợp.</div>';
+        return `
+          <table>
+            <thead>
+              <tr><th>Mã đơn</th><th>Ngày</th><th>Khách hàng</th><th>NV bán</th><th>Kỹ thuật</th><th>SL dòng</th><th>Tổng tiền</th><th>Trạng thái</th><th></th></tr>
+            </thead>
+            <tbody>
+              ${rows.map((item) => `
+                <tr>
+                  <td>#${escapeHtml(item.order_id)}</td>
+                  <td>${formatDateTime(item.order_date)}</td>
+                  <td>${escapeHtml(item.customer_name)}<br><small>${escapeHtml(item.customer_phone || "")}</small></td>
+                  <td>${escapeHtml(item.sales_rep_name || "-")}</td>
+                  <td>${escapeHtml(item.tech_name || "-")}</td>
+                  <td>${escapeHtml(item.item_count)}</td>
+                  <td>${formatCurrency(item.total_amount)}</td>
+                  <td><span class="badge neutral">${escapeHtml(item.status)}</span></td>
+                  <td><button class="mini-btn" onclick="loadOrderDetail(${Number(item.order_id)})">Xem</button></td>
+                </tr>`).join("")}
+            </tbody>
+          </table>`;
+      }
+
+      function renderOrderDetail(data) {
+        const order = data.order;
+        const details = data.details || [];
+        return `
+          <div class="invoice-header">
+            <div>
+              <p class="eyebrow">KHANHPAINT INVOICE</p>
+              <h2>Đơn hàng #${escapeHtml(order.order_id)}</h2>
+              <p>Ngày tạo: ${formatDateTime(order.order_date)}</p>
+            </div>
+            <div class="invoice-total">${formatCurrency(order.total_amount)}</div>
+          </div>
+          <div class="detail-grid">
+            <div><strong>Khách hàng</strong><br>${escapeHtml(order.customer_name)}<br>${escapeHtml(order.customer_phone || "-")}<br>${escapeHtml(order.customer_email || "-")}</div>
+            <div><strong>Nhân viên bán</strong><br>${escapeHtml(order.sales_rep_name || "-")}</div>
+            <div><strong>Kỹ thuật viên</strong><br>${escapeHtml(order.tech_name || "-")}</div>
+            <div><strong>Ca làm việc</strong><br>${escapeHtml(order.shift_name || "-")}</div>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>Sản phẩm</th><th>SKU</th><th>Mã màu</th><th>SL</th><th>Giá tại thời điểm bán</th><th>Thành tiền</th></tr></thead>
+              <tbody>
+                ${details.map((item) => `
+                  <tr>
+                    <td>${escapeHtml(item.brand_name)} / ${escapeHtml(item.line_name)} / ${escapeHtml(item.base_name)} ${escapeHtml(item.volume || "")}</td>
+                    <td>${escapeHtml(item.sku_code)}</td>
+                    <td>${escapeHtml(item.color_code)} - ${escapeHtml(item.color_name)}</td>
+                    <td>${escapeHtml(item.quantity)}</td>
+                    <td>${formatCurrency(item.price_at_sale)}</td>
+                    <td>${formatCurrency(item.line_total)}</td>
+                  </tr>`).join("") || '<tr><td colspan="6">Đơn hàng chưa có dòng chi tiết.</td></tr>'}
+              </tbody>
+            </table>
+          </div>`;
+      }
+
+      async function loadOrders() {
+        try {
+          const rows = await apiRequest(`${API_ROUTES.GET_ORDERS}${buildQuery({
+            search: document.getElementById("orderSearch").value,
+            from: document.getElementById("dateFrom").value,
+            to: document.getElementById("dateTo").value,
+            status: document.getElementById("orderStatus").value,
+          })}`);
+          document.getElementById("orderList").innerHTML = renderOrders(rows);
+        } catch (error) {
+          showPanelMessage("orderList", error.message, "error");
+        }
+      }
+
+      async function loadOrderDetail(orderId) {
+        try {
+          const data = await apiRequest(`${API_ROUTES.GET_ORDER_DETAIL}/${orderId}`);
+          document.getElementById("orderDetail").innerHTML = renderOrderDetail(data);
+          document.getElementById("orderDetailCard").scrollIntoView({ behavior: "smooth" });
+        } catch (error) {
+          showPanelMessage("orderDetail", error.message, "error");
+        }
+      }
+
+      loadOrders();
+    </script>
+  </body>
+</html>

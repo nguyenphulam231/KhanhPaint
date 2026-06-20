@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/style.css" />
+    <title>Khách hàng & công nợ</title>
+  </head>
+  <body>
+    <div class="admin-container">
+      <div id="admin-sidebar"></div>
+      <main class="main-content">
+        <div class="page-header">
+          <div>
+            <p class="eyebrow">CRM</p>
+            <h1>Khách hàng & công nợ</h1>
+            <p class="page-subtitle">Tra cứu thông tin khách hàng, hạn mức nợ và lịch sử mua hàng.</p>
+          </div>
+        </div>
+
+        <section class="content-card">
+          <div class="toolbar">
+            <input id="customerSearch" type="search" placeholder="Tìm tên, số điện thoại hoặc email..." />
+            <button class="secondary-btn" type="button" onclick="loadCustomers()">Tìm</button>
+            <button class="secondary-btn warning-outline" type="button" onclick="loadDebtOnly()">Chỉ xem công nợ</button>
+          </div>
+          <div id="customerList" class="table-wrapper">Đang tải...</div>
+        </section>
+
+        <section class="content-card" id="historyCard">
+          <h2>Lịch sử mua hàng</h2>
+          <div id="customerHistory" class="empty-state">Chọn khách hàng để xem lịch sử mua.</div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/admin-common.js"></script>
+    <script>
+      mountAdminSidebar("customers");
+      initAdminShell();
+
+      function renderCustomers(rows) {
+        if (!rows.length) return '<div class="empty-state">Không có khách hàng phù hợp.</div>';
+        return `
+          <table>
+            <thead><tr><th>Khách hàng</th><th>Liên hệ</th><th>Hạn mức</th><th>Công nợ</th><th>Trạng thái</th><th>Số đơn</th><th>Tổng mua</th><th></th></tr></thead>
+            <tbody>
+              ${rows.map((item) => `
+                <tr>
+                  <td>${escapeHtml(item.name)}</td>
+                  <td>${escapeHtml(item.phone || "-")}<br><small>${escapeHtml(item.email || "")}</small></td>
+                  <td>${formatCurrency(item.credit_limit)}</td>
+                  <td>${formatCurrency(item.current_debt)}</td>
+                  <td><span class="${getStockBadgeClass(item.debt_status)}">${escapeHtml(item.debt_status)}</span></td>
+                  <td>${escapeHtml(item.total_orders ?? "-")}</td>
+                  <td>${formatCurrency(item.total_spent)}</td>
+                  <td><button class="mini-btn" onclick="loadCustomerHistory(${Number(item.customer_id)})">Lịch sử</button></td>
+                </tr>`).join("")}
+            </tbody>
+          </table>`;
+      }
+
+      function renderHistory(data) {
+        const customer = data.customer;
+        const orders = data.orders || [];
+        return `
+          <div class="detail-grid">
+            <div><strong>Khách hàng</strong><br>${escapeHtml(customer.name)}<br>${escapeHtml(customer.phone || "-")}<br>${escapeHtml(customer.email || "-")}</div>
+            <div><strong>Hạn mức nợ</strong><br>${formatCurrency(customer.credit_limit)}</div>
+            <div><strong>Công nợ hiện tại</strong><br>${formatCurrency(customer.current_debt)}</div>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>Mã đơn</th><th>Ngày</th><th>NV bán</th><th>Kỹ thuật</th><th>Số dòng</th><th>Tổng tiền</th><th>Trạng thái</th></tr></thead>
+              <tbody>
+                ${orders.map((item) => `
+                  <tr>
+                    <td>#${escapeHtml(item.order_id)}</td>
+                    <td>${formatDateTime(item.order_date)}</td>
+                    <td>${escapeHtml(item.sales_rep_name || "-")}</td>
+                    <td>${escapeHtml(item.tech_name || "-")}</td>
+                    <td>${escapeHtml(item.item_count)}</td>
+                    <td>${formatCurrency(item.total_amount)}</td>
+                    <td><span class="badge neutral">${escapeHtml(item.status)}</span></td>
+                  </tr>`).join("") || '<tr><td colspan="7">Khách hàng chưa có lịch sử mua.</td></tr>'}
+              </tbody>
+            </table>
+          </div>`;
+      }
+
+      async function loadCustomers() {
+        try {
+          const rows = await apiRequest(`${API_ROUTES.GET_CUSTOMERS}${buildQuery({ search: document.getElementById("customerSearch").value })}`);
+          document.getElementById("customerList").innerHTML = renderCustomers(rows);
+        } catch (error) {
+          showPanelMessage("customerList", error.message, "error");
+        }
+      }
+
+      async function loadDebtOnly() {
+        try {
+          const rows = await apiRequest(API_ROUTES.GET_CUSTOMER_DEBT);
+          document.getElementById("customerList").innerHTML = renderCustomers(rows);
+        } catch (error) {
+          showPanelMessage("customerList", error.message, "error");
+        }
+      }
+
+      async function loadCustomerHistory(customerId) {
+        try {
+          const data = await apiRequest(`${API_ROUTES.GET_CUSTOMER_ORDERS}/${customerId}/orders`);
+          document.getElementById("customerHistory").innerHTML = renderHistory(data);
+          document.getElementById("historyCard").scrollIntoView({ behavior: "smooth" });
+        } catch (error) {
+          showPanelMessage("customerHistory", error.message, "error");
+        }
+      }
+
+      loadCustomers();
+    </script>
+  </body>
+</html>

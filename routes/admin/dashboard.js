@@ -15,6 +15,9 @@ router.get("/", async (req, res) => {
     const [[lowColorantStats]] = await db.query(
       "SELECT COUNT(*) AS low_stock_colorants FROM colorants WHERE stock_ml <= 500"
     );
+    const [[debtStats]] = await db.query(
+      "SELECT COALESCE(SUM(current_debt), 0) AS total_debt FROM customers"
+    );
 
     res.json({
       message: "Chào mừng Admin",
@@ -25,6 +28,7 @@ router.get("/", async (req, res) => {
         total_revenue: Number(orderStats.total_revenue),
         low_stock_products: lowProductStats.low_stock_products,
         low_stock_colorants: lowColorantStats.low_stock_colorants,
+        total_debt: Number(debtStats.total_debt),
       },
     });
   } catch (err) {

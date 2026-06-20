@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/style.css" />
+    <title>Tồn kho kép</title>
+  </head>
+  <body>
+    <div class="admin-container">
+      <div id="admin-sidebar"></div>
+      <main class="main-content">
+        <div class="page-header">
+          <div>
+            <p class="eyebrow">Kho bãi</p>
+            <h1>Tồn kho kép</h1>
+            <p class="page-subtitle">Theo dõi song song tồn kho sơn gốc theo lon/thùng và tinh màu theo ml.</p>
+          </div>
+        </div>
+
+        <section class="content-card">
+          <div class="section-title-row">
+            <h2>Tồn kho sơn gốc</h2>
+          </div>
+          <div class="toolbar">
+            <input id="productSearch" type="search" placeholder="Tìm SKU, brand, line, base..." />
+            <select id="productStatus">
+              <option value="">Tất cả trạng thái</option>
+              <option value="ok">Còn hàng</option>
+              <option value="low">Sắp hết</option>
+              <option value="out">Hết hàng</option>
+            </select>
+            <button class="secondary-btn" type="button" onclick="loadProductInventory()">Lọc</button>
+          </div>
+          <div id="productInventory" class="table-wrapper">Đang tải...</div>
+        </section>
+
+        <section class="content-card">
+          <div class="section-title-row">
+            <h2>Tồn kho tinh màu</h2>
+          </div>
+          <div class="toolbar">
+            <input id="colorantSearch" type="search" placeholder="Tìm tên tinh màu..." />
+            <select id="colorantStatus">
+              <option value="">Tất cả trạng thái</option>
+              <option value="ok">Còn đủ</option>
+              <option value="low">Sắp hết</option>
+              <option value="out">Hết tinh màu</option>
+            </select>
+            <button class="secondary-btn" type="button" onclick="loadColorantInventory()">Lọc</button>
+          </div>
+          <div id="colorantInventory" class="table-wrapper">Đang tải...</div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/admin-common.js"></script>
+    <script>
+      mountAdminSidebar("inventory");
+      initAdminShell();
+
+      function renderProductTable(rows) {
+        if (!rows.length) return '<div class="empty-state">Không có dữ liệu sơn gốc.</div>';
+        return `
+          <table>
+            <thead>
+              <tr>
+                <th>SKU</th><th>Brand</th><th>Dòng</th><th>Base</th><th>Dung tích</th><th>Giá</th><th>Tồn</th><th>Vị trí</th><th>Trạng thái</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.map((item) => `
+                <tr>
+                  <td>${escapeHtml(item.sku_code)}</td>
+                  <td>${escapeHtml(item.brand_name)}</td>
+                  <td>${escapeHtml(item.line_name)}</td>
+                  <td>${escapeHtml(item.base_name)}</td>
+                  <td>${escapeHtml(item.volume || "-")}</td>
+                  <td>${formatCurrency(item.unit_price)}</td>
+                  <td>${escapeHtml(item.stock_quantity)}</td>
+                  <td>${escapeHtml(item.warehouse_location || "-")}</td>
+                  <td><span class="${getStockBadgeClass(item.stock_status)}">${escapeHtml(item.stock_status)}</span></td>
+                </tr>`).join("")}
+            </tbody>
+          </table>`;
+      }
+
+      function renderColorantTable(rows) {
+        if (!rows.length) return '<div class="empty-state">Không có dữ liệu tinh màu.</div>';
+        return `
+          <table>
+            <thead>
+              <tr><th>Tinh màu</th><th>Tồn kho</th><th>Giá/ml</th><th>Trạng thái</th></tr>
+            </thead>
+            <tbody>
+              ${rows.map((item) => `
+                <tr>
+                  <td>${escapeHtml(item.colorant_name)}</td>
+                  <td>${formatNumber(item.stock_ml, " ml")}</td>
+                  <td>${formatCurrency(item.unit_price_per_ml)}</td>
+                  <td><span class="${getStockBadgeClass(item.stock_status)}">${escapeHtml(item.stock_status)}</span></td>
+                </tr>`).join("")}
+            </tbody>
+          </table>`;
+      }
+
+      async function loadProductInventory() {
+        try {
+          const rows = await apiRequest(`${API_ROUTES.GET_INVENTORY_PRODUCTS}${buildQuery({
+            search: document.getElementById("productSearch").value,
+            status: document.getElementById("productStatus").value,
+          })}`);
+          document.getElementById("productInventory").innerHTML = renderProductTable(rows);
+        } catch (error) {
+          showPanelMessage("productInventory", error.message, "error");
+        }
+      }
+
+      async function loadColorantInventory() {
+        try {
+          const rows = await apiRequest(`${API_ROUTES.GET_INVENTORY_COLORANTS}${buildQuery({
+            search: document.getElementById("colorantSearch").value,
+            status: document.getElementById("colorantStatus").value,
+          })}`);
+          document.getElementById("colorantInventory").innerHTML = renderColorantTable(rows);
+        } catch (error) {
+          showPanelMessage("colorantInventory", error.message, "error");
+        }
+      }
+
+      loadProductInventory();
+      loadColorantInventory();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/style.css" />
+    <title>Báo cáo</title>
+  </head>
+  <body>
+    <div class="admin-container">
+      <div id="admin-sidebar"></div>
+      <main class="main-content">
+        <div class="page-header">
+          <div>
+            <p class="eyebrow">Reports</p>
+            <h1>Báo cáo kinh doanh</h1>
+            <p class="page-subtitle">Tổng hợp doanh thu, sản phẩm bán chạy và mã màu được pha nhiều.</p>
+          </div>
+        </div>
+
+        <div class="dashboard-grid">
+          <section class="content-card">
+            <div class="section-title-row">
+              <h2>Doanh thu</h2>
+              <select id="revenueGroup" onchange="loadRevenue()">
+                <option value="daily">Theo ngày</option>
+                <option value="monthly" selected>Theo tháng</option>
+              </select>
+            </div>
+            <div id="revenueReport" class="table-wrapper">Đang tải...</div>
+          </section>
+
+          <section class="content-card">
+            <h2>Top sản phẩm bán chạy</h2>
+            <div id="topProducts" class="table-wrapper">Đang tải...</div>
+          </section>
+
+          <section class="content-card">
+            <h2>Top mã màu được pha</h2>
+            <div id="topColors" class="table-wrapper">Đang tải...</div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/admin-common.js"></script>
+    <script>
+      mountAdminSidebar("reports");
+      initAdminShell();
+
+      function renderRevenue(rows) {
+        if (!rows.length) return '<div class="empty-state">Chưa có dữ liệu doanh thu.</div>';
+        const maxRevenue = Math.max(...rows.map((item) => Number(item.revenue || 0)), 1);
+        return `
+          <table>
+            <thead><tr><th>Kỳ</th><th>Số đơn</th><th>Doanh thu</th><th>Biểu đồ nhanh</th></tr></thead>
+            <tbody>
+              ${rows.map((item) => {
+                const width = Math.max(6, Math.round((Number(item.revenue || 0) / maxRevenue) * 100));
+                return `
+                  <tr>
+                    <td>${escapeHtml(item.period)}</td>
+                    <td>${escapeHtml(item.total_orders)}</td>
+                    <td>${formatCurrency(item.revenue)}</td>
+                    <td><div class="bar-track"><div class="bar-fill" style="width:${width}%"></div></div></td>
+                  </tr>`;
+              }).join("")}
+            </tbody>
+          </table>`;
+      }
+
+      function renderTopProducts(rows) {
+        if (!rows.length) return '<div class="empty-state">Chưa có dữ liệu bán hàng.</div>';
+        return `
+          <table>
+            <thead><tr><th>SKU</th><th>Sản phẩm</th><th>Đã bán</th><th>Doanh thu</th></tr></thead>
+            <tbody>
+              ${rows.map((item) => `
+                <tr>
+                  <td>${escapeHtml(item.sku_code)}</td>
+                  <td>${escapeHtml(item.brand_name)} / ${escapeHtml(item.line_name)} / ${escapeHtml(item.base_name)} ${escapeHtml(item.volume || "")}</td>
+                  <td>${escapeHtml(item.sold_quantity)}</td>
+                  <td>${formatCurrency(item.revenue)}</td>
+                </tr>`).join("")}
+            </tbody>
+          </table>`;
+      }
+
+      function renderTopColors(rows) {
+        if (!rows.length) return '<div class="empty-state">Chưa có dữ liệu mã màu.</div>';
+        return `
+          <table>
+            <thead><tr><th>Mã màu</th><th>Tên màu</th><th>Số lần pha</th><th>Doanh thu liên quan</th></tr></thead>
+            <tbody>
+              ${rows.map((item) => `
+                <tr>
+                  <td>${escapeHtml(item.color_code)}</td>
+                  <td>${escapeHtml(item.color_name)}</td>
+                  <td>${escapeHtml(item.mixed_quantity)}</td>
+                  <td>${formatCurrency(item.revenue)}</td>
+                </tr>`).join("")}
+            </tbody>
+          </table>`;
+      }
+
+      async function loadRevenue() {
+        try {
+          const group = document.getElementById("revenueGroup").value;
+          const rows = await apiRequest(`${API_ROUTES.GET_REVENUE_REPORT}?group=${encodeURIComponent(group)}`);
+          document.getElementById("revenueReport").innerHTML = renderRevenue(rows);
+        } catch (error) {
+          showPanelMessage("revenueReport", error.message, "error");
+        }
+      }
+
+      async function loadTopProducts() {
+        try {
+          const rows = await apiRequest(`${API_ROUTES.GET_TOP_PRODUCTS}?limit=8`);
+          document.getElementById("topProducts").innerHTML = renderTopProducts(rows);
+        } catch (error) {
+          showPanelMessage("topProducts", error.message, "error");
+        }
+      }
+
+      async function loadTopColors() {
+        try {
+          const rows = await apiRequest(`${API_ROUTES.GET_TOP_COLORS}?limit=8`);
+          document.getElementById("topColors").innerHTML = renderTopColors(rows);
+        } catch (error) {
+          showPanelMessage("topColors", error.message, "error");
+        }
+      }
+
+      loadRevenue();
+      loadTopProducts();
+      loadTopColors();
+    </script>
+  </body>
+</html>

@@ -11,6 +11,7 @@ router.use("/dashboard", require("./dashboard"));
 router.use("/jobs", require("./job"));
 router.use("/employees", require("./employee"));
 router.use("/products", require("./product"));
+router.use("/lookup", require("./lookup"));
 
 // Backward-compatible routes for existing admin pages or old links.
 router.use("/brands", require("./brand"));

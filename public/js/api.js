@@ -22,6 +22,20 @@ const API_ROUTES = {
   GET_VARIANTS: "/api/admin/products/variants",
   ADD_VARIANT: "/api/admin/products/add-variant",
   DELETE_VARIANT: "/api/admin/products/delete-variant",
+
+  GET_INVENTORY_PRODUCTS: "/api/admin/lookup/inventory/products",
+  GET_INVENTORY_COLORANTS: "/api/admin/lookup/inventory/colorants",
+  GET_COLORS: "/api/admin/lookup/colors",
+  GET_COLOR_FORMULA: "/api/admin/lookup/colors",
+  SEARCH_FORMULA: "/api/admin/lookup/formulas",
+  GET_CUSTOMERS: "/api/admin/lookup/customers",
+  GET_CUSTOMER_DEBT: "/api/admin/lookup/customers/debt",
+  GET_CUSTOMER_ORDERS: "/api/admin/lookup/customers",
+  GET_ORDERS: "/api/admin/lookup/orders",
+  GET_ORDER_DETAIL: "/api/admin/lookup/orders",
+  GET_REVENUE_REPORT: "/api/admin/lookup/reports/revenue",
+  GET_TOP_PRODUCTS: "/api/admin/lookup/reports/top-products",
+  GET_TOP_COLORS: "/api/admin/lookup/reports/top-colors",
 };
 
 function getToken() {
