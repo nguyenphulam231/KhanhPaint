@@ -1,29 +1,27 @@
-// public/js/api.js
-
 const API_ROUTES = {
-  // Auth
   ADMIN_LOGIN: "/api/auth/admin/login",
   CUSTOMER_LOGIN: "/api/auth/public/login",
   CUSTOMER_REGISTER: "/api/auth/public/register",
 
-  // Admin dashboard
   DASHBOARD: "/api/admin/dashboard",
 
-  // Jobs
   GET_JOBS: "/api/admin/jobs",
   ADD_JOB: "/api/admin/jobs/add",
 
-  // Employees
   ADD_EMPLOYEE: "/api/admin/employees/add",
 
-  // Products
   GET_PRODUCTS: "/api/admin/products",
   GET_BRANDS: "/api/admin/products/brands",
   ADD_BRAND: "/api/admin/products/add-brand",
-  ADD_LINE: "/api/admin/products/add-line",
   GET_LINES: "/api/admin/products/lines",
+  ADD_LINE: "/api/admin/products/add-line",
   GET_LINES_BY_BRAND: "/api/admin/products/lines-by-brand",
+  GET_BASETYPES: "/api/admin/products/basetypes",
+  GET_BASETYPES_BY_LINE: "/api/admin/products/basetypes-by-line",
   ADD_BASETYPE: "/api/admin/products/add-basetype",
+  GET_VARIANTS: "/api/admin/products/variants",
+  ADD_VARIANT: "/api/admin/products/add-variant",
+  DELETE_VARIANT: "/api/admin/products/delete-variant",
 };
 
 function getToken() {
@@ -48,16 +46,17 @@ function clearAuthData() {
 
 function getAuthHeaders() {
   const token = getToken();
-
-  const headers = {
-    "Content-Type": "application/json",
-  };
+  const headers = { "Content-Type": "application/json" };
 
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
 
   return headers;
+}
+
+async function parseJsonResponse(response) {
+  return response.json().catch(() => ({}));
 }
 
 async function apiRequest(url, options = {}) {
@@ -69,10 +68,10 @@ async function apiRequest(url, options = {}) {
     },
   });
 
-  const data = await response.json().catch(() => ({}));
+  const data = await parseJsonResponse(response);
 
   if (!response.ok) {
-    throw new Error(data.error || "Có lỗi xảy ra khi gọi API.");
+    throw new Error(data.error || data.message || "Có lỗi xảy ra khi gọi API.");
   }
 
   return data;
@@ -87,10 +86,10 @@ async function publicRequest(url, options = {}) {
     },
   });
 
-  const data = await response.json().catch(() => ({}));
+  const data = await parseJsonResponse(response);
 
   if (!response.ok) {
-    throw new Error(data.error || "Có lỗi xảy ra khi gọi API.");
+    throw new Error(data.error || data.message || "Có lỗi xảy ra khi gọi API.");
   }
 
   return data;

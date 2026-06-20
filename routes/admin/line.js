@@ -1,59 +1,75 @@
-// routes/admin/line.js
 const express = require("express");
 const router = express.Router();
 const db = require("../../db");
 
-// 1. Thêm dòng sản phẩm mới (Đầy đủ thông số kỹ thuật)
-router.post("/add", async (req, res) => {
-  const {
-    brand_id,
-    name,
-    is_interior,
-    coverage_rate,
-    drying_time,
-    gloss_level,
-    recommended_layers,
-    description,
-  } = req.body;
+function cleanText(value) {
+  const text = String(value || "").trim();
+  return text === "" ? null : text;
+}
 
+function handleDbError(res, err, message) {
+  console.error(message, err);
+  if (err.code === "ER_NO_REFERENCED_ROW_2") {
+    return res.status(400).json({ error: "Thương hiệu không tồn tại." });
+  }
+  return res.status(500).json({ error: "Lỗi xử lý dữ liệu." });
+}
+
+router.get("/", async (req, res) => {
   try {
-    const query = `
-      INSERT INTO productlines 
-      (brand_id, name, is_interior, coverage_rate, drying_time, gloss_level, recommended_layers, description) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `;
-
-    // Xử lý các giá trị số hoặc chuỗi nếu để trống thì lưu NULL vào DB
-    const params = [
-      brand_id,
-      name,
-      is_interior || 0, // Mặc định là 0 nếu không chọn
-      coverage_rate ? parseFloat(coverage_rate) : null,
-      drying_time || null,
-      gloss_level || null,
-      recommended_layers || null,
-      description || null,
-    ];
-
-    await db.execute(query, params);
-    res
-      .status(201)
-      .json({ success: true, message: "Thêm dòng sản phẩm thành công!" });
+    const [rows] = await db.execute(`
+      SELECT pl.line_id, pl.brand_id, pl.name, pl.is_interior, pl.description, br.name AS brand_name
+      FROM productlines pl
+      JOIN brands br ON pl.brand_id = br.brand_id
+      ORDER BY br.name, pl.name
+    `);
+    res.json(rows);
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    handleDbError(res, err, "Get product lines error:");
   }
 });
 
-// 2. API lấy danh sách dòng sản phẩm theo brand
 router.get("/by-brand/:brand_id", async (req, res) => {
   try {
     const [rows] = await db.execute(
-      "SELECT * FROM productlines WHERE brand_id = ?",
-      [req.params.brand_id],
+      `SELECT line_id, brand_id, name, is_interior, description
+       FROM productlines
+       WHERE brand_id = ?
+       ORDER BY name`,
+      [req.params.brand_id]
     );
     res.json(rows);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    handleDbError(res, err, "Get lines by brand error:");
+  }
+});
+
+router.post("/add", async (req, res) => {
+  const brand_id = req.body.brand_id;
+  const name = cleanText(req.body.name);
+  const is_interior = Number(req.body.is_interior) === 1 ? 1 : 0;
+  const description = cleanText(req.body.description);
+
+  if (!brand_id || !name) {
+    return res.status(400).json({
+      error: "Vui lòng chọn thương hiệu và nhập tên dòng sản phẩm.",
+    });
+  }
+
+  try {
+    const [result] = await db.execute(
+      `INSERT INTO productlines (brand_id, name, is_interior, description)
+       VALUES (?, ?, ?, ?)`,
+      [brand_id, name, is_interior, description]
+    );
+
+    res.status(201).json({
+      success: true,
+      line_id: result.insertId,
+      message: "Thêm dòng sản phẩm thành công.",
+    });
+  } catch (err) {
+    handleDbError(res, err, "Create product line error:");
   }
 });
 

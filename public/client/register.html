@@ -24,7 +24,7 @@
         </form>
         <p id="message" style="text-align: center; margin-top: 15px"></p>
         <p style="text-align: center">
-          <a href="/client/login">Đã có tài khoản? Đăng nhập ngay</a>
+          <a href="/client/login.html">Đã có tài khoản? Đăng nhập ngay</a>
         </p>
       </div>
     </div>
@@ -54,7 +54,7 @@
           if (response.ok) {
             message.innerText =
               "Đăng ký thành công! Chuyển hướng đến trang đăng nhập...";
-            setTimeout(() => (window.location.href = "/client/login"), 2000);
+            setTimeout(() => (window.location.href = "/client/login.html"), 2000);
           } else {
             message.innerText = data.error || "Đăng ký thất bại!";
           }

@@ -47,13 +47,31 @@ npm run dev
 http://localhost:3000
 ```
 
+## Các trang chính
+
+```text
+/                       Trang chọn khu vực client/admin
+/client/                Trang khách hàng
+/client/login.html      Đăng nhập khách hàng
+/client/register.html   Đăng ký khách hàng
+/admin/login.html       Đăng nhập admin
+/admin/                 Dashboard admin
+```
+
 ## Các lỗi đã sửa trong bản này
 
+- Sửa lại `routes/admin/index.js` bị merge nhầm thành code server chính.
+- Tạo lại `public/index.html` để đường dẫn `/` không lỗi.
+- Đồng bộ route frontend với backend qua `/api/admin/products/...`.
+- Sửa các route `brand`, `line`, `base`, `variant` để khớp schema SQL.
+- Sửa `line.js`: không insert các cột kỹ thuật vào `productlines` nữa.
+- Sửa `base.js`: bắt buộc chọn `line_id`, insert đúng vào `basetypes`.
+- Sửa `variant.js`: bỏ `line_id` khỏi `productvariants`, join qua `basetypes`.
+- Bổ sung API `GET_VARIANTS`, `ADD_VARIANT`, `DELETE_VARIANT` trong `api.js`.
+- Sửa redirect `/admin/login`, `/client/login`, `/client/register`.
 - Bỏ mật khẩu MySQL và JWT secret hard-code khỏi source code.
 - Thêm `.env.example` và `.gitignore`.
-- Sửa route dashboard từ `/api/admin/dashboard/dashboard` thành `/api/admin/dashboard`.
-- Mount lại route sản phẩm dưới `/api/admin/products` và bắt buộc có token admin.
-- Sửa code dùng tên bảng lowercase để chạy ổn hơn trên MySQL/Linux.
-- Sửa bảng `customers` để khớp với chức năng đăng ký/đăng nhập khách hàng.
-- Viết lại thứ tự tạo bảng SQL theo khóa ngoại, tránh lỗi import lại database.
-- Không trả thẳng lỗi SQL chi tiết ra client.
+- Sửa bảng `customers` để khớp chức năng đăng ký/đăng nhập.
+- Viết lại thứ tự tạo bảng SQL theo khóa ngoại.
+- Không trả trực tiếp lỗi SQL chi tiết ra client.
+- Loại `.git` và `node_modules` khỏi file zip nộp bài.

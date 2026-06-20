@@ -17,6 +17,18 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
+app.get("/admin/login", (req, res) => {
+  res.redirect("/admin/login.html");
+});
+
+app.get("/client/login", (req, res) => {
+  res.redirect("/client/login.html");
+});
+
+app.get("/client/register", (req, res) => {
+  res.redirect("/client/register.html");
+});
+
 app.use((req, res) => {
   res.status(404).json({ error: "Không tìm thấy tài nguyên." });
 });
@@ -29,7 +41,6 @@ app.use((err, req, res, next) => {
 db.query("SELECT 1")
   .then(() => {
     console.log("Kết nối Database thành công!");
-
     app.listen(PORT, () => {
       console.log(`Server đang chạy tại: http://localhost:${PORT}`);
     });

@@ -20,17 +20,24 @@
 
         <section class="admin-card">
           <div class="form-section">
-            <input
-              type="text"
-              id="baseName"
-              placeholder="Tên Base (VD: Base A, Base B)"
-              required
-            />
-            <input
-              type="text"
-              id="baseDesc"
-              placeholder="Mô tả cốt sơn (VD: Cốt đậm dùng cho màu tối)"
-            />
+            <select id="brandSelect" required>
+              <option value="">-- Chọn thương hiệu --</option>
+            </select>
+            <select id="lineSelect" required>
+              <option value="">-- Chọn dòng sản phẩm --</option>
+            </select>
+            <input type="text" id="baseName" placeholder="Tên Base (VD: Base A, Base B)" required />
+            <input type="number" step="0.01" id="coverageRate" placeholder="Độ phủ (m²/lít/lớp)" />
+            <input type="text" id="dryingTime" placeholder="Thời gian khô (VD: 1-2 giờ)" />
+            <select id="glossLevel">
+              <option value="">-- Chọn độ bóng --</option>
+              <option value="Mờ">Mờ</option>
+              <option value="Vỏ trứng">Vỏ trứng</option>
+              <option value="Bóng nhẹ">Bóng nhẹ</option>
+              <option value="Bán bóng">Bán bóng</option>
+              <option value="Siêu bóng">Siêu bóng</option>
+            </select>
+            <input type="text" id="recommendedLayers" placeholder="Số lớp khuyên dùng (VD: 2 lớp)" />
             <button id="saveBaseBtn" type="button">Lưu BaseType</button>
           </div>
         </section>
@@ -42,40 +49,46 @@
     <script>
       mountAdminSidebar("basetypes");
       initAdminShell();
+      loadBrandsIntoSelect("brandSelect");
 
-      document
-        .getElementById("saveBaseBtn")
-        .addEventListener("click", async () => {
-          const baseNameInput = document.getElementById("baseName").value;
-          const baseDescInput = document.getElementById("baseDesc").value;
+      async function loadProductLinesByBrand(brandId) {
+        const lineSelect = document.getElementById("lineSelect");
+        lineSelect.innerHTML = '<option value="">-- Chọn dòng sản phẩm --</option>';
+        if (!brandId) return;
 
-          if (!baseNameInput.trim()) {
-            alert("Vui lòng điền tên BaseType!");
-            return;
-          }
+        try {
+          const lines = await apiRequest(`${API_ROUTES.GET_LINES_BY_BRAND}/${brandId}`);
+          setSelectOptions(lineSelect, lines, "-- Chọn dòng sản phẩm --", "line_id", "name");
+        } catch (error) {
+          console.error("Không thể tải dòng sản phẩm:", error);
+        }
+      }
 
-          const response = await fetch(API_ROUTES.ADD_BASETYPE, {
+      document.getElementById("brandSelect").addEventListener("change", (event) => {
+        loadProductLinesByBrand(event.target.value);
+      });
+
+      document.getElementById("saveBaseBtn").addEventListener("click", async () => {
+        const data = {
+          line_id: document.getElementById("lineSelect").value,
+          base_name: document.getElementById("baseName").value,
+          coverage_rate: document.getElementById("coverageRate").value,
+          drying_time: document.getElementById("dryingTime").value,
+          gloss_level: document.getElementById("glossLevel").value,
+          recommended_layers: document.getElementById("recommendedLayers").value,
+        };
+
+        try {
+          await apiRequest(API_ROUTES.ADD_BASETYPE, {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: "Bearer " + getAdminToken(),
-            },
-            body: JSON.stringify({
-              base_name: baseNameInput,
-              description: baseDescInput,
-            }),
+            body: JSON.stringify(data),
           });
-
-          const result = await response.json().catch(() => null);
-
-          if (response.ok && result?.success) {
-            alert("Đã thêm BaseType thành công!");
-            window.location.href = "/admin/";
-            return;
-          }
-
-          alert(result?.message || result?.error || "Lỗi khi thêm BaseType!");
-        });
+          alert("Đã thêm BaseType thành công!");
+          window.location.href = "/admin/";
+        } catch (error) {
+          alert(error.message || "Lỗi khi thêm BaseType!");
+        }
+      });
     </script>
   </body>
 </html>

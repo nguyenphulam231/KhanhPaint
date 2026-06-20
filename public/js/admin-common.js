@@ -1,14 +1,14 @@
 function getAdminToken() {
   const token = localStorage.getItem("token");
   if (!token) {
-    window.location.href = "/admin/login";
+    window.location.href = "/admin/login.html";
     return null;
   }
   return token;
 }
 
 function clearAdminToken() {
-  localStorage.removeItem("token");
+  clearAuthData();
 }
 
 function initAdminShell() {
@@ -20,7 +20,7 @@ function initAdminShell() {
     logoutLink.addEventListener("click", (event) => {
       event.preventDefault();
       clearAdminToken();
-      window.location.href = "/admin/login";
+      window.location.href = "/admin/login.html";
     });
   }
 }
@@ -29,13 +29,13 @@ function renderAdminSidebar(activeNav) {
   return `
     <aside class="sidebar">
       <h3>Quản trị hệ thống</h3>
-      <a class="menu-item ${activeNav === "dashboard" ? "active" : ""}" data-admin-nav="dashboard" href="/admin/">Bảng điều khiển</a>
-      <a class="menu-item ${activeNav === "jobs" ? "active" : ""}" data-admin-nav="jobs" href="/admin/job-manage.html">Tạo vị trí công việc</a>
-      <a class="menu-item ${activeNav === "employees" ? "active" : ""}" data-admin-nav="employees" href="/admin/employee-manage.html">Thêm nhân viên</a>
-      <a class="menu-item ${activeNav === "brands" ? "active" : ""}" data-admin-nav="brands" href="/admin/brand-manage.html">Quản lý Thương hiệu</a>
-      <a class="menu-item ${activeNav === "lines" ? "active" : ""}" data-admin-nav="lines" href="/admin/line-manage.html">Quản lý Dòng SP</a>
-      <a class="menu-item ${activeNav === "basetypes" ? "active" : ""}" data-admin-nav="basetypes" href="/admin/basetype-manage.html">Quản lý BaseTypes</a>
-      <a class="menu-item ${activeNav === "variants" ? "active" : ""}" data-admin-nav="variants" href="/admin/variant-manage.html">Quản lý Product Variant</a>
+      <a class="menu-item ${activeNav === "dashboard" ? "active" : ""}" href="/admin/">Bảng điều khiển</a>
+      <a class="menu-item ${activeNav === "jobs" ? "active" : ""}" href="/admin/job-manage.html">Tạo vị trí công việc</a>
+      <a class="menu-item ${activeNav === "employees" ? "active" : ""}" href="/admin/employee-manage.html">Thêm nhân viên</a>
+      <a class="menu-item ${activeNav === "brands" ? "active" : ""}" href="/admin/brand-manage.html">Quản lý thương hiệu</a>
+      <a class="menu-item ${activeNav === "lines" ? "active" : ""}" href="/admin/line-manage.html">Quản lý dòng SP</a>
+      <a class="menu-item ${activeNav === "basetypes" ? "active" : ""}" href="/admin/basetype-manage.html">Quản lý BaseTypes</a>
+      <a class="menu-item ${activeNav === "variants" ? "active" : ""}" href="/admin/variant-manage.html">Quản lý Product Variant</a>
       <a class="menu-item" href="#" id="logoutLink" style="color: #ffcccc">Đăng xuất</a>
     </aside>
   `;
@@ -44,42 +44,49 @@ function renderAdminSidebar(activeNav) {
 function mountAdminSidebar(activeNav) {
   const sidebarHost = document.getElementById("admin-sidebar");
   if (!sidebarHost) return;
-
   sidebarHost.innerHTML = renderAdminSidebar(activeNav);
 }
 
-async function loadJobsIntoSelect(selectId) {
-  const token = getAdminToken();
-  if (!token) return;
+function setSelectOptions(select, options, placeholder, valueKey, labelKey) {
+  select.innerHTML = "";
 
-  const response = await fetch(API_ROUTES.GET_JOBS, {
-    headers: { Authorization: "Bearer " + token },
-  });
-  const jobs = await response.json();
-  const select = document.getElementById(selectId);
-  if (!select) return;
+  const placeholderOption = document.createElement("option");
+  placeholderOption.value = "";
+  placeholderOption.textContent = placeholder;
+  select.appendChild(placeholderOption);
 
-  select.innerHTML = '<option value="">-- Chọn vị trí công việc --</option>';
-  jobs.forEach((job) => {
-    select.innerHTML += `<option value="${job.job_id}">${job.job_title}</option>`;
+  options.forEach((item) => {
+    const option = document.createElement("option");
+    option.value = item[valueKey];
+    option.textContent = item[labelKey];
+    select.appendChild(option);
   });
 }
 
-async function loadBrandsIntoSelect(selectId) {
-  const token = getAdminToken();
-  if (!token) return;
-
-  const response = await fetch(API_ROUTES.GET_BRANDS, {
-    headers: { Authorization: "Bearer " + token },
-  });
-  const brands = await response.json();
+async function loadJobsIntoSelect(selectId) {
+  getAdminToken();
   const select = document.getElementById(selectId);
   if (!select) return;
 
-  select.innerHTML = '<option value="">-- Chọn thương hiệu --</option>';
-  brands.forEach((brand) => {
-    select.innerHTML += `<option value="${brand.brand_id}">${brand.name}</option>`;
-  });
+  try {
+    const jobs = await apiRequest(API_ROUTES.GET_JOBS);
+    setSelectOptions(select, jobs, "-- Chọn vị trí công việc --", "job_id", "job_title");
+  } catch (error) {
+    console.error("Không thể tải vị trí công việc:", error);
+  }
+}
+
+async function loadBrandsIntoSelect(selectId) {
+  getAdminToken();
+  const select = document.getElementById(selectId);
+  if (!select) return;
+
+  try {
+    const brands = await apiRequest(API_ROUTES.GET_BRANDS);
+    setSelectOptions(select, brands, "-- Chọn thương hiệu --", "brand_id", "name");
+  } catch (error) {
+    console.error("Không thể tải thương hiệu:", error);
+  }
 }
 
 function escapeHtml(value) {
@@ -92,37 +99,29 @@ function escapeHtml(value) {
 }
 
 async function renderDashboardSummary(targetId) {
-  const token = getAdminToken();
-  if (!token) return;
-
+  getAdminToken();
   const target = document.getElementById(targetId);
   if (!target) return;
 
   try {
-    const response = await fetch(API_ROUTES.DASHBOARD, {
-      headers: { Authorization: "Bearer " + token },
-    });
-    const data = await response.json();
-    const orders = Array.isArray(data.data) ? data.data : [];
+    const result = await apiRequest(API_ROUTES.DASHBOARD);
+    const data = result.data || {};
 
     target.innerHTML = `
       <div class="admin-stats">
-        <div class="stat-card">
-          <strong>${orders.length}</strong>
-          <span>Bản ghi dashboard</span>
-        </div>
-        <div class="stat-card">
-          <strong>Đã kết nối</strong>
-          <span>API admin</span>
-        </div>
+        <div class="stat-card"><strong>${escapeHtml(data.total_employees ?? 0)}</strong><span>Nhân viên</span></div>
+        <div class="stat-card"><strong>${escapeHtml(data.total_customers ?? 0)}</strong><span>Khách hàng</span></div>
+        <div class="stat-card"><strong>${escapeHtml(data.total_orders ?? 0)}</strong><span>Đơn hàng</span></div>
+        <div class="stat-card"><strong>${Number(data.total_revenue || 0).toLocaleString("vi-VN")} VND</strong><span>Doanh thu</span></div>
+        <div class="stat-card"><strong>${escapeHtml(data.low_stock_products ?? 0)}</strong><span>Sơn gốc sắp hết</span></div>
+        <div class="stat-card"><strong>${escapeHtml(data.low_stock_colorants ?? 0)}</strong><span>Tinh màu sắp hết</span></div>
       </div>
       <div class="content-card">
-        <pre class="json-panel">${escapeHtml(JSON.stringify(data, null, 2))}</pre>
+        <pre class="json-panel">${escapeHtml(JSON.stringify(result, null, 2))}</pre>
       </div>
     `;
   } catch (error) {
     console.error("Không thể tải dashboard:", error);
-    target.innerHTML =
-      '<div class="content-card">Không thể tải dữ liệu dashboard.</div>';
+    target.innerHTML = '<div class="content-card">Không thể tải dữ liệu dashboard.</div>';
   }
 }
