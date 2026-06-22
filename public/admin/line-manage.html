@@ -5,6 +5,76 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="/style.css" />
     <title>Quản lý dòng sản phẩm</title>
+    <style>
+      .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+        background: #fff;
+      }
+      .data-table th,
+      .data-table td {
+        border: 1px solid #ddd;
+        padding: 10px 12px;
+        text-align: left;
+      }
+      .data-table th {
+        background-color: #f5f5f5;
+        font-weight: bold;
+      }
+      .data-table tr:nth-child(even) {
+        background-color: #fafafa;
+      }
+      .mt-4 {
+        margin-top: 2rem;
+      }
+
+      .btn-edit {
+        background-color: #ffc107;
+        color: #000;
+        border: none;
+        padding: 5px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-right: 5px;
+      }
+      .btn-delete {
+        background-color: #dc3545;
+        color: #fff;
+        border: none;
+        padding: 5px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .btn-cancel {
+        background-color: #6c757d;
+        color: #fff;
+        border: none;
+        padding: 10px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-left: 5px;
+      }
+      .d-none {
+        display: none !important;
+      }
+      .badge-in {
+        background-color: #e3f2fd;
+        color: #0d47a1;
+        padding: 3px 6px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: bold;
+      }
+      .badge-ex {
+        background-color: #e8f5e9;
+        color: #1b5e20;
+        padding: 3px 6px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: bold;
+      }
+    </style>
   </head>
   <body>
     <div class="admin-container">
@@ -14,7 +84,7 @@
         <div class="page-header">
           <div>
             <p class="eyebrow">Quản trị sản phẩm</p>
-            <h1>Thêm dòng sản phẩm mới</h1>
+            <h1 id="formTitle">Thêm dòng sản phẩm mới</h1>
           </div>
         </div>
 
@@ -58,8 +128,38 @@
               placeholder="Số lớp khuyên dùng (VD: 2 lớp)"
             />
             <input type="text" id="lineDesc" placeholder="Mô tả" />
+
             <button id="saveLineBtn" type="button">Lưu dòng sản phẩm</button>
+            <button id="cancelEditBtn" type="button" class="btn-cancel d-none">
+              Hủy sửa
+            </button>
           </div>
+        </section>
+
+        <section class="admin-card mt-4">
+          <h2>Danh sách dòng sản phẩm hiện tại</h2>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Dòng sản phẩm</th>
+                <th>Thương hiệu</th>
+                <th>Loại sơn</th>
+                <th>Thông số kỹ thuật</th>
+                <th>Hành động</th>
+              </tr>
+            </thead>
+            <tbody id="lineTableBody">
+              <tr>
+                <td
+                  colspan="6"
+                  style="text-align: center; font-style: italic; color: #777"
+                >
+                  Đang tải danh sách dòng sản phẩm...
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </section>
       </main>
     </div>
@@ -71,23 +171,152 @@
       initAdminShell();
       loadBrandsIntoSelect("brandSelect");
 
-      document
-        .getElementById("saveLineBtn")
-        .addEventListener("click", async () => {
-          const data = {
-            brand_id: document.getElementById("brandSelect").value,
-            name: document.getElementById("lineName").value,
-            is_interior: document.getElementById("isInterior").value,
-            coverage_rate: document.getElementById("coverageRate").value,
-            drying_time: document.getElementById("dryingTime").value,
-            gloss_level: document.getElementById("glossLevel").value,
-            recommended_layers:
-              document.getElementById("recommendedLayers").value,
-            description: document.getElementById("lineDesc").value,
-          };
+      const tableBody = document.getElementById("lineTableBody");
+      const brandSelect = document.getElementById("brandSelect");
+      const lineNameInput = document.getElementById("lineName");
+      const isInteriorSelect = document.getElementById("isInterior");
+      const coverageRateInput = document.getElementById("coverageRate");
+      const dryingTimeInput = document.getElementById("dryingTime");
+      const glossLevelSelect = document.getElementById("glossLevel");
+      const recommendedLayersInput =
+        document.getElementById("recommendedLayers");
+      const lineDescInput = document.getElementById("lineDesc");
+      const saveLineBtn = document.getElementById("saveLineBtn");
+      const cancelEditBtn = document.getElementById("cancelEditBtn");
+      const formTitle = document.getElementById("formTitle");
 
-          const response = await fetch(API_ROUTES.ADD_LINE, {
-            method: "POST",
+      let editingLineId = null;
+
+      // --- 1. TẢI DANH SÁCH DÒNG SẢN PHẨM ---
+      async function loadProductLines() {
+        try {
+          const response = await fetch(API_ROUTES.GET_LINES, {
+            headers: { Authorization: "Bearer " + getAdminToken() },
+          });
+          if (!response.ok) throw new Error("Không thể tải danh sách.");
+
+          const lines = await response.json();
+          tableBody.innerHTML = "";
+
+          if (lines.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center;">Chưa có dòng sản phẩm nào.</td></tr>`;
+            return;
+          }
+
+          lines.forEach((line) => {
+            const row = document.createElement("tr");
+            const currentId = line.line_id || line.id;
+
+            // Render nhãn Nội thất / Ngoại thất
+            const typeBadge =
+              line.is_interior == 1
+                ? `<span class="badge-in">Nội thất</span>`
+                : `<span class="badge-ex">Ngoại thất</span>`;
+
+            row.innerHTML = `
+              <td><b>#${currentId}</b></td>
+              <td>
+                <div><b>${line.name}</b></div>
+                <small style="color: #777; display:block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${line.description || ""}">
+                  ${line.description || "Không có mô tả"}
+                </small>
+              </td>
+              <td><span class="badge">${line.brand_name || "Chưa rõ"}</span></td>
+              <td>${typeBadge}</td>
+              <td>
+                <small style="color: #555; line-height: 1.4;">
+                  • Độ phủ: ${line.coverage_rate || "Chưa rõ"} m²/lít<br>
+                  • Khô: ${line.drying_time || "Chưa rõ"}<br>
+                  • Bóng: ${line.gloss_level || "Chưa rõ"}<br>
+                  • Số lớp: ${line.recommended_layers || "Chưa rõ"}
+                </small>
+              </td>
+              <td>
+                <button class="btn-edit" onclick="prepareEdit(${currentId}, ${line.brand_id}, '${line.name}', ${line.is_interior}, '${line.coverage_rate || ""}', '${line.drying_time || ""}', '${line.gloss_level || ""}', '${line.recommended_layers || ""}', '${line.description || ""}')">Sửa</button>
+                <button class="btn-delete" onclick="deleteLine(${currentId})">Xóa</button>
+              </td>
+            `;
+            tableBody.appendChild(row);
+          });
+        } catch (err) {
+          console.error(err);
+          tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: red;">Lỗi khi tải dữ liệu!</td></tr>`;
+        }
+      }
+
+      window.addEventListener("DOMContentLoaded", loadProductLines);
+
+      // --- 2. ĐẨY DỮ LIỆU CŨ LÊN FORM ĐỂ SỬA ---
+      function prepareEdit(
+        id,
+        brandId,
+        name,
+        isInterior,
+        coverageRate,
+        dryingTime,
+        glossLevel,
+        recommendedLayers,
+        description,
+      ) {
+        editingLineId = id;
+        formTitle.innerText = "Chỉnh sửa dòng sản phẩm";
+        brandSelect.value = brandId;
+        lineNameInput.value = name;
+        isInteriorSelect.value = isInterior;
+        coverageRateInput.value = coverageRate;
+        dryingTimeInput.value = dryingTime;
+        glossLevelSelect.value = glossLevel;
+        recommendedLayersInput.value = recommendedLayers;
+        lineDescInput.value = description;
+
+        saveLineBtn.innerText = "Cập nhật";
+        cancelEditBtn.classList.remove("d-none");
+        lineNameInput.focus();
+      }
+
+      function resetForm() {
+        editingLineId = null;
+        formTitle.innerText = "Thêm dòng sản phẩm mới";
+        brandSelect.value = "";
+        lineNameInput.value = "";
+        isInteriorSelect.value = "1";
+        coverageRateInput.value = "";
+        dryingTimeInput.value = "";
+        glossLevelSelect.value = "";
+        recommendedLayersInput.value = "";
+        lineDescInput.value = "";
+        saveLineBtn.innerText = "Lưu dòng sản phẩm";
+        cancelEditBtn.classList.add("d-none");
+      }
+
+      cancelEditBtn.addEventListener("click", resetForm);
+
+      // --- 3. XỬ LÝ LƯU (THÊM MỚI HOẶC CẬP NHẬT) ---
+      saveLineBtn.addEventListener("click", async () => {
+        if (!brandSelect.value || !lineNameInput.value.trim()) {
+          alert("Vui lòng điền đầy đủ Tên dòng sản phẩm và Chọn thương hiệu!");
+          return;
+        }
+
+        const data = {
+          brand_id: brandSelect.value,
+          name: lineNameInput.value,
+          is_interior: isInteriorSelect.value,
+          coverage_rate: coverageRateInput.value,
+          drying_time: dryingTimeInput.value,
+          gloss_level: glossLevelSelect.value,
+          recommended_layers: recommendedLayersInput.value,
+          description: lineDescInput.value,
+        };
+
+        const url = editingLineId
+          ? API_ROUTES.UPDATE_LINE(editingLineId)
+          : API_ROUTES.ADD_LINE;
+        const method = editingLineId ? "PUT" : "POST";
+
+        try {
+          const response = await fetch(url, {
+            method: method,
             headers: {
               "Content-Type": "application/json",
               Authorization: "Bearer " + getAdminToken(),
@@ -97,14 +326,52 @@
 
           const result = await response.json().catch(() => null);
 
-          if (response.ok && result?.success) {
-            alert("Đã thêm dòng sản phẩm!");
-            window.location.href = "/admin/";
-            return;
+          if (response.ok && (editingLineId || result?.success)) {
+            alert(
+              editingLineId
+                ? "Cập nhật dòng sản phẩm thành công!"
+                : "Thêm dòng sản phẩm thành công!",
+            );
+            resetForm();
+            loadProductLines();
+          } else {
+            alert(result?.error || "Có lỗi xảy ra khi xử lý dữ liệu!");
           }
+        } catch (err) {
+          console.error(err);
+          alert("Lỗi kết nối hệ thống!");
+        }
+      });
 
-          alert(result?.error || "Lỗi khi thêm dòng sản phẩm!");
-        });
+      // --- 4. XỬ LÝ XÓA DÒNG SẢN PHẨM ---
+      async function deleteLine(id) {
+        if (
+          !confirm(
+            `Bạn có chắc chắn muốn xóa dòng sản phẩm #${id} không?\nLưu ý: Hành động này sẽ thất bại nếu có các biến thể/thùng sơn thuộc dòng sản phẩm này.`,
+          )
+        )
+          return;
+
+        try {
+          const response = await fetch(API_ROUTES.DELETE_LINE(id), {
+            method: "DELETE",
+            headers: { Authorization: "Bearer " + getAdminToken() },
+          });
+
+          const result = await response.json().catch(() => null);
+
+          if (response.ok) {
+            alert("Đã xóa dòng sản phẩm thành công!");
+            if (editingLineId === id) resetForm();
+            loadProductLines();
+          } else {
+            alert(result?.error || "Không thể xóa dòng sản phẩm này!");
+          }
+        } catch (err) {
+          console.error(err);
+          alert("Lỗi hệ thống khi xóa!");
+        }
+      }
     </script>
   </body>
 </html>

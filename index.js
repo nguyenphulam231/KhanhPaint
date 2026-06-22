@@ -7,7 +7,6 @@ const colorsystemRoutes = require("./routes/admin/colorsystem");
 // Middleware
 app.use(express.static(path.join(__dirname, "public")));
 app.use(express.json());
-
 // --- ROUTES ĐÃ CẬP NHẬT ---
 
 // 1. Auth routes (Giữ nguyên hoặc tùy chỉnh theo ý bạn)
@@ -17,7 +16,7 @@ app.use("/api/auth/public", require("./routes/client/auth"));
 // 2. Admin routes (Đã gom nhóm thành một cửa ngõ duy nhất)
 // Khi gọi "/api/admin", nó sẽ nhảy vào file routes/admin/index.js
 app.use("/api/admin", require("./routes/admin"));
-
+app.use("/api/admin/shifts", require("./routes/admin/shift"));
 app.use("/api/admin/colorsystem", colorsystemRoutes);
 // --- KẾT THÚC CẬP NHẬT ---
 

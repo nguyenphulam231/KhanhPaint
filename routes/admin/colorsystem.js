@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const db = require("../../db");
 
-// Lấy danh sách mã màu
+// 1. Lấy danh sách mã màu (Đã có - Giữ nguyên)
 router.get("/", async (req, res) => {
   try {
     const query = `
@@ -18,59 +18,43 @@ router.get("/", async (req, res) => {
   }
 });
 
-// Thêm mã màu và công thức pha (Dùng Transaction)
+// 2. Thêm mã màu và công thức pha (Đã có - Giữ nguyên)
 router.post("/add", async (req, res) => {
   const { color_code, color_name, base_id, formula } = req.body;
-
-  // Lấy kết nối từ pool
   const connection = await db.getConnection();
-
   try {
     await connection.beginTransaction();
 
-    // 1. Chèn vào bảng cha
     const [colorResult] = await connection.execute(
       "INSERT INTO colorsystem (color_code, color_name, base_id) VALUES (?, ?, ?)",
       [color_code, color_name, base_id],
     );
     const newColorId = colorResult.insertId;
-    console.log("ID bảng cha vừa tạo:", newColorId);
 
-    // 2. Chèn vào bảng con
     if (formula && formula.length > 0) {
       for (const item of formula) {
-        console.log("Đang insert item:", item);
-        // THAY VÌ QUERY, HÃY DÙNG EXECUTE VỚI LOG LỖI TẠI CHỖ
-        try {
-          await connection.execute(
-            "INSERT INTO colorsystem_colorants (color_id, colorant_id, amount_ml) VALUES (?, ?, ?)",
-            [newColorId, item.colorant_id, item.amount_ml],
-          );
-        } catch (innerErr) {
-          console.error("LỖI KHI INSERT BẢNG CON:", innerErr.sqlMessage);
-          throw innerErr; // Ném lỗi ra để khối catch chính bắt lấy
-        }
+        await connection.execute(
+          "INSERT INTO colorsystem_colorants (color_id, colorant_id, amount_ml) VALUES (?, ?, ?)",
+          [newColorId, item.colorant_id, item.amount_ml],
+        );
       }
     }
 
     await connection.commit();
-    console.log("Commit thành công!");
-    res.status(201).json({ message: "Thành công!" });
+    res.status(201).json({ success: true, message: "Thêm mã màu thành công!" });
   } catch (err) {
     await connection.rollback();
-    console.error("--- CHI TIẾT LỖI GIAO DỊCH ---");
-    console.error("Thông báo:", err.message);
-    console.error("SQL Lỗi:", err.sql);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, error: err.message });
   } finally {
     connection.release();
   }
 });
 
+// 3. Lấy công thức chi tiết của một mã màu (Đã có - Bổ sung thêm colorant_id để front-end dễ mapping form sửa)
 router.get("/formula/:colorId", async (req, res) => {
   try {
     const query = `
-      SELECT c.colorant_name, f.amount_ml 
+      SELECT f.colorant_id, c.colorant_name, f.amount_ml 
       FROM colorsystem_colorants f
       JOIN colorants c ON f.colorant_id = c.colorant_id
       WHERE f.color_id = ?
@@ -81,4 +65,86 @@ router.get("/formula/:colorId", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// 4. CẬP NHẬT MÃ MÀU VÀ CÔNG THỨC PHA (MỚI)
+router.put("/update/:colorId", async (req, res) => {
+  const { colorId } = req.params;
+  const { color_code, color_name, base_id, formula } = req.body;
+
+  const connection = await db.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    // Cập nhật thông tin bảng cha (Mã màu, tên màu, loại base cốt)
+    await connection.execute(
+      "UPDATE colorsystem SET color_code = ?, color_name = ?, base_id = ? WHERE color_id = ?",
+      [color_code, color_name, base_id, colorId],
+    );
+
+    // Xóa toàn bộ công thức tinh màu cũ của mã màu này trong bảng con
+    await connection.execute(
+      "DELETE FROM colorsystem_colorants WHERE color_id = ?",
+      [colorId],
+    );
+
+    // Chèn lại tập hợp công thức tinh màu mới (nếu có)
+    if (formula && formula.length > 0) {
+      for (const item of formula) {
+        await connection.execute(
+          "INSERT INTO colorsystem_colorants (color_id, colorant_id, amount_ml) VALUES (?, ?, ?)",
+          [colorId, item.colorant_id, item.amount_ml],
+        );
+      }
+    }
+
+    await connection.commit();
+    res.json({
+      success: true,
+      message: "Cập nhật mã màu và công thức thành công!",
+    });
+  } catch (err) {
+    await connection.rollback();
+    res.status(500).json({ success: false, error: err.message });
+  } finally {
+    connection.release();
+  }
+});
+
+// 5. XÓA MÃ MÀU VÀ CÔNG THỨC PHA (MỚI)
+router.delete("/delete/:colorId", async (req, res) => {
+  const { colorId } = req.params;
+
+  const connection = await db.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    // Xóa bảng con trước để giải phóng ràng buộc khóa ngoại (Foreign Key)
+    await connection.execute(
+      "DELETE FROM colorsystem_colorants WHERE color_id = ?",
+      [colorId],
+    );
+
+    // Xóa mã màu ở bảng cha
+    const [result] = await connection.execute(
+      "DELETE FROM colorsystem WHERE color_id = ?",
+      [colorId],
+    );
+
+    if (result.affectedRows === 0) {
+      await connection.rollback();
+      return res
+        .status(404)
+        .json({ success: false, error: "Không tìm thấy mã màu để xóa!" });
+    }
+
+    await connection.commit();
+    res.json({ success: true, message: "Xóa mã màu thành công!" });
+  } catch (err) {
+    await connection.rollback();
+    res.status(500).json({ success: false, error: err.message });
+  } finally {
+    connection.release();
+  }
+});
+
 module.exports = router;

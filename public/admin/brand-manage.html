@@ -5,6 +5,60 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="/style.css" />
     <title>Quản lý thương hiệu</title>
+    <style>
+      .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+        background: #fff;
+      }
+      .data-table th,
+      .data-table td {
+        border: 1px solid #ddd;
+        padding: 10px 12px;
+        text-align: left;
+      }
+      .data-table th {
+        background-color: #f5f5f5;
+        font-weight: bold;
+      }
+      .data-table tr:nth-child(even) {
+        background-color: #fafafa;
+      }
+      .mt-4 {
+        margin-top: 2rem;
+      }
+
+      .btn-edit {
+        background-color: #ffc107;
+        color: #000;
+        border: none;
+        padding: 5px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-right: 5px;
+      }
+      .btn-delete {
+        background-color: #dc3545;
+        color: #fff;
+        border: none;
+        padding: 5px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .btn-cancel {
+        background-color: #6c757d;
+        color: #fff;
+        border: none;
+        padding: 10px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-left: 5px;
+      }
+      .d-none {
+        display: none !important;
+      }
+    </style>
   </head>
   <body>
     <div class="admin-container">
@@ -14,7 +68,7 @@
         <div class="page-header">
           <div>
             <p class="eyebrow">Quản trị sản phẩm</p>
-            <h1>Thêm thương hiệu mới</h1>
+            <h1 id="formTitle">Thêm thương hiệu mới</h1>
           </div>
         </div>
 
@@ -28,8 +82,37 @@
             />
             <input type="text" id="brandOrigin" placeholder="Xuất xứ" />
             <input type="text" id="brandDesc" placeholder="Mô tả" />
+
             <button id="saveBrandBtn" type="button">Lưu thương hiệu</button>
+            <button id="cancelEditBtn" type="button" class="btn-cancel d-none">
+              Hủy sửa
+            </button>
           </div>
+        </section>
+
+        <section class="admin-card mt-4">
+          <h2>Danh sách thương hiệu hiện có</h2>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Tên thương hiệu</th>
+                <th>Xuất xứ</th>
+                <th>Mô tả</th>
+                <th>Hành động</th>
+              </tr>
+            </thead>
+            <tbody id="brandTableBody">
+              <tr>
+                <td
+                  colspan="5"
+                  style="text-align: center; font-style: italic; color: #777"
+                >
+                  Đang tải danh sách thương hiệu...
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </section>
       </main>
     </div>
@@ -40,17 +123,103 @@
       mountAdminSidebar("brands");
       initAdminShell();
 
-      document
-        .getElementById("saveBrandBtn")
-        .addEventListener("click", async () => {
-          const brandData = {
-            name: document.getElementById("brandName").value,
-            origin: document.getElementById("brandOrigin").value,
-            description: document.getElementById("brandDesc").value,
-          };
+      const tableBody = document.getElementById("brandTableBody");
+      const brandNameInput = document.getElementById("brandName");
+      const brandOriginInput = document.getElementById("brandOrigin");
+      const brandDescInput = document.getElementById("brandDesc");
+      const saveBrandBtn = document.getElementById("saveBrandBtn");
+      const cancelEditBtn = document.getElementById("cancelEditBtn");
+      const formTitle = document.getElementById("formTitle");
 
-          const response = await fetch(API_ROUTES.ADD_BRAND, {
-            method: "POST",
+      let editingBrandId = null;
+
+      // --- 1. TẢI DANH SÁCH THƯƠNG HIỆU ---
+      async function loadBrands() {
+        try {
+          const response = await fetch(API_ROUTES.GET_BRANDS, {
+            headers: { Authorization: "Bearer " + getAdminToken() },
+          });
+          if (!response.ok)
+            throw new Error("Không thể tải danh sách thương hiệu.");
+
+          const brands = await response.json();
+          tableBody.innerHTML = "";
+
+          if (brands.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center;">Chưa có thương hiệu nào.</td></tr>`;
+            return;
+          }
+
+          brands.forEach((brand) => {
+            const row = document.createElement("tr");
+            const currentId = brand.brand_id || brand.id;
+
+            row.innerHTML = `
+              <td><b>#${currentId}</b></td>
+              <td><b>${brand.name}</b></td>
+              <td>${brand.origin || "Chưa rõ"}</td>
+              <td>${brand.description || "Không có mô tả"}</td>
+              <td>
+                <button class="btn-edit" onclick="prepareEdit(${currentId}, '${brand.name}', '${brand.origin || ""}', '${brand.description || ""}')">Sửa</button>
+                <button class="btn-delete" onclick="deleteBrand(${currentId})">Xóa</button>
+              </td>
+            `;
+            tableBody.appendChild(row);
+          });
+        } catch (err) {
+          console.error(err);
+          tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: red;">Lỗi khi tải dữ liệu!</td></tr>`;
+        }
+      }
+
+      window.addEventListener("DOMContentLoaded", loadBrands);
+
+      // --- 2. ĐẨY DỮ LIỆU LÊN FORM ĐỂ SỬA ---
+      function prepareEdit(id, name, origin, description) {
+        editingBrandId = id;
+        formTitle.innerText = "Chỉnh sửa thông tin thương hiệu";
+        brandNameInput.value = name;
+        brandOriginInput.value = origin;
+        brandDescInput.value = description;
+
+        saveBrandBtn.innerText = "Cập nhật";
+        cancelEditBtn.classList.remove("d-none");
+        brandNameInput.focus();
+      }
+
+      function resetForm() {
+        editingBrandId = null;
+        formTitle.innerText = "Thêm thương hiệu mới";
+        brandNameInput.value = "";
+        brandOriginInput.value = "";
+        brandDescInput.value = "";
+        saveBrandBtn.innerText = "Lưu thương hiệu";
+        cancelEditBtn.classList.add("d-none");
+      }
+
+      cancelEditBtn.addEventListener("click", resetForm);
+
+      // --- 3. XỬ LÝ LƯU (THÊM MỚI HOẶC CẬP NHẬT) ---
+      saveBrandBtn.addEventListener("click", async () => {
+        if (!brandNameInput.value.trim()) {
+          alert("Vui lòng điền tên thương hiệu!");
+          return;
+        }
+
+        const brandData = {
+          name: brandNameInput.value,
+          origin: brandOriginInput.value,
+          description: brandDescInput.value,
+        };
+
+        const url = editingBrandId
+          ? API_ROUTES.UPDATE_BRAND(editingBrandId)
+          : API_ROUTES.ADD_BRAND;
+        const method = editingBrandId ? "PUT" : "POST";
+
+        try {
+          const response = await fetch(url, {
+            method: method,
             headers: {
               "Content-Type": "application/json",
               Authorization: "Bearer " + getAdminToken(),
@@ -58,14 +227,54 @@
             body: JSON.stringify(brandData),
           });
 
-          if (response.ok) {
-            alert("Thêm thương hiệu thành công!");
-            window.location.href = "/admin/";
-            return;
-          }
+          const resData = await response.json();
 
-          alert("Lỗi khi thêm thương hiệu!");
-        });
+          if (response.ok) {
+            alert(
+              editingBrandId
+                ? "Cập nhật thương hiệu thành công!"
+                : "Thêm thương hiệu thành công!",
+            );
+            resetForm();
+            loadBrands();
+          } else {
+            alert(resData.error || "Có lỗi xảy ra từ máy chủ!");
+          }
+        } catch (err) {
+          console.error(err);
+          alert("Lỗi kết nối hệ thống!");
+        }
+      });
+
+      // --- 4. XỬ LÝ XÓA THƯƠNG HIỆU ---
+      async function deleteBrand(id) {
+        if (
+          !confirm(
+            `Bạn có chắc chắn muốn xóa thương hiệu #${id} này không?\nLưu ý: Hành động này có thể thất bại nếu thương hiệu đang chứa sản phẩm.`,
+          )
+        )
+          return;
+
+        try {
+          const response = await fetch(API_ROUTES.DELETE_BRAND(id), {
+            method: "DELETE",
+            headers: { Authorization: "Bearer " + getAdminToken() },
+          });
+
+          const resData = await response.json();
+
+          if (response.ok) {
+            alert("Đã xóa thương hiệu thành công!");
+            if (editingBrandId === id) resetForm();
+            loadBrands();
+          } else {
+            alert(resData.error || "Không thể xóa thương hiệu này!");
+          }
+        } catch (err) {
+          console.error(err);
+          alert("Lỗi hệ thống khi xóa!");
+        }
+      }
     </script>
   </body>
 </html>

@@ -5,6 +5,60 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="/style.css" />
     <title>Quản lý nhân viên</title>
+    <style>
+      .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+        background: #fff;
+      }
+      .data-table th,
+      .data-table td {
+        border: 1px solid #ddd;
+        padding: 10px 12px;
+        text-align: left;
+      }
+      .data-table th {
+        background-color: #f5f5f5;
+        font-weight: bold;
+      }
+      .data-table tr:nth-child(even) {
+        background-color: #fafafa;
+      }
+      .mt-4 {
+        margin-top: 2rem;
+      }
+
+      .btn-edit {
+        background-color: #ffc107;
+        color: #000;
+        border: none;
+        padding: 5px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-right: 5px;
+      }
+      .btn-delete {
+        background-color: #dc3545;
+        color: #fff;
+        border: none;
+        padding: 5px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .btn-cancel {
+        background-color: #6c757d;
+        color: #fff;
+        border: none;
+        padding: 10px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-left: 5px;
+      }
+      .d-none {
+        display: none !important;
+      }
+    </style>
   </head>
   <body>
     <div class="admin-container">
@@ -14,7 +68,7 @@
         <div class="page-header">
           <div>
             <p class="eyebrow">Quản trị nhân sự</p>
-            <h1>Thêm nhân viên mới</h1>
+            <h1 id="formTitle">Thêm nhân viên mới</h1>
           </div>
         </div>
 
@@ -29,7 +83,11 @@
             <input type="email" id="email" placeholder="Email" required />
             <input type="text" id="phone" placeholder="Số điện thoại" />
             <input type="date" id="hire_date" />
-            <input type="password" id="password" placeholder="Mật khẩu" />
+            <input
+              type="password"
+              id="password"
+              placeholder="Mật khẩu (Bỏ trống nếu giữ nguyên khi sửa)"
+            />
             <select id="job_id">
               <option value="">-- Chọn vị trí --</option>
             </select>
@@ -38,7 +96,36 @@
               <option value="admin">Admin</option>
             </select>
             <button id="saveEmployeeBtn" type="button">Tạo tài khoản</button>
+            <button id="cancelEditBtn" type="button" class="btn-cancel d-none">
+              Hủy sửa
+            </button>
           </div>
+        </section>
+
+        <section class="admin-card mt-4">
+          <h2>Danh sách nhân viên hiện có</h2>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Họ và tên</th>
+                <th>Email / SĐT</th>
+                <th>Vị trí</th>
+                <th>Quyền</th>
+                <th>Hành động</th>
+              </tr>
+            </thead>
+            <tbody id="employeeTableBody">
+              <tr>
+                <td
+                  colspan="6"
+                  style="text-align: center; font-style: italic; color: #777"
+                >
+                  Đang tải danh sách nhân viên...
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </section>
       </main>
     </div>
@@ -50,21 +137,132 @@
       initAdminShell();
       loadJobsIntoSelect("job_id");
 
-      document
-        .getElementById("saveEmployeeBtn")
-        .addEventListener("click", async () => {
-          const data = {
-            full_name: document.getElementById("full_name").value,
-            email: document.getElementById("email").value,
-            phone: document.getElementById("phone").value,
-            hire_date: document.getElementById("hire_date").value,
-            password: document.getElementById("password").value,
-            job_id: document.getElementById("job_id").value,
-            role: document.getElementById("role").value,
-          };
+      const tableBody = document.getElementById("employeeTableBody");
+      const fullNameInput = document.getElementById("full_name");
+      const emailInput = document.getElementById("email");
+      const phoneInput = document.getElementById("phone");
+      const hireDateInput = document.getElementById("hire_date");
+      const passwordInput = document.getElementById("password");
+      const jobIdSelect = document.getElementById("job_id");
+      const roleSelect = document.getElementById("role");
+      const saveEmployeeBtn = document.getElementById("saveEmployeeBtn");
+      const cancelEditBtn = document.getElementById("cancelEditBtn");
+      const formTitle = document.getElementById("formTitle");
 
-          const response = await fetch(API_ROUTES.ADD_EMPLOYEE, {
-            method: "POST",
+      let editingEmployeeId = null;
+
+      // --- 1. TẢI DANH SÁCH NHÂN VIÊN ---
+      async function loadEmployees() {
+        try {
+          const response = await fetch(API_ROUTES.GET_EMPLOYEES, {
+            headers: { Authorization: "Bearer " + getAdminToken() },
+          });
+          if (!response.ok) throw new Error("Không thể tải dữ liệu.");
+
+          const employees = await response.json();
+          tableBody.innerHTML = "";
+
+          if (employees.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center;">Chưa có nhân viên nào.</td></tr>`;
+            return;
+          }
+
+          employees.forEach((emp) => {
+            const row = document.createElement("tr");
+            // Định dạng ngày hiển thị (YYYY-MM-DD -> DD/MM/YYYY)
+            const formattedDate = emp.hire_date
+              ? new Date(emp.hire_date).toLocaleDateString("vi-VN")
+              : "Chưa rõ";
+
+            row.innerHTML = `
+              <td><b>#${emp.employee_id}</b></td>
+              <td>
+                <div><b>${emp.full_name}</b></div>
+                <small style="color:#777">Ngày vào làm: ${formattedDate}</small>
+              </td>
+              <td>
+                <div>${emp.email}</div>
+                <small style="color:#555">${emp.phone || "Không có SĐT"}</small>
+              </td>
+              <td><span class="badge">${emp.job_title || "Chưa phân phối"}</span></td>
+              <td><b style="color: ${emp.role === "admin" ? "red" : "green"}">${emp.role.toUpperCase()}</b></td>
+              <td>
+                <button class="btn-edit" onclick="prepareEdit(${emp.employee_id}, '${emp.full_name}', '${emp.email}', '${emp.phone || ""}', '${emp.hire_date ? emp.hire_date.substring(0, 10) : ""}', '${emp.job_id || ""}', '${emp.role}')">Sửa</button>
+                <button class="btn-delete" onclick="deleteEmployee(${emp.employee_id})">Xóa</button>
+              </td>
+            `;
+            tableBody.appendChild(row);
+          });
+        } catch (err) {
+          console.error(err);
+          tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: red;">Lỗi khi tải danh sách nhân viên!</td></tr>`;
+        }
+      }
+
+      window.addEventListener("DOMContentLoaded", loadEmployees);
+
+      // --- 2. CHUẨN BỊ SỬA DỮ LIỆU ---
+      function prepareEdit(id, name, email, phone, hireDate, jobId, role) {
+        editingEmployeeId = id;
+        formTitle.innerText = "Chỉnh sửa thông tin nhân viên";
+        fullNameInput.value = name;
+        emailInput.value = email;
+        phoneInput.value = phone;
+        hireDateInput.value = hireDate;
+        passwordInput.value = ""; // Để trống mật khẩu, chỉ nhập khi cần đổi
+        jobIdSelect.value = jobId;
+        roleSelect.value = role;
+
+        saveEmployeeBtn.innerText = "Cập nhật";
+        cancelEditBtn.classList.remove("d-none");
+        fullNameInput.focus();
+      }
+
+      function resetForm() {
+        editingEmployeeId = null;
+        formTitle.innerText = "Thêm nhân viên mới";
+        fullNameInput.value = "";
+        emailInput.value = "";
+        phoneInput.value = "";
+        hireDateInput.value = "";
+        passwordInput.value = "";
+        jobIdSelect.value = "";
+        roleSelect.value = "staff";
+        saveEmployeeBtn.innerText = "Tạo tài khoản";
+        cancelEditBtn.classList.add("d-none");
+      }
+
+      cancelEditBtn.addEventListener("click", resetForm);
+
+      // --- 3. XỬ LÝ LƯU (THÊM MỚI HOẶC CẬP NHẬT) ---
+      saveEmployeeBtn.addEventListener("click", async () => {
+        if (!fullNameInput.value.trim() || !emailInput.value.trim()) {
+          alert("Vui lòng điền đầy đủ Họ tên và Email!");
+          return;
+        }
+        if (!editingEmployeeId && !passwordInput.value) {
+          alert("Vui lòng nhập mật khẩu cho nhân viên mới!");
+          return;
+        }
+
+        const data = {
+          full_name: fullNameInput.value,
+          email: emailInput.value,
+          phone: phoneInput.value,
+          hire_date: hireDateInput.value,
+          password: passwordInput.value,
+          job_id: jobIdSelect.value,
+          role: roleSelect.value,
+        };
+
+        const url = editingEmployeeId
+          ? API_ROUTES.UPDATE_EMPLOYEE(editingEmployeeId)
+          : API_ROUTES.ADD_EMPLOYEE;
+        const method = editingEmployeeId ? "PUT" : "POST";
+
+        try {
+          const response = await fetch(url, {
+            method: method,
             headers: {
               "Content-Type": "application/json",
               Authorization: "Bearer " + getAdminToken(),
@@ -72,14 +270,50 @@
             body: JSON.stringify(data),
           });
 
-          if (response.ok) {
-            alert("Thêm nhân viên thành công!");
-            window.location.href = "/admin/";
-            return;
-          }
+          const resData = await response.json();
 
-          alert("Lỗi tạo nhân viên!");
-        });
+          if (response.ok) {
+            alert(
+              editingEmployeeId
+                ? "Cập nhật nhân viên thành công!"
+                : "Thêm nhân viên thành công!",
+            );
+            resetForm();
+            loadEmployees();
+          } else {
+            alert(resData.error || "Có lỗi xảy ra từ máy chủ!");
+          }
+        } catch (err) {
+          console.error(err);
+          alert("Lỗi kết nối hệ thống!");
+        }
+      });
+
+      // --- 4. XỬ LÝ XÓA NHÂN VIÊN ---
+      async function deleteEmployee(id) {
+        if (!confirm(`Bạn có chắc chắn muốn xóa nhân viên #${id} này không?`))
+          return;
+
+        try {
+          const response = await fetch(API_ROUTES.DELETE_EMPLOYEE(id), {
+            method: "DELETE",
+            headers: { Authorization: "Bearer " + getAdminToken() },
+          });
+
+          const resData = await response.json();
+
+          if (response.ok) {
+            alert("Đã xóa nhân viên thành công!");
+            if (editingEmployeeId === id) resetForm();
+            loadEmployees();
+          } else {
+            alert(resData.error || "Không thể xóa nhân viên này!");
+          }
+        } catch (err) {
+          console.error(err);
+          alert("Lỗi hệ thống khi xóa!");
+        }
+      }
     </script>
   </body>
 </html>

@@ -5,6 +5,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="/style.css" />
     <title>Quản lý Product Variant</title>
+    <style>
+      .btn-cancel {
+        background-color: #6c757d;
+        color: #fff;
+        border: none;
+        padding: 10px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-left: 5px;
+      }
+      .d-none {
+        display: none !important;
+      }
+      .action-link {
+        cursor: pointer;
+        border: none;
+        background: none;
+        text-decoration: underline;
+        font-weight: bold;
+      }
+      .edit-link {
+        color: #ffc107;
+        margin-right: 10px;
+      }
+      .delete-link {
+        color: #dc3545;
+      }
+    </style>
   </head>
   <body>
     <div class="admin-container">
@@ -14,7 +42,7 @@
         <div class="page-header">
           <div>
             <p class="eyebrow">Quản trị sản phẩm</p>
-            <h1>Thêm Product Variant mới</h1>
+            <h1 id="formTitle">Thêm Product Variant mới</h1>
           </div>
         </div>
 
@@ -61,6 +89,9 @@
             <button id="saveVariantBtn" type="button">
               Lưu Product Variant
             </button>
+            <button id="cancelEditBtn" type="button" class="btn-cancel d-none">
+              Hủy sửa
+            </button>
           </div>
         </section>
 
@@ -70,6 +101,9 @@
             <thead>
               <tr style="background-color: #f5f5f5">
                 <th style="border: 1px solid #ddd; padding: 8px">Variant ID</th>
+                <th style="border: 1px solid #ddd; padding: 8px">
+                  Thương hiệu
+                </th>
                 <th style="border: 1px solid #ddd; padding: 8px">Dòng SP</th>
                 <th style="border: 1px solid #ddd; padding: 8px">BaseType</th>
                 <th style="border: 1px solid #ddd; padding: 8px">Dung tích</th>
@@ -82,7 +116,7 @@
             </thead>
             <tbody id="variantsTableBody">
               <tr>
-                <td colspan="9" style="text-align: center; padding: 20px">
+                <td colspan="10" style="text-align: center; padding: 20px">
                   Đang tải dữ liệu...
                 </td>
               </tr>
@@ -98,6 +132,21 @@
       mountAdminSidebar("variants");
       initAdminShell();
 
+      const brandSelect = document.getElementById("brandSelect");
+      const lineSelect = document.getElementById("lineSelect");
+      const baseSelect = document.getElementById("baseSelect");
+      const volumeInput = document.getElementById("volume");
+      const skuCodeInput = document.getElementById("skuCode");
+      const unitPriceInput = document.getElementById("unitPrice");
+      const stockQuantityInput = document.getElementById("stockQuantity");
+      const warehouseLocationInput =
+        document.getElementById("warehouseLocation");
+      const saveVariantBtn = document.getElementById("saveVariantBtn");
+      const cancelEditBtn = document.getElementById("cancelEditBtn");
+      const formTitle = document.getElementById("formTitle");
+
+      let editingVariantId = null;
+
       // 1. Hàm load danh sách Brands
       async function loadBrands() {
         const token = getAdminToken();
@@ -109,7 +158,6 @@
           });
           const brands = await response.json();
 
-          const brandSelect = document.getElementById("brandSelect");
           brandSelect.innerHTML =
             '<option value="">-- Chọn thương hiệu --</option>';
           brands.forEach((brand) => {
@@ -120,12 +168,11 @@
         }
       }
 
-      // 2. Hàm load danh sách ProductLines theo Brand
-      async function loadProductLinesByBrand(brandId) {
+      // 2. Hàm load danh sách ProductLines theo Brand (Bổ sung callback khi cần điền form sửa)
+      async function loadProductLinesByBrand(brandId, callback = null) {
         const token = getAdminToken();
         if (!token) return;
 
-        const lineSelect = document.getElementById("lineSelect");
         if (!brandId) {
           lineSelect.innerHTML =
             '<option value="">-- Chọn dòng sản phẩm --</option>';
@@ -146,6 +193,8 @@
           lines.forEach((line) => {
             lineSelect.innerHTML += `<option value="${line.line_id}">${line.name}</option>`;
           });
+
+          if (callback) callback();
         } catch (err) {
           console.error("Lỗi tải danh sách dòng sản phẩm:", err);
         }
@@ -162,7 +211,6 @@
           });
           const bases = await response.json();
 
-          const baseSelect = document.getElementById("baseSelect");
           baseSelect.innerHTML =
             '<option value="">-- Chọn BaseType --</option>';
           bases.forEach((base) => {
@@ -187,129 +235,206 @@
           const tbody = document.getElementById("variantsTableBody");
           if (variants.length === 0) {
             tbody.innerHTML =
-              '<tr><td colspan="9" style="text-align: center; padding: 20px">Chưa có product variant nào</td></tr>';
+              '<tr><td colspan="10" style="text-align: center; padding: 20px">Chưa có product variant nào</td></tr>';
             return;
           }
 
           tbody.innerHTML = variants
-            .map(
-              (v) => `
+            .map((v) => {
+              // Chuẩn bị dữ liệu chuỗi an toàn để truyền vào hàm onclick
+              const escapedVolume = (v.volume || "").replace(/'/g, "\\'");
+              const escapedSku = (v.sku_code || "").replace(/'/g, "\\'");
+              const escapedLoc = (v.warehouse_location || "").replace(
+                /'/g,
+                "\\'",
+              );
+
+              return `
                 <tr>
-                  <td style="border: 1px solid #ddd; padding: 8px">${v.variant_id}</td>
-                  <td style="border: 1px solid #ddd; padding: 8px">${v.line_name}</td>
-                  <td style="border: 1px solid #ddd; padding: 8px">${v.base_name}</td>
+                  <td style="border: 1px solid #ddd; padding: 8px"><b>#${v.variant_id}</b></td>
+                  <td style="border: 1px solid #ddd; padding: 8px">${v.brand_name || "-"}</td>
+                  <td style="border: 1px solid #ddd; padding: 8px"><b>${v.line_name}</b></td>
+                  <td style="border: 1px solid #ddd; padding: 8px"><span class="badge">${v.base_name}</span></td>
                   <td style="border: 1px solid #ddd; padding: 8px">${v.volume || "-"}</td>
-                  <td style="border: 1px solid #ddd; padding: 8px">${v.sku_code}</td>
-                  <td style="border: 1px solid #ddd; padding: 8px">${v.unit_price.toLocaleString("vi-VN")} VND</td>
+                  <td style="border: 1px solid #ddd; padding: 8px"><code>${v.sku_code}</code></td>
+                  <td style="border: 1px solid #ddd; padding: 8px">${v.unit_price.toLocaleString("vi-VN")} đ</td>
                   <td style="border: 1px solid #ddd; padding: 8px">${v.stock_quantity}</td>
                   <td style="border: 1px solid #ddd; padding: 8px">${v.warehouse_location || "-"}</td>
                   <td style="border: 1px solid #ddd; padding: 8px">
-                    <button onclick="deleteVariant(${v.variant_id})" style="color: red; cursor: pointer; border: none; background: none; text-decoration: underline">Xóa</button>
+                    <button class="action-link edit-link" onclick="prepareEdit(${v.variant_id}, ${v.brand_id}, ${v.line_id}, ${v.base_id}, '${escapedVolume}', '${escapedSku}', ${v.unit_price}, ${v.stock_quantity}, '${escapedLoc}')">Sửa</button>
+                    <button class="action-link delete-link" onclick="deleteVariant(${v.variant_id})">Xóa</button>
                   </td>
                 </tr>
-              `,
-            )
+              `;
+            })
             .join("");
         } catch (err) {
           console.error("Lỗi tải danh sách variants:", err);
         }
       }
 
-      // 5. Hàm xóa variant
+      // 5. Chuẩn bị dữ liệu sửa biến thể
+      function prepareEdit(
+        variantId,
+        brandId,
+        lineId,
+        baseId,
+        volume,
+        skuCode,
+        unitPrice,
+        stockQuantity,
+        warehouseLocation,
+      ) {
+        editingVariantId = variantId;
+        formTitle.innerText = "Chỉnh sửa Product Variant";
+
+        brandSelect.value = brandId;
+        baseSelect.value = baseId;
+        volumeInput.value = volume;
+        skuCodeInput.value = skuCode;
+        unitPriceInput.value = unitPrice;
+        stockQuantityInput.value = stockQuantity;
+        warehouseLocationInput.value = warehouseLocation;
+
+        // Đồng bộ danh sách Dòng sản phẩm tương ứng với Brand trước khi chọn giá trị dòng cũ
+        loadProductLinesByBrand(brandId, () => {
+          lineSelect.value = lineId;
+        });
+
+        saveVariantBtn.innerText = "Cập nhật";
+        cancelEditBtn.classList.remove("d-none");
+        skuCodeInput.focus();
+      }
+
+      // Hàm reset form về trạng thái ban đầu
+      function resetForm() {
+        editingVariantId = null;
+        formTitle.innerText = "Thêm Product Variant mới";
+        brandSelect.value = "";
+        lineSelect.innerHTML =
+          '<option value="">-- Chọn dòng sản phẩm --</option>';
+        baseSelect.value = "";
+        volumeInput.value = "";
+        skuCodeInput.value = "";
+        unitPriceInput.value = "";
+        stockQuantityInput.value = "";
+        warehouseLocationInput.value = "";
+        saveVariantBtn.innerText = "Lưu Product Variant";
+        cancelEditBtn.classList.add("d-none");
+      }
+
+      cancelEditBtn.addEventListener("click", resetForm);
+
+      // 6. Hàm xóa variant
       async function deleteVariant(variantId) {
         const token = getAdminToken();
         if (!token) return;
 
-        if (!confirm("Bạn chắc chắn muốn xóa product variant này?")) return;
+        if (
+          !confirm(
+            `Bạn chắc chắn muốn xóa biến thể sản phẩm #${variantId} này?`,
+          )
+        )
+          return;
 
         try {
           const response = await fetch(
-            `${API_ROUTES.DELETE_VARIANT}/${variantId}`,
+            `${API_ROUTES.DELETE_VARIANT(variantId)}`,
             {
               method: "DELETE",
               headers: { Authorization: "Bearer " + token },
             },
           );
 
-          if (response.ok) {
+          const result = await response.json().catch(() => null);
+
+          if (response.ok && result?.success) {
             alert("Xóa product variant thành công!");
+            if (editingVariantId === variantId) resetForm();
             loadVariants();
           } else {
-            alert("Lỗi khi xóa product variant!");
+            alert(result?.error || "Lỗi khi xóa product variant!");
           }
         } catch (err) {
           console.error("Lỗi:", err);
+          alert("Lỗi hệ thống khi xóa!");
         }
       }
 
-      // 6. Xử lý event khi chọn Brand
-      document.getElementById("brandSelect").addEventListener("change", (e) => {
+      // 7. Xử lý event khi chọn Brand
+      brandSelect.addEventListener("change", (e) => {
         loadProductLinesByBrand(e.target.value);
       });
 
-      // 7. Xử lý nút lưu
-      document
-        .getElementById("saveVariantBtn")
-        .addEventListener("click", async () => {
-          const lineId = document.getElementById("lineSelect").value;
-          const baseId = document.getElementById("baseSelect").value;
-          const volume = document.getElementById("volume").value;
-          const skuCode = document.getElementById("skuCode").value;
-          const unitPrice = document.getElementById("unitPrice").value;
-          const stockQuantity = document.getElementById("stockQuantity").value;
-          const warehouseLocation =
-            document.getElementById("warehouseLocation").value;
+      // 8. Xử lý nút lưu (Thêm mới HOẶC Cập nhật)
+      saveVariantBtn.addEventListener("click", async () => {
+        const lineId = lineSelect.value;
+        const baseId = baseSelect.value;
+        const volume = volumeInput.value;
+        const skuCode = skuCodeInput.value.trim();
+        const unitPrice = unitPriceInput.value;
+        const stockQuantity = stockQuantityInput.value;
+        const warehouseLocation = warehouseLocationInput.value.trim();
 
-          if (!lineId || !baseId || !skuCode || !unitPrice || !stockQuantity) {
-            alert("Vui lòng điền đầy đủ các trường bắt buộc!");
-            return;
+        if (
+          !lineId ||
+          !baseId ||
+          !skuCode ||
+          unitPrice === "" ||
+          stockQuantity === ""
+        ) {
+          alert("Vui lòng điền đầy đủ các trường bắt buộc!");
+          return;
+        }
+
+        const token = getAdminToken();
+        if (!token) return;
+
+        const data = {
+          line_id: parseInt(lineId),
+          base_id: parseInt(baseId),
+          volume: volume || null,
+          sku_code: skuCode,
+          unit_price: parseFloat(unitPrice),
+          stock_quantity: parseInt(stockQuantity),
+          warehouse_location: warehouseLocation || null,
+        };
+
+        const url = editingVariantId
+          ? API_ROUTES.UPDATE_VARIANT(editingVariantId)
+          : API_ROUTES.ADD_VARIANT;
+        const method = editingVariantId ? "PUT" : "POST";
+
+        try {
+          const response = await fetch(url, {
+            method: method,
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + token,
+            },
+            body: JSON.stringify(data),
+          });
+
+          const result = await response.json().catch(() => null);
+
+          if (response.ok && result?.success) {
+            alert(
+              editingVariantId
+                ? "Cập nhật biến thể thành công!"
+                : "Thêm product variant thành công!",
+            );
+            resetForm();
+            loadVariants();
+          } else {
+            alert(result?.error || "Lỗi khi xử lý dữ liệu biến thể!");
           }
+        } catch (err) {
+          console.error("Lỗi:", err);
+          alert("Lỗi kết nối tới máy chủ!");
+        }
+      });
 
-          const token = getAdminToken();
-          if (!token) return;
-
-          const data = {
-            line_id: parseInt(lineId),
-            base_id: parseInt(baseId),
-            volume: volume || null,
-            sku_code: skuCode,
-            unit_price: parseFloat(unitPrice),
-            stock_quantity: parseInt(stockQuantity),
-            warehouse_location: warehouseLocation || null,
-          };
-
-          try {
-            const response = await fetch(API_ROUTES.ADD_VARIANT, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: "Bearer " + token,
-              },
-              body: JSON.stringify(data),
-            });
-
-            if (response.ok) {
-              alert("Thêm product variant thành công!");
-              // Reset form
-              document.getElementById("lineSelect").value = "";
-              document.getElementById("baseSelect").value = "";
-              document.getElementById("volume").value = "";
-              document.getElementById("skuCode").value = "";
-              document.getElementById("unitPrice").value = "";
-              document.getElementById("stockQuantity").value = "";
-              document.getElementById("warehouseLocation").value = "";
-              // Reload danh sách
-              loadVariants();
-            } else {
-              alert("Lỗi khi thêm product variant!");
-            }
-          } catch (err) {
-            console.error("Lỗi:", err);
-            alert("Lỗi kết nối tới máy chủ!");
-          }
-        });
-
-      // 8. Khởi tạo khi trang load
+      // 9. Khởi tạo khi trang load
       loadBrands();
       loadBaseTypes();
       loadVariants();

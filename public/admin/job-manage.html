@@ -5,6 +5,61 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="/style.css" />
     <title>Quản lý vị trí công việc</title>
+    <style>
+      .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+        background: #fff;
+      }
+      .data-table th,
+      .data-table td {
+        border: 1px solid #ddd;
+        padding: 10px 12px;
+        text-align: left;
+      }
+      .data-table th {
+        background-color: #f5f5f5;
+        font-weight: bold;
+      }
+      .data-table tr:nth-child(even) {
+        background-color: #fafafa;
+      }
+      .mt-4 {
+        margin-top: 2rem;
+      }
+
+      /* Style cho các nút hành động */
+      .btn-edit {
+        background-color: #ffc107;
+        color: #000;
+        border: none;
+        padding: 5px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-right: 5px;
+      }
+      .btn-delete {
+        background-color: #dc3545;
+        color: #fff;
+        border: none;
+        padding: 5px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .btn-cancel {
+        background-color: #6c757d;
+        color: #fff;
+        border: none;
+        padding: 10px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-left: 5px;
+      }
+      .d-none {
+        display: none !important;
+      }
+    </style>
   </head>
   <body>
     <div class="admin-container">
@@ -14,7 +69,7 @@
         <div class="page-header">
           <div>
             <p class="eyebrow">Quản trị nhân sự</p>
-            <h1>Tạo vị trí công việc</h1>
+            <h1 id="formTitle">Tạo vị trí công việc</h1>
           </div>
         </div>
 
@@ -28,8 +83,37 @@
             />
             <input type="number" id="minSalary" placeholder="Lương tối thiểu" />
             <input type="number" id="maxSalary" placeholder="Lương tối đa" />
+
             <button id="saveJobBtn" type="button">Lưu vị trí</button>
+            <button id="cancelEditBtn" type="button" class="btn-cancel d-none">
+              Hủy sửa
+            </button>
           </div>
+        </section>
+
+        <section class="admin-card mt-4">
+          <h2>Danh sách vị trí hiện tại</h2>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Tên vị trí (Công việc)</th>
+                <th>Lương tối thiểu</th>
+                <th>Lương tối đa</th>
+                <th>Hành động</th>
+              </tr>
+            </thead>
+            <tbody id="jobTableBody">
+              <tr>
+                <td
+                  colspan="5"
+                  style="text-align: center; font-style: italic; color: #777"
+                >
+                  Đang tải danh sách công việc...
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </section>
       </main>
     </div>
@@ -40,17 +124,113 @@
       mountAdminSidebar("jobs");
       initAdminShell();
 
-      document
-        .getElementById("saveJobBtn")
-        .addEventListener("click", async () => {
-          const jobData = {
-            job_title: document.getElementById("jobTitle").value,
-            min_salary: document.getElementById("minSalary").value,
-            max_salary: document.getElementById("maxSalary").value,
-          };
+      const tableBody = document.getElementById("jobTableBody");
+      const jobTitleInput = document.getElementById("jobTitle");
+      const minSalaryInput = document.getElementById("minSalary");
+      const maxSalaryInput = document.getElementById("maxSalary");
+      const saveJobBtn = document.getElementById("saveJobBtn");
+      const cancelEditBtn = document.getElementById("cancelEditBtn");
+      const formTitle = document.getElementById("formTitle");
 
-          const response = await fetch(API_ROUTES.ADD_JOB, {
-            method: "POST",
+      // Biến global lưu trạng thái xem có đang sửa job nào không
+      let editingJobId = null;
+
+      const formatCurrency = (amount) => {
+        if (!amount) return "Chưa đặt";
+        return new Intl.NumberFormat("vi-VN", {
+          style: "currency",
+          currency: "VND",
+        }).format(amount);
+      };
+
+      // --- 1. TẢI DANH SÁCH JOBS ---
+      async function loadJobs() {
+        try {
+          const response = await fetch(API_ROUTES.GET_JOBS, {
+            headers: { Authorization: "Bearer " + getAdminToken() },
+          });
+          if (!response.ok) throw new Error("Không thể tải dữ liệu.");
+
+          const jobs = await response.json();
+          tableBody.innerHTML = "";
+
+          if (jobs.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center;">Chưa có vị trí nào.</td></tr>`;
+            return;
+          }
+
+          jobs.forEach((job) => {
+            const row = document.createElement("tr");
+            const currentId = job.job_id || job.id;
+
+            row.innerHTML = `
+              <td><b>#${currentId}</b></td>
+              <td>${job.job_title}</td>
+              <td>${formatCurrency(job.min_salary)}</td>
+              <td>${formatCurrency(job.max_salary)}</td>
+              <td>
+                <button class="btn-edit" onclick="prepareEdit(${currentId}, '${job.job_title}', ${job.min_salary || 0}, ${job.max_salary || 0})">Sửa</button>
+                <button class="btn-delete" onclick="deleteJob(${currentId})">Xóa</button>
+              </td>
+            `;
+            tableBody.appendChild(row);
+          });
+        } catch (err) {
+          console.error(err);
+          tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: red;">Lỗi khi tải dữ liệu!</td></tr>`;
+        }
+      }
+
+      window.addEventListener("DOMContentLoaded", loadJobs);
+
+      // --- 2. CHUẨN BỊ SỬA DỮ LIỆU (Đẩy data lên form) ---
+      function prepareEdit(id, title, minSalary, maxSalary) {
+        editingJobId = id;
+        formTitle.innerText = "Chỉnh sửa vị trí công việc";
+        jobTitleInput.value = title;
+        minSalaryInput.value = minSalary || "";
+        maxSalaryInput.value = maxSalary || "";
+
+        saveJobBtn.innerText = "Cập nhật";
+        cancelEditBtn.classList.remove("d-none"); // Hiện nút hủy
+        jobTitleInput.focus();
+      }
+
+      // Hủy chế độ sửa đưa form về mặc định
+      function resetForm() {
+        editingJobId = null;
+        formTitle.innerText = "Tạo vị trí công việc";
+        jobTitleInput.value = "";
+        minSalaryInput.value = "";
+        maxSalaryInput.value = "";
+        saveJobBtn.innerText = "Lưu vị trí";
+        cancelEditBtn.classList.add("d-none");
+      }
+
+      cancelEditBtn.addEventListener("click", resetForm);
+
+      // --- 3. XỬ LÝ LƯU (THÊM MỚI HOẶC CẬP NHẬT) ---
+      saveJobBtn.addEventListener("click", async () => {
+        if (!jobTitleInput.value.trim()) {
+          alert("Vui lòng điền tên vị trí!");
+          return;
+        }
+
+        const jobData = {
+          job_title: jobTitleInput.value,
+          min_salary: minSalaryInput.value,
+          max_salary: maxSalaryInput.value,
+        };
+
+        // Xác định URL và Method dựa trên việc đang Thêm hay Sửa
+        const url = editingJobId
+          ? API_ROUTES.UPDATE_JOB(editingJobId)
+          : API_ROUTES.ADD_JOB;
+        const method = editingJobId ? "PUT" : "POST";
+
+        try {
+          const response = await fetch(url, {
+            method: method,
             headers: {
               "Content-Type": "application/json",
               Authorization: "Bearer " + getAdminToken(),
@@ -58,14 +238,54 @@
             body: JSON.stringify(jobData),
           });
 
-          if (response.ok) {
-            alert("Đã thêm vị trí!");
-            window.location.href = "/admin/";
-            return;
-          }
+          const resData = await response.json();
 
-          alert("Lỗi server khi tạo vị trí!");
-        });
+          if (response.ok) {
+            alert(
+              editingJobId
+                ? "Cập nhật vị trí thành công!"
+                : "Đã thêm vị trí thành công!",
+            );
+            resetForm();
+            loadJobs(); // Tải lại bảng
+          } else {
+            alert(resData.error || "Có lỗi xảy ra từ máy chủ!");
+          }
+        } catch (err) {
+          console.error(err);
+          alert("Lỗi kết nối hệ thống!");
+        }
+      });
+
+      // --- 4. XỬ LÝ XÓA JOB ---
+      async function deleteJob(id) {
+        if (
+          !confirm(
+            `Bạn có chắc chắn muốn xóa vị trí công việc #${id} này không?`,
+          )
+        )
+          return;
+
+        try {
+          const response = await fetch(API_ROUTES.DELETE_JOB(id), {
+            method: "DELETE",
+            headers: { Authorization: "Bearer " + getAdminToken() },
+          });
+
+          const resData = await response.json();
+
+          if (response.ok) {
+            alert("Đã xóa thành công!");
+            if (editingJobId === id) resetForm(); // Nếu đang sửa đúng dòng vừa xóa thì reset form
+            loadJobs();
+          } else {
+            alert(resData.error || "Không thể xóa vị trí này!");
+          }
+        } catch (err) {
+          console.error(err);
+          alert("Lỗi hệ thống khi xóa!");
+        }
+      }
     </script>
   </body>
 </html>

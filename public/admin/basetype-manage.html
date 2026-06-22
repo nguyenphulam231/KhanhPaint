@@ -5,6 +5,60 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="/style.css" />
     <title>Quản lý BaseType</title>
+    <style>
+      .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+        background: #fff;
+      }
+      .data-table th,
+      .data-table td {
+        border: 1px solid #ddd;
+        padding: 10px 12px;
+        text-align: left;
+      }
+      .data-table th {
+        background-color: #f5f5f5;
+        font-weight: bold;
+      }
+      .data-table tr:nth-child(even) {
+        background-color: #fafafa;
+      }
+      .mt-4 {
+        margin-top: 2rem;
+      }
+
+      .btn-edit {
+        background-color: #ffc107;
+        color: #000;
+        border: none;
+        padding: 5px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-right: 5px;
+      }
+      .btn-delete {
+        background-color: #dc3545;
+        color: #fff;
+        border: none;
+        padding: 5px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .btn-cancel {
+        background-color: #6c757d;
+        color: #fff;
+        border: none;
+        padding: 10px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-left: 5px;
+      }
+      .d-none {
+        display: none !important;
+      }
+    </style>
   </head>
   <body>
     <div class="admin-container">
@@ -14,7 +68,7 @@
         <div class="page-header">
           <div>
             <p class="eyebrow">Quản trị sản phẩm</p>
-            <h1>Thêm BaseType mới</h1>
+            <h1 id="formTitle">Thêm BaseType mới</h1>
           </div>
         </div>
 
@@ -32,7 +86,34 @@
               placeholder="Mô tả cốt sơn (VD: Cốt đậm dùng cho màu tối)"
             />
             <button id="saveBaseBtn" type="button">Lưu BaseType</button>
+            <button id="cancelEditBtn" type="button" class="btn-cancel d-none">
+              Hủy sửa
+            </button>
           </div>
+        </section>
+
+        <section class="admin-card mt-4">
+          <h2>Danh sách loại Base hiện có</h2>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Tên loại Base</th>
+                <th>Mô tả cốt sơn</th>
+                <th>Hành động</th>
+              </tr>
+            </thead>
+            <tbody id="baseTableBody">
+              <tr>
+                <td
+                  colspan="4"
+                  style="text-align: center; font-style: italic; color: #777"
+                >
+                  Đang tải danh sách BaseType...
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </section>
       </main>
     </div>
@@ -43,39 +124,161 @@
       mountAdminSidebar("basetypes");
       initAdminShell();
 
-      document
-        .getElementById("saveBaseBtn")
-        .addEventListener("click", async () => {
-          const baseNameInput = document.getElementById("baseName").value;
-          const baseDescInput = document.getElementById("baseDesc").value;
+      const tableBody = document.getElementById("baseTableBody");
+      const baseNameInput = document.getElementById("baseName");
+      const baseDescInput = document.getElementById("baseDesc");
+      const saveBaseBtn = document.getElementById("saveBaseBtn");
+      const cancelEditBtn = document.getElementById("cancelEditBtn");
+      const formTitle = document.getElementById("formTitle");
 
-          if (!baseNameInput.trim()) {
-            alert("Vui lòng điền tên BaseType!");
+      let editingBaseId = null;
+
+      // --- 1. TẢI DANH SÁCH BASETYPE ---
+      async function loadBaseTypes() {
+        try {
+          const response = await fetch(API_ROUTES.GET_BASETYPES, {
+            headers: { Authorization: "Bearer " + getAdminToken() },
+          });
+          if (!response.ok) throw new Error("Không thể tải danh sách.");
+
+          const baseTypes = await response.json();
+          tableBody.innerHTML = "";
+
+          if (baseTypes.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="4" style="text-align: center;">Chưa có loại Base nào.</td></tr>`;
             return;
           }
 
-          const response = await fetch(API_ROUTES.ADD_BASETYPE, {
-            method: "POST",
+          baseTypes.forEach((base) => {
+            const row = document.createElement("tr");
+            const currentId = base.base_id || base.id;
+
+            row.innerHTML = `
+              <td><b>#${currentId}</b></td>
+              <td><span class="badge" style="background:#f1f3f4; color:#333; padding:5px 8px;">${base.base_name}</span></td>
+              <td>${base.description || "<span style='color:#ccc'>Không có mô tả</span>"}</td>
+              <td>
+                <button class="btn-edit" onclick="prepareEdit(${currentId}, '${base.base_name}', '${base.description || ""}')">Sửa</button>
+                <button class="btn-delete" onclick="deleteBaseType(${currentId})">Xóa</button>
+              </td>
+            `;
+            tableBody.appendChild(row);
+          });
+        } catch (err) {
+          console.error(err);
+          tableBody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: red;">Lỗi khi tải dữ liệu từ server!</td></tr>`;
+        }
+      }
+
+      window.addEventListener("DOMContentLoaded", loadBaseTypes);
+
+      // --- 2. ĐẨY DỮ LIỆU LÊN FORM ĐỂ CHUẨN BỊ SỬA ---
+      function prepareEdit(id, name, description) {
+        editingBaseId = id;
+        formTitle.innerText = "Chỉnh sửa thông tin BaseType";
+        baseNameInput.value = name;
+        baseDescInput.value = description;
+
+        saveBaseBtn.innerText = "Cập nhật";
+        cancelEditBtn.classList.remove("d-none");
+        baseNameInput.focus();
+      }
+
+      function resetForm() {
+        editingBaseId = null;
+        formTitle.innerText = "Thêm BaseType mới";
+        baseNameInput.value = "";
+        baseDescInput.value = "";
+        saveBaseBtn.innerText = "Lưu BaseType";
+        cancelEditBtn.classList.add("d-none");
+      }
+
+      cancelEditBtn.addEventListener("click", resetForm);
+
+      // --- 3. XỬ LÝ LƯU (THÊM MỚI HOẶC CẬP NHẬT) ---
+      saveBaseBtn.addEventListener("click", async () => {
+        const baseNameValue = baseNameInput.value.trim();
+        const baseDescValue = baseDescInput.value.trim();
+
+        if (!baseNameValue) {
+          alert("Vui lòng điền tên BaseType!");
+          return;
+        }
+
+        const data = {
+          base_name: baseNameValue,
+          description: baseDescValue,
+        };
+
+        const url = editingBaseId
+          ? API_ROUTES.UPDATE_BASETYPE(editingBaseId)
+          : API_ROUTES.ADD_BASETYPE;
+        const method = editingBaseId ? "PUT" : "POST";
+
+        try {
+          const response = await fetch(url, {
+            method: method,
             headers: {
               "Content-Type": "application/json",
               Authorization: "Bearer " + getAdminToken(),
             },
-            body: JSON.stringify({
-              base_name: baseNameInput,
-              description: baseDescInput,
-            }),
+            body: JSON.stringify(data),
           });
 
           const result = await response.json().catch(() => null);
 
-          if (response.ok && result?.success) {
-            alert("Đã thêm BaseType thành công!");
-            window.location.href = "/admin/";
-            return;
+          if (response.ok && (editingBaseId || result?.success)) {
+            alert(
+              editingBaseId
+                ? "Cập nhật BaseType thành công!"
+                : "Đã thêm BaseType thành công!",
+            );
+            resetForm();
+            loadBaseTypes();
+          } else {
+            alert(
+              result?.message || result?.error || "Có lỗi xảy ra từ hệ thống!",
+            );
           }
+        } catch (err) {
+          console.error(err);
+          alert("Lỗi kết nối đến máy chủ!");
+        }
+      });
 
-          alert(result?.message || result?.error || "Lỗi khi thêm BaseType!");
-        });
+      // --- 4. XỬ LÝ XÓA BASETYPE ---
+      async function deleteBaseType(id) {
+        if (
+          !confirm(
+            `Bạn có chắc muốn xóa loại Base #${id} này không?\nHành động sẽ báo lỗi nếu có biến thể sản phẩm đang liên kết với loại Base này.`,
+          )
+        )
+          return;
+
+        try {
+          const response = await fetch(API_ROUTES.DELETE_BASETYPE(id), {
+            method: "DELETE",
+            headers: { Authorization: "Bearer " + getAdminToken() },
+          });
+
+          const result = await response.json().catch(() => null);
+
+          if (response.ok) {
+            alert("Đã xóa loại Base thành công!");
+            if (editingBaseId === id) resetForm();
+            loadBaseTypes();
+          } else {
+            alert(
+              result?.error ||
+                result?.message ||
+                "Không thể xóa loại Base này!",
+            );
+          }
+        } catch (err) {
+          console.error(err);
+          alert("Lỗi hệ thống khi thực hiện xóa!");
+        }
+      }
     </script>
   </body>
 </html>
