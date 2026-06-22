@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/style.css" />
+    <title>Quản lý Tinh màu</title>
+  </head>
+  <body>
+    <div class="admin-container">
+      <div id="admin-sidebar"></div>
+
+      <main class="main-content">
+        <div class="page-header">
+          <div>
+            <p class="eyebrow">Quản trị kho kỹ thuật</p>
+            <h1>Thêm Tinh màu mới</h1>
+          </div>
+        </div>
+
+        <section class="admin-card" style="margin-bottom: 2rem">
+          <div class="form-section">
+            <input
+              type="text"
+              id="colorantName"
+              placeholder="Tên tinh màu (VD: Đen BK)"
+              required
+            />
+            <input
+              type="number"
+              id="colorantStock"
+              placeholder="Tồn kho ban đầu (ml) - Mặc định 0"
+              min="0"
+              step="0.01"
+            />
+            <input
+              type="number"
+              id="colorantPrice"
+              placeholder="Giá tiền / ml (VNĐ) - Mặc định 0"
+              min="0"
+              step="0.01"
+            />
+            <button id="saveColorantBtn" type="button">Lưu tinh màu</button>
+          </div>
+        </section>
+
+        <section class="admin-card">
+          <h3>Danh sách tinh màu hiện có</h3>
+          <div style="overflow-x: auto; margin-top: 1rem">
+            <table
+              style="width: 100%; border-collapse: collapse; text-align: left"
+            >
+              <thead>
+                <tr style="border-bottom: 2px solid #ddd; height: 40px">
+                  <th>ID</th>
+                  <th>Tên tinh màu</th>
+                  <th>Tồn kho (ml)</th>
+                  <th>Đơn giá / ml</th>
+                </tr>
+              </thead>
+              <tbody id="colorantListBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/admin-common.js"></script>
+    <script>
+      mountAdminSidebar("colorants");
+      initAdminShell();
+
+      // Hàm load danh sách
+      async function loadColorants() {
+        try {
+          const response = await fetch(API_ROUTES.GET_COLORANTS, {
+            headers: { Authorization: "Bearer " + getAdminToken() },
+          });
+          if (!response.ok) throw new Error("Lỗi API");
+
+          const data = await response.json();
+          const tbody = document.getElementById("colorantListBody");
+          tbody.innerHTML = data
+            .map(
+              (item) => `
+            <tr style="border-bottom: 1px solid #eee; height: 40px;">
+              <td>#${item.colorant_id}</td>
+              <td>${item.colorant_name}</td>
+              <td>${item.stock_ml}</td>
+              <td>${item.unit_price_per_ml} đ</td>
+            </tr>
+          `,
+            )
+            .join("");
+        } catch (error) {
+          console.error("Không thể tải danh sách tinh màu:", error);
+        }
+      }
+
+      // Xử lý thêm mới
+      document
+        .getElementById("saveColorantBtn")
+        .addEventListener("click", async () => {
+          const nameInput = document.getElementById("colorantName");
+          if (!nameInput.value.trim()) {
+            alert("Vui lòng nhập tên tinh màu!");
+            return;
+          }
+
+          const data = {
+            colorant_name: nameInput.value.trim(),
+            stock_ml:
+              parseFloat(document.getElementById("colorantStock").value) || 0,
+            unit_price_per_ml:
+              parseFloat(document.getElementById("colorantPrice").value) || 0,
+          };
+
+          const response = await fetch(API_ROUTES.ADD_COLORANT, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + getAdminToken(),
+            },
+            body: JSON.stringify(data),
+          });
+
+          if (response.ok) {
+            alert("Thêm tinh màu thành công!");
+            // Xóa trắng form
+            document.getElementById("colorantName").value = "";
+            document.getElementById("colorantStock").value = "";
+            document.getElementById("colorantPrice").value = "";
+            // Load lại bảng
+            loadColorants();
+          } else {
+            alert("Lỗi khi thêm tinh màu!");
+          }
+        });
+
+      // Tải danh sách khi mở trang
+      window.addEventListener("DOMContentLoaded", loadColorants);
+    </script>
+  </body>
+</html>

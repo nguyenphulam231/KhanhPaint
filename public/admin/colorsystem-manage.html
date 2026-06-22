@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/style.css" />
+    <title>Quản lý Mã màu & Công thức</title>
+    <style>
+      .formula-row {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 10px;
+        align-items: center;
+      }
+      .colorant-select {
+        flex: 3;
+      }
+      .amount-input {
+        flex: 1;
+      }
+      .btn-remove {
+        background-color: #dc3545;
+        color: white;
+        border: none;
+        padding: 0 !important;
+        width: 28px !important;
+        height: 28px !important;
+        cursor: pointer;
+        border-radius: 4px;
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+      }
+      .btn-add-formula {
+        background-color: #17a2b8;
+        color: white;
+        border: none;
+        padding: 8px 15px;
+        cursor: pointer;
+        border-radius: 4px;
+        margin-bottom: 15px;
+      }
+      .btn-view {
+        background: #007bff;
+        color: white;
+        border: none;
+        padding: 5px 10px;
+        cursor: pointer;
+        border-radius: 4px;
+        font-size: 12px;
+      }
+      /* Modal Style */
+      #formulaModal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+      }
+      .modal-content {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        width: 400px;
+        max-width: 90%;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="admin-container">
+      <div id="admin-sidebar"></div>
+      <main class="main-content">
+        <div class="page-header">
+          <div>
+            <p class="eyebrow">Quản trị danh mục</p>
+            <h1>Hệ thống Mã màu & Công thức pha</h1>
+          </div>
+        </div>
+
+        <section class="admin-card" style="margin-bottom: 2rem">
+          <h3>Thêm mã màu mới</h3>
+          <div class="form-section">
+            <input
+              type="text"
+              id="colorCode"
+              placeholder="Mã màu (VD: AP102)"
+              required
+            />
+            <input
+              type="text"
+              id="colorName"
+              placeholder="Tên màu (VD: Xanh ngọc bích)"
+              required
+            />
+            <select id="baseIdSelect" required>
+              <option value="">-- Chọn Cốt sơn (Base) --</option>
+            </select>
+            <div
+              style="
+                margin-top: 15px;
+                border-top: 1px solid #ddd;
+                padding-top: 15px;
+              "
+            >
+              <h4>Công thức pha (trên 1 Lít sơn)</h4>
+              <div id="formulaContainer"></div>
+              <button
+                type="button"
+                class="btn-add-formula"
+                id="addFormulaRowBtn"
+              >
+                + Thêm loại tinh màu
+              </button>
+            </div>
+            <button id="saveColorBtn" type="button" style="width: 100%">
+              Lưu mã màu & Công thức
+            </button>
+          </div>
+        </section>
+
+        <section class="admin-card">
+          <h3>Danh sách Hệ thống màu</h3>
+          <table
+            style="width: 100%; border-collapse: collapse; text-align: left"
+          >
+            <thead>
+              <tr style="border-bottom: 2px solid #ddd; height: 40px">
+                <th>ID</th>
+                <th>Mã màu</th>
+                <th>Tên màu</th>
+                <th>Base</th>
+                <th>Hành động</th>
+              </tr>
+            </thead>
+            <tbody id="colorListBody"></tbody>
+          </table>
+        </section>
+      </main>
+    </div>
+
+    <div id="formulaModal">
+      <div class="modal-content">
+        <h3 id="modalTitle">Công thức pha</h3>
+        <ul id="formulaList"></ul>
+        <button
+          onclick="
+            document.getElementById('formulaModal').style.display = 'none'
+          "
+        >
+          Đóng
+        </button>
+      </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/admin-common.js"></script>
+    <script>
+      mountAdminSidebar("colorsystem");
+      initAdminShell();
+      let availableColorants = [];
+
+      async function loadColorantsForSelect() {
+        try {
+          const response = await fetch(API_ROUTES.GET_COLORANTS, {
+            headers: { Authorization: "Bearer " + getAdminToken() },
+          });
+          if (response.ok) availableColorants = await response.json();
+        } catch (error) {
+          console.error(error);
+        }
+      }
+
+      async function loadBaseTypes() {
+        try {
+          const response = await fetch("/api/admin/base", {
+            headers: { Authorization: "Bearer " + getAdminToken() },
+          });
+          const bases = await response.json();
+          const baseSelect = document.getElementById("baseIdSelect");
+          bases.forEach(
+            (b) =>
+              (baseSelect.innerHTML += `<option value="${b.base_id}">${b.base_name}</option>`),
+          );
+        } catch (err) {
+          console.error(err);
+        }
+      }
+
+      function addFormulaRow() {
+        const container = document.getElementById("formulaContainer");
+        const rowDiv = document.createElement("div");
+        rowDiv.className = "formula-row";
+        let options = availableColorants
+          .map(
+            (c) =>
+              `<option value="${c.colorant_id}">${c.colorant_name}</option>`,
+          )
+          .join("");
+        rowDiv.innerHTML = `
+          <select class="colorant-select"><option value="">-- Chọn Tinh màu --</option>${options}</select>
+          <input type="number" class="amount-input" placeholder="ml/Lít" min="0" step="0.01">
+          <button type="button" class="btn-remove">✕</button>
+        `;
+        rowDiv
+          .querySelector(".btn-remove")
+          .addEventListener("click", () => container.removeChild(rowDiv));
+        container.appendChild(rowDiv);
+      }
+
+      // Hàm xem công thức
+      async function viewFormula(colorId, colorCode) {
+        try {
+          const response = await fetch(
+            `/api/admin/colorsystem/formula/${colorId}`,
+            { headers: { Authorization: "Bearer " + getAdminToken() } },
+          );
+          const formula = await response.json();
+          document.getElementById("modalTitle").innerText =
+            `Công thức: ${colorCode}`;
+          document.getElementById("formulaList").innerHTML = formula
+            .map((f) => `<li>${f.colorant_name}: ${f.amount_ml} ml</li>`)
+            .join("");
+          document.getElementById("formulaModal").style.display = "flex";
+        } catch (err) {
+          alert("Không thể tải công thức!");
+        }
+      }
+
+      async function loadColorSystem() {
+        const response = await fetch(API_ROUTES.GET_COLORSYSTEM, {
+          headers: { Authorization: "Bearer " + getAdminToken() },
+        });
+        const data = await response.json();
+        document.getElementById("colorListBody").innerHTML = data
+          .map(
+            (item) => `
+          <tr style="border-bottom: 1px solid #eee; height: 40px;">
+            <td>#${item.color_id}</td>
+            <td><strong>${item.color_code}</strong></td>
+            <td>${item.color_name}</td>
+            <td>${item.base_name}</td>
+            <td><button class="btn-view" onclick="viewFormula(${item.color_id}, '${item.color_code}')">Xem CT</button></td>
+          </tr>
+        `,
+          )
+          .join("");
+      }
+
+      document
+        .getElementById("addFormulaRowBtn")
+        .addEventListener("click", addFormulaRow);
+      document
+        .getElementById("saveColorBtn")
+        .addEventListener("click", async () => {
+          const formula = Array.from(document.querySelectorAll(".formula-row"))
+            .map((row) => ({
+              colorant_id: parseInt(
+                row.querySelector(".colorant-select").value,
+              ),
+              amount_ml: parseFloat(row.querySelector(".amount-input").value),
+            }))
+            .filter((f) => f.colorant_id && f.amount_ml);
+
+          const response = await fetch(API_ROUTES.ADD_COLORSYSTEM, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + getAdminToken(),
+            },
+            body: JSON.stringify({
+              color_code: document.getElementById("colorCode").value,
+              color_name: document.getElementById("colorName").value,
+              base_id: parseInt(document.getElementById("baseIdSelect").value),
+              formula,
+            }),
+          });
+          if (response.ok) {
+            alert("Thành công!");
+            location.reload();
+          }
+        });
+
+      window.addEventListener("DOMContentLoaded", async () => {
+        await loadColorantsForSelect();
+        await loadBaseTypes();
+        loadColorSystem();
+        addFormulaRow();
+      });
+    </script>
+  </body>
+</html>

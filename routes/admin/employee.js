@@ -18,4 +18,17 @@ router.post("/add", async (req, res) => {
   }
 });
 
+router.get("/", async (req, res) => {
+  try {
+    // Chỉ lấy những cột cần thiết để đổ vào select
+    const [rows] = await db.query(
+      "SELECT employee_id, full_name FROM Employees",
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error("Lỗi lấy danh sách nhân viên:", err);
+    res.status(500).json({ error: "Không thể lấy danh sách nhân viên." });
+  }
+});
+
 module.exports = router;

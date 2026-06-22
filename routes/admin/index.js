@@ -16,5 +16,8 @@ router.use("/brands", require("./brand"));
 router.use("/lines", require("./line"));
 router.use("/base", require("./base"));
 router.use("/variants", require("./variant"));
+router.use("/colorants", require("./colorant"));
+router.use("/colorsystem", require("./colorsystem"));
+router.use("/shift", require("./shift"));
 
 module.exports = router;

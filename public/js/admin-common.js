@@ -36,6 +36,10 @@ function renderAdminSidebar(activeNav) {
       <a class="menu-item ${activeNav === "lines" ? "active" : ""}" data-admin-nav="lines" href="/admin/line-manage.html">Quản lý Dòng SP</a>
       <a class="menu-item ${activeNav === "basetypes" ? "active" : ""}" data-admin-nav="basetypes" href="/admin/basetype-manage.html">Quản lý BaseTypes</a>
       <a class="menu-item ${activeNav === "variants" ? "active" : ""}" data-admin-nav="variants" href="/admin/variant-manage.html">Quản lý Product Variant</a>
+      <a class="menu-item ${activeNav === "colorants" ? "active" : ""}" data-admin-nav="colorants" href="/admin/colorant-manage.html">Quản lý Tinh màu</a>
+      <a class="menu-item ${activeNav === "colorsystem" ? "active" : ""}" data-admin-nav="colorsystem" href="/admin/colorsystem-manage.html">Quản lý Mã màu</a>
+      <a class="menu-item ${activeNav === "shifts" ? "active" : ""}" data-admin-nav="shifts" href="/admin/shift-manage.html">Quản lý Ca làm</a>
+      <a class="menu-item ${activeNav === "assign-shift" ? "active" : ""}" data-admin-nav="assign-shift" href="/admin/shift-assign.html">Phân ca làm việc</a>
       <a class="menu-item" href="#" id="logoutLink" style="color: #ffcccc">Đăng xuất</a>
     </aside>
   `;
@@ -82,6 +86,29 @@ async function loadBrandsIntoSelect(selectId) {
   });
 }
 
+async function loadBaseTypesIntoSelect(selectId) {
+  const token = getAdminToken();
+  if (!token) return;
+
+  try {
+    const response = await fetch(API_ROUTES.GET_BASETYPES, {
+      headers: { Authorization: "Bearer " + token },
+    });
+    if (!response.ok) throw new Error("Lỗi fetch basetypes");
+
+    const bases = await response.json();
+    const select = document.getElementById(selectId);
+    if (!select) return;
+
+    select.innerHTML = '<option value="">-- Chọn Cốt sơn (Base) --</option>';
+    bases.forEach((base) => {
+      select.innerHTML += `<option value="${base.base_id}">${base.base_name}</option>`;
+    });
+  } catch (error) {
+    console.error("Không thể tải danh sách BaseTypes:", error);
+  }
+}
+
 function escapeHtml(value) {
   return String(value)
     .replaceAll("&", "&amp;")
@@ -89,6 +116,32 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+async function loadEmployeesIntoSelect(selectId) {
+  const token = getAdminToken();
+  const response = await fetch(API_ROUTES.GET_EMPLOYEES, {
+    headers: { Authorization: "Bearer " + token },
+  });
+  const employees = await response.json();
+  const select = document.getElementById(selectId);
+  select.innerHTML = '<option value="">-- Chọn nhân viên --</option>';
+  employees.forEach((emp) => {
+    select.innerHTML += `<option value="${emp.employee_id}">${emp.full_name}</option>`;
+  });
+}
+
+async function loadShiftsIntoSelect(selectId) {
+  const token = getAdminToken();
+  const response = await fetch(API_ROUTES.GET_SHIFTS, {
+    headers: { Authorization: "Bearer " + token },
+  });
+  const shifts = await response.json();
+  const select = document.getElementById(selectId);
+  select.innerHTML = '<option value="">-- Chọn ca làm --</option>';
+  shifts.forEach((s) => {
+    select.innerHTML += `<option value="${s.shift_id}">${s.shift_name} (${s.start_time}-${s.end_time})</option>`;
+  });
 }
 
 async function renderDashboardSummary(targetId) {

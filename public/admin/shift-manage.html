@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="/style.css" />
+    <title>Quản lý Ca làm việc</title>
+  </head>
+  <body>
+    <div class="admin-container">
+      <div id="admin-sidebar"></div>
+      <main class="main-content">
+        <h1>Thêm Ca làm việc mới</h1>
+        <section class="admin-card">
+          <div class="form-section">
+            <input
+              type="text"
+              id="shiftName"
+              placeholder="Tên ca (VD: Ca Sáng)"
+              required
+            />
+            <input type="time" id="startTime" required />
+            <input type="time" id="endTime" required />
+            <button id="saveShiftBtn" type="button">Lưu Ca làm</button>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script src="/js/api.js"></script>
+    <script src="/js/admin-common.js"></script>
+    <script>
+      mountAdminSidebar("shifts");
+      initAdminShell();
+
+      document
+        .getElementById("saveShiftBtn")
+        .addEventListener("click", async () => {
+          const name = document.getElementById("shiftName").value;
+          const start = document.getElementById("startTime").value;
+          const end = document.getElementById("endTime").value;
+
+          if (!name || !start || !end)
+            return alert("Vui lòng nhập đầy đủ thông tin!");
+
+          const response = await fetch(API_ROUTES.ADD_SHIFT, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + getAdminToken(),
+            },
+            body: JSON.stringify({
+              shift_name: name,
+              start_time: start,
+              end_time: end,
+            }),
+          });
+
+          const result = await response.json();
+          if (result.success) {
+            alert("Thêm ca thành công!");
+            window.location.reload();
+          } else {
+            alert(result.message);
+          }
+        });
+    </script>
+  </body>
+</html>

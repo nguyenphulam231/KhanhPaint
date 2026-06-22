@@ -2,6 +2,7 @@ const express = require("express");
 const app = express();
 const path = require("path");
 const db = require("./db");
+const colorsystemRoutes = require("./routes/admin/colorsystem");
 
 // Middleware
 app.use(express.static(path.join(__dirname, "public")));
@@ -17,6 +18,7 @@ app.use("/api/auth/public", require("./routes/client/auth"));
 // Khi gọi "/api/admin", nó sẽ nhảy vào file routes/admin/index.js
 app.use("/api/admin", require("./routes/admin"));
 
+app.use("/api/admin/colorsystem", colorsystemRoutes);
 // --- KẾT THÚC CẬP NHẬT ---
 
 app.get("/", (req, res) => {

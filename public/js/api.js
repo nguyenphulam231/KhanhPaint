@@ -19,4 +19,12 @@ const API_ROUTES = {
   ADD_VARIANT: "/api/admin/variants/add",
   UPDATE_VARIANT: "/api/admin/variants/update",
   DELETE_VARIANT: "/api/admin/variants/delete",
+  GET_COLORANTS: "/api/admin/colorants",
+  ADD_COLORANT: "/api/admin/colorants/add",
+  GET_COLORSYSTEM: "/api/admin/colorsystem",
+  ADD_COLORSYSTEM: "/api/admin/colorsystem/add",
+  GET_SHIFTS: "/api/admin/shift",
+  ADD_SHIFT: "/api/admin/shift/add",
+  ASSIGN_SHIFT: "/api/admin/shift/assign",
+  GET_EMPLOYEES: "/api/admin/employees",
 };
