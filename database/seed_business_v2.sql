@@ -98,3 +98,27 @@ INSERT IGNORE INTO colorsystem_colorants (color_id, colorant_id, amount_ml)
 SELECT cs.color_id, c.colorant_id, 5 FROM colorsystem cs JOIN colorants c ON c.colorant_name = 'Đen' WHERE cs.color_code = 'PC-302';
 INSERT IGNORE INTO colorsystem_colorants (color_id, colorant_id, amount_ml)
 SELECT cs.color_id, c.colorant_id, 20 FROM colorsystem cs JOIN colorants c ON c.colorant_name = 'Trắng Titan' WHERE cs.color_code = 'WB-401';
+
+-- V2.1: dữ liệu demo cho vai trò nhân sự, phân ca và công nợ/thanh toán.
+INSERT IGNORE INTO jobs (job_title, min_salary, max_salary) VALUES
+('Kỹ thuật viên pha màu', 7000000, 18000000),
+('Quản lý cửa hàng', 12000000, 30000000);
+
+INSERT IGNORE INTO employees (full_name, email, phone, hire_date, password_hash, job_id, role)
+SELECT 'Nguyễn Kỹ Thuật', 'tech@khanhpaint.com', '0900000002', CURDATE(), NULL, job_id, 'staff'
+FROM jobs
+WHERE job_title = 'Kỹ thuật viên pha màu';
+
+INSERT INTO shifts (shift_name, start_time, end_time)
+SELECT 'Ca hành chính', '08:00:00', '17:00:00'
+WHERE NOT EXISTS (
+  SELECT 1 FROM shifts WHERE shift_name = 'Ca hành chính' AND start_time = '08:00:00' AND end_time = '17:00:00'
+);
+
+-- Gán sẵn ca hôm nay cho nhân viên bán hàng và kỹ thuật viên để demo hoàn tất đơn.
+INSERT IGNORE INTO employees_shifts (employee_id, shift_id, working_date)
+SELECT e.employee_id, s.shift_id, CURDATE()
+FROM employees e
+JOIN jobs j ON e.job_id = j.job_id
+JOIN shifts s ON s.shift_name = 'Ca hành chính'
+WHERE j.job_title IN ('Bán hàng', 'Kỹ thuật viên pha màu');

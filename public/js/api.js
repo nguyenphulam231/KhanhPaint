@@ -60,4 +60,10 @@ const API_ROUTES = {
   GET_ORDER_DETAIL: (id) => `/api/admin/orders/${id}`,
   UPDATE_ORDER_STATUS: (id) => `/api/admin/orders/${id}/status`,
   ASSIGN_ORDER: (id) => `/api/admin/orders/${id}/assign`,
+  GET_ORDER_ASSIGNMENT_OPTIONS: "/api/admin/orders/assignment-options",
+  ADD_ORDER_PAYMENT: (id) => `/api/admin/orders/${id}/payments`,
+  GET_ORDER_PAYMENTS: (id) => `/api/admin/orders/${id}/payments`,
+
+  GET_INVENTORY_MOVEMENTS: "/api/admin/inventory/movements",
+  GET_LOW_STOCK: "/api/admin/inventory/low-stock",
 };

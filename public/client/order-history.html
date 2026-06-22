@@ -52,19 +52,28 @@
 
         target.innerHTML = `
           <table class="data-table">
-            <thead><tr><th>Mã đơn</th><th>Trạng thái</th><th>Tổng tiền</th><th>Địa chỉ</th></tr></thead>
+            <thead><tr><th>Mã đơn</th><th>Ngày tạo</th><th>Trạng thái</th><th>Tổng tiền</th><th>Thanh toán</th><th>Địa chỉ</th></tr></thead>
             <tbody>
               ${orders.map((o) => `
                 <tr>
                   <td>#${o.order_id}</td>
+                  <td>${escapeHtml(formatDate(o.created_at))}</td>
                   <td>${escapeHtml(o.status)}</td>
                   <td>${Number(o.total_amount || 0).toLocaleString("vi-VN")} đ</td>
+                  <td>${Number(o.paid_amount || 0).toLocaleString("vi-VN")} đ - ${escapeHtml(o.payment_status || "unpaid")}</td>
                   <td>${escapeHtml(o.street_address || "Theo hồ sơ khách hàng")}</td>
                 </tr>
               `).join("")}
             </tbody>
           </table>
         `;
+      }
+
+      function formatDate(value) {
+        if (!value) return "";
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return String(value);
+        return date.toLocaleString("vi-VN");
       }
 
       function escapeHtml(value) {

@@ -1,4 +1,4 @@
-# KhanhPaint V2 - Hướng dẫn chạy và điểm đã nâng cấp
+# KhanhPaint V2.1 - Hướng dẫn chạy và các điểm đã nâng cấp
 
 ## 1. Chuẩn bị database
 
@@ -9,13 +9,13 @@
 SOURCE khanhpaintdatabasewithdata.sql;
 ```
 
-3. Chạy migration nghiệp vụ mới:
+3. Chạy migration nghiệp vụ. File này đã được sửa để **idempotent**, tức là có thể chạy lại nhiều lần mà không lỗi trùng constraint/index/column:
 
 ```sql
 SOURCE database/upgrade_v2.sql;
 ```
 
-4. Chạy seed dữ liệu nghiệp vụ để có sản phẩm, SKU, mã màu và công thức demo:
+4. Chạy seed dữ liệu nghiệp vụ để có sản phẩm, SKU, mã màu, công thức demo, nhân sự bán hàng/kỹ thuật và phân ca mẫu:
 
 ```sql
 SOURCE database/seed_business_v2.sql;
@@ -68,13 +68,95 @@ Theo dữ liệu hiện tại, tài khoản admin mẫu là:
 
 Nếu không đăng nhập được, hãy tạo lại nhân viên admin bằng trang quản trị hoặc cập nhật `password_hash` bằng bcrypt.
 
-## 5. Nội dung nâng cấp chính
+## 5. Các nâng cấp mới trong V2.1
 
-- Tách token admin và customer: `adminToken` / `customerToken`.
-- Bỏ hard-code DB password và JWT secret, chuyển sang `.env`.
-- Thêm API client xem sản phẩm, lọc sản phẩm, lấy màu theo base và tạo đơn hàng.
-- Thêm API admin quản lý đơn hàng, xem chi tiết, cập nhật trạng thái.
-- Thêm trang client `/client/products.html` và `/client/order-history.html`.
-- Thêm trang admin `/admin/order-manage.html`.
-- Thêm trigger kiểm tra tương thích base/màu, kiểm tra tồn kho, trừ tồn kho sơn gốc, trừ tồn kho tinh màu và cập nhật tổng tiền đơn hàng.
-- Thêm view báo cáo: `v_product_catalog`, `v_color_formula`, `v_order_trace`.
+### 5.1. Hoàn kho khi hủy đơn
+
+Khi admin đổi `orders.status` sang `cancelled`, trigger `trg_orders_bu_business_rules` tự động:
+
+- hoàn lại `productvariants.stock_quantity`,
+- hoàn lại `colorants.stock_ml` theo công thức màu,
+- ghi log vào `inventory_movements`,
+- đánh dấu `orders.inventory_restored = 1`,
+- chặn mở lại đơn đã hủy để tránh sai lệch tồn kho.
+
+### 5.2. Thêm thời gian tạo/cập nhật đơn
+
+Bảng `orders` được bổ sung:
+
+- `created_at`,
+- `updated_at`,
+- `cancelled_at`,
+- `inventory_restored`.
+
+Các màn hình admin/client đã hiển thị thêm thời gian tạo đơn.
+
+### 5.3. Kiểm soát vai trò nhân viên khi gán đơn
+
+Endpoint `PATCH /api/admin/orders/:id/assign` và trigger database cùng kiểm tra:
+
+- `sales_rep_id` phải là nhân viên có job liên quan đến Bán hàng hoặc admin,
+- `tech_id` phải là Kỹ thuật viên/Pha màu hoặc admin.
+
+Khi chuyển đơn sang `completed`, hệ thống bắt buộc phải có đủ nhân viên bán hàng, kỹ thuật viên và ca làm.
+
+### 5.4. Kiểm tra nhân viên có thuộc ca làm hay không
+
+Khi gán `shift_id`, hệ thống kiểm tra bảng `employees_shifts` theo đúng ngày tạo đơn `DATE(orders.created_at)`. Nếu nhân viên chưa được phân vào ca đó, API sẽ báo lỗi.
+
+### 5.5. Nhật ký biến động kho
+
+Thêm bảng `inventory_movements` và view `v_inventory_movements`. Mọi biến động do trigger tạo ra đều lưu:
+
+- loại kho: `base` hoặc `colorant`,
+- mã đơn liên quan,
+- SKU hoặc tinh màu,
+- số lượng biến động,
+- tồn trước và tồn sau,
+- loại nghiệp vụ: thêm/sửa/xóa chi tiết đơn, hủy đơn hoàn kho.
+
+Trang mới:
+
+- Admin: http://localhost:3000/admin/inventory-movements.html
+
+### 5.6. Migration chạy lại an toàn
+
+`database/upgrade_v2.sql` đã dùng các stored procedure tạm:
+
+- `sp_add_column_if_not_exists`,
+- `sp_add_unique_if_not_exists`,
+- `sp_add_check_if_not_exists`,
+- `sp_add_index_if_not_exists`.
+
+Vì vậy chạy lại migration không còn bị lỗi `Duplicate key name` hoặc constraint đã tồn tại.
+
+### 5.7. Công nợ và thanh toán
+
+Bổ sung:
+
+- bảng `payments`,
+- cột `orders.paid_amount`,
+- cột `orders.payment_status`,
+- view `v_customer_debt`,
+- API ghi nhận thanh toán: `POST /api/admin/orders/:id/payments`.
+
+Khi đơn chuyển sang `completed`, hệ thống tự cộng phần chưa thanh toán vào `customers.current_debt` và kiểm tra `credit_limit`. Khi ghi nhận payment, trigger tự giảm công nợ khách hàng.
+
+## 6. Luồng demo nên trình bày
+
+1. Client tạo đơn từ sản phẩm + màu tương thích base.
+2. Transaction tạo `orders` và `orderdetails`.
+3. Trigger kiểm tra tồn kho sơn gốc, tinh màu và base/màu.
+4. Trigger trừ kho và ghi `inventory_movements`.
+5. Admin phân nhân viên bán hàng, kỹ thuật viên và ca làm.
+6. Admin chuyển đơn sang `completed`; hệ thống kiểm tra phân ca và cập nhật công nợ.
+7. Admin ghi nhận thanh toán; hệ thống giảm công nợ.
+8. Admin hủy một đơn chưa thanh toán để demo trigger hoàn kho.
+
+## 7. Lưu ý khi demo phân ca
+
+Nếu khi hoàn tất đơn hoặc gán ca gặp lỗi “nhân viên chưa được phân vào ca làm của ngày tạo đơn”, hãy vào:
+
+- Admin → Phân ca làm việc
+
+Sau đó gán nhân viên bán hàng và kỹ thuật viên vào đúng ca, đúng ngày tạo đơn.

@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nhật ký biến động kho</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <div class="admin-container">
+      <div id="admin-sidebar"></div>
+      <main class="main-content">
+        <div class="page-header">
+          <div>
+            <p class="eyebrow">Inventory Audit</p>
+            <h1>Nhật ký biến động kho</h1>
+          </div>
+        </div>
+
+        <section class="admin-card">
+          <div class="filter-bar">
+            <input id="orderIdFilter" type="number" placeholder="Lọc theo mã đơn" />
+            <select id="inventoryTypeFilter">
+              <option value="">Tất cả loại kho</option>
+              <option value="base">Sơn gốc</option>
+              <option value="colorant">Tinh màu</option>
+            </select>
+            <select id="limitFilter">
+              <option value="50">50 dòng</option>
+              <option value="100" selected>100 dòng</option>
+              <option value="200">200 dòng</option>
+              <option value="500">500 dòng</option>
+            </select>
+            <button type="button" onclick="loadMovements()">Lọc</button>
+          </div>
+          <div id="lowStockPanel" class="content-card">Đang tải cảnh báo tồn kho...</div>
+          <div id="movementTable" class="content-card">Đang tải nhật ký...</div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/admin-common.js"></script>
+    <script>
+      mountAdminSidebar("inventory-movements");
+      initAdminShell();
+
+      function formatDate(value) {
+        if (!value) return "";
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return String(value);
+        return date.toLocaleString("vi-VN");
+      }
+
+      async function loadLowStock() {
+        const response = await fetch(API_ROUTES.GET_LOW_STOCK, {
+          headers: { Authorization: "Bearer " + getAdminToken() },
+        });
+        const data = await response.json();
+        const target = document.getElementById("lowStockPanel");
+        if (!response.ok) {
+          target.textContent = data.error || "Không thể tải cảnh báo tồn kho.";
+          return;
+        }
+
+        const baseItems = data.baseStock || [];
+        const colorantItems = data.colorantStock || [];
+        target.innerHTML = `
+          <h3>Cảnh báo tồn kho thấp</h3>
+          <p><strong>Sơn gốc:</strong> ${baseItems.length} SKU dưới/ngang 5 lon. <strong>Tinh màu:</strong> ${colorantItems.length} loại dưới/ngang 1000 ml.</p>
+          <details>
+            <summary>Xem chi tiết cảnh báo</summary>
+            <h4>Sơn gốc</h4>
+            <ul>${baseItems.map((x) => `<li>${escapeHtml(x.sku_code)}: ${x.stock_quantity} lon tại ${escapeHtml(x.warehouse_location || "")}</li>`).join("") || "<li>Không có.</li>"}</ul>
+            <h4>Tinh màu</h4>
+            <ul>${colorantItems.map((x) => `<li>${escapeHtml(x.colorant_name)}: ${Number(x.stock_ml).toLocaleString("vi-VN")} ml</li>`).join("") || "<li>Không có.</li>"}</ul>
+          </details>
+        `;
+      }
+
+      async function loadMovements() {
+        const params = new URLSearchParams();
+        const orderId = document.getElementById("orderIdFilter").value;
+        const inventoryType = document.getElementById("inventoryTypeFilter").value;
+        const limit = document.getElementById("limitFilter").value;
+        if (orderId) params.set("order_id", orderId);
+        if (inventoryType) params.set("inventory_type", inventoryType);
+        params.set("limit", limit || "100");
+
+        const response = await fetch(`${API_ROUTES.GET_INVENTORY_MOVEMENTS}?${params.toString()}`, {
+          headers: { Authorization: "Bearer " + getAdminToken() },
+        });
+        const rows = await response.json();
+        const target = document.getElementById("movementTable");
+        if (!response.ok) {
+          target.textContent = rows.error || "Không thể tải nhật ký kho.";
+          return;
+        }
+
+        target.innerHTML = `
+          <h3>Lịch sử biến động</h3>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Thời điểm</th>
+                <th>Mã đơn</th>
+                <th>Loại</th>
+                <th>Đối tượng</th>
+                <th>Biến động</th>
+                <th>Trước</th>
+                <th>Sau</th>
+                <th>Ghi chú</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.length ? rows.map((m) => `
+                <tr>
+                  <td>${m.movement_id}</td>
+                  <td>${escapeHtml(formatDate(m.created_at))}</td>
+                  <td>${m.order_id ? "#" + m.order_id : ""}</td>
+                  <td>${escapeHtml(m.inventory_type)}<br /><small>${escapeHtml(m.movement_type)}</small></td>
+                  <td>${escapeHtml(m.sku_code || m.colorant_name || "")}</td>
+                  <td>${Number(m.quantity_delta || 0).toLocaleString("vi-VN")}</td>
+                  <td>${Number(m.before_quantity || 0).toLocaleString("vi-VN")}</td>
+                  <td>${Number(m.after_quantity || 0).toLocaleString("vi-VN")}</td>
+                  <td>${escapeHtml(m.note || "")}</td>
+                </tr>
+              `).join("") : '<tr><td colspan="9">Chưa có biến động kho.</td></tr>'}
+            </tbody>
+          </table>
+        `;
+      }
+
+      loadLowStock();
+      loadMovements();
+    </script>
+  </body>
+</html>

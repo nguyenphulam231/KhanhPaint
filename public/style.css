@@ -451,3 +451,21 @@ a:hover {
     width: auto;
   }
 }
+
+/* V2.1: compact forms inside order detail cards */
+.compact-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  align-items: end;
+}
+
+.compact-form label {
+  font-weight: 600;
+  margin-bottom: -6px;
+}
+
+.compact-form input,
+.compact-form select {
+  margin-bottom: 0;
+}

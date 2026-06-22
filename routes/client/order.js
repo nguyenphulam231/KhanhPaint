@@ -69,10 +69,10 @@ router.post("/", async (req, res) => {
 router.get("/", async (req, res) => {
   try {
     const [orders] = await db.query(
-      `SELECT order_id, total_amount, status, street_address, ward_id
+      `SELECT order_id, total_amount, paid_amount, payment_status, status, street_address, ward_id, created_at, updated_at
        FROM orders
        WHERE customer_id = ?
-       ORDER BY order_id DESC`,
+       ORDER BY created_at DESC, order_id DESC`,
       [req.user.id],
     );
     res.json(orders);
@@ -84,7 +84,7 @@ router.get("/", async (req, res) => {
 router.get("/:id", async (req, res) => {
   try {
     const [[order]] = await db.query(
-      `SELECT order_id, total_amount, status, street_address, ward_id
+      `SELECT order_id, total_amount, paid_amount, payment_status, status, street_address, ward_id, created_at, updated_at
        FROM orders
        WHERE order_id = ? AND customer_id = ?`,
       [req.params.id, req.user.id],

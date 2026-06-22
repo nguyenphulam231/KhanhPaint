@@ -32,6 +32,60 @@
 
       const message = document.getElementById("message");
       const ordersTable = document.getElementById("ordersTable");
+      let assignmentOptions = null;
+
+      function money(value) {
+        return Number(value || 0).toLocaleString("vi-VN") + " đ";
+      }
+
+      function formatDate(value) {
+        if (!value) return "";
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return String(value);
+        return date.toLocaleString("vi-VN");
+      }
+
+      function dateOnly(value) {
+        if (!value) return "";
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return String(value).slice(0, 10);
+        return date.toISOString().slice(0, 10);
+      }
+
+      function setMessage(text, ok = true) {
+        message.style.color = ok ? "green" : "red";
+        message.textContent = text || "";
+      }
+
+      async function loadAssignmentOptions() {
+        if (assignmentOptions) return assignmentOptions;
+        const token = getAdminToken();
+        const response = await fetch(API_ROUTES.GET_ORDER_ASSIGNMENT_OPTIONS, {
+          headers: { Authorization: "Bearer " + token },
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Không thể tải tùy chọn phân công.");
+        assignmentOptions = data;
+        return assignmentOptions;
+      }
+
+      function renderEmployeeOptions(type, selectedId) {
+        const employees = assignmentOptions?.employees || [];
+        return [
+          '<option value="">-- Chưa gán --</option>',
+          ...employees
+            .filter((emp) => type === "sales" ? Number(emp.can_sell) === 1 : Number(emp.can_mix) === 1)
+            .map((emp) => `<option value="${emp.employee_id}" ${Number(selectedId) === Number(emp.employee_id) ? "selected" : ""}>${escapeHtml(emp.full_name)} (${escapeHtml(emp.job_title || emp.role || "")})</option>`),
+        ].join("");
+      }
+
+      function renderShiftOptions(selectedId) {
+        const shifts = assignmentOptions?.shifts || [];
+        return [
+          '<option value="">-- Chưa gán --</option>',
+          ...shifts.map((s) => `<option value="${s.shift_id}" ${Number(selectedId) === Number(s.shift_id) ? "selected" : ""}>${escapeHtml(s.shift_name)} (${escapeHtml(s.start_time)}-${escapeHtml(s.end_time)})</option>`),
+        ].join("");
+      }
 
       async function loadOrders() {
         const token = getAdminToken();
@@ -56,11 +110,12 @@
             <thead>
               <tr>
                 <th>Mã đơn</th>
+                <th>Ngày tạo</th>
                 <th>Khách hàng</th>
                 <th>Nhân viên bán</th>
                 <th>Kỹ thuật viên</th>
                 <th>Ca</th>
-                <th>Tổng tiền</th>
+                <th>Tổng/Đã trả</th>
                 <th>Trạng thái</th>
                 <th>Thao tác</th>
               </tr>
@@ -69,15 +124,23 @@
               ${orders.map((o) => `
                 <tr>
                   <td>#${o.order_id}</td>
-                  <td>${escapeHtml(o.customer_name || "")}</td>
+                  <td>${escapeHtml(formatDate(o.created_at))}</td>
+                  <td>
+                    ${escapeHtml(o.customer_name || "")}<br />
+                    <small>Công nợ: ${money(o.current_debt)}</small>
+                  </td>
                   <td>${escapeHtml(o.sales_rep_name || "Chưa gán")}</td>
                   <td>${escapeHtml(o.tech_name || "Chưa gán")}</td>
                   <td>${escapeHtml(o.shift_name || "Chưa gán")}</td>
-                  <td>${Number(o.total_amount || 0).toLocaleString("vi-VN")} đ</td>
+                  <td>
+                    ${money(o.total_amount)}<br />
+                    <small>${money(o.paid_amount)} - ${escapeHtml(o.payment_status || "unpaid")}</small>
+                  </td>
                   <td>
                     <select onchange="updateStatus(${o.order_id}, this.value)">
                       ${["pending", "confirmed", "mixing", "completed", "cancelled"].map((s) => `<option value="${s}" ${o.status === s ? "selected" : ""}>${s}</option>`).join("")}
                     </select>
+                    ${Number(o.inventory_restored) === 1 ? '<br /><small>Đã hoàn kho</small>' : ""}
                   </td>
                   <td><button class="inline-button" onclick="showDetail(${o.order_id})">Chi tiết</button></td>
                 </tr>
@@ -96,49 +159,170 @@
           body: JSON.stringify({ status }),
         });
         const data = await response.json();
-        message.style.color = response.ok ? "green" : "red";
-        message.textContent = data.message || data.error || "Đã xử lý.";
+        setMessage(data.message || data.error || "Đã xử lý.", response.ok);
+        await loadOrders();
+        if (document.getElementById("orderDetail")?.dataset.orderId === String(orderId)) {
+          await showDetail(orderId);
+        }
+      }
+
+      async function assignOrder(orderId) {
+        const token = getAdminToken();
+        const payload = {
+          sales_rep_id: document.getElementById(`sales_${orderId}`).value || null,
+          tech_id: document.getElementById(`tech_${orderId}`).value || null,
+          shift_id: document.getElementById(`shift_${orderId}`).value || null,
+        };
+
+        const response = await fetch(API_ROUTES.ASSIGN_ORDER(orderId), {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+          body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        setMessage(data.message || data.error || "Đã xử lý.", response.ok);
+        if (response.ok) {
+          await loadOrders();
+          await showDetail(orderId);
+        }
+      }
+
+      async function addPayment(orderId) {
+        const token = getAdminToken();
+        const payload = {
+          amount: Number(document.getElementById(`payment_amount_${orderId}`).value),
+          payment_method: document.getElementById(`payment_method_${orderId}`).value,
+          note: document.getElementById(`payment_note_${orderId}`).value,
+        };
+
+        const response = await fetch(API_ROUTES.ADD_ORDER_PAYMENT(orderId), {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+          body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        setMessage(data.message || data.error || "Đã xử lý.", response.ok);
+        if (response.ok) {
+          await loadOrders();
+          await showDetail(orderId);
+        }
       }
 
       async function showDetail(orderId) {
         const token = getAdminToken();
-        const response = await fetch(API_ROUTES.GET_ORDER_DETAIL(orderId), {
-          headers: { Authorization: "Bearer " + token },
-        });
-        const order = await response.json();
         const target = document.getElementById("orderDetail");
-        if (!response.ok) {
-          target.textContent = order.error || "Không thể tải chi tiết.";
-          return;
-        }
-        target.innerHTML = `
-          <h3>Chi tiết đơn #${order.order_id}</h3>
-          <p><strong>Khách hàng:</strong> ${escapeHtml(order.customer_name)} - ${escapeHtml(order.phone || "")}</p>
-          <table class="data-table">
-            <thead><tr><th>Sản phẩm</th><th>SKU</th><th>Base</th><th>Màu</th><th>SL</th><th>Giá bán</th></tr></thead>
-            <tbody>
-              ${order.details.map((d) => `
-                <tr>
-                  <td>${escapeHtml(d.brand_name)} - ${escapeHtml(d.line_name)} ${escapeHtml(d.volume || "")}</td>
-                  <td>${escapeHtml(d.sku_code)}</td>
-                  <td>${escapeHtml(d.base_name)}</td>
-                  <td>${escapeHtml(d.color_code)} - ${escapeHtml(d.color_name)}</td>
-                  <td>${d.quantity}</td>
-                  <td>${Number(d.price_at_sale || 0).toLocaleString("vi-VN")} đ</td>
-                </tr>
-              `).join("")}
-            </tbody>
-          </table>
-        `;
-      }
+        target.dataset.orderId = String(orderId);
+        target.textContent = "Đang tải chi tiết...";
 
-      function escapeHtml(value) {
-        return String(value ?? "")
-          .replaceAll("&", "&amp;")
-          .replaceAll("<", "&lt;")
-          .replaceAll(">", "&gt;")
-          .replaceAll('"', "&quot;")
-          .replaceAll("'", "&#39;");
+        try {
+          await loadAssignmentOptions();
+          const response = await fetch(API_ROUTES.GET_ORDER_DETAIL(orderId), {
+            headers: { Authorization: "Bearer " + token },
+          });
+          const order = await response.json();
+          if (!response.ok) {
+            target.textContent = order.error || "Không thể tải chi tiết.";
+            return;
+          }
+
+          const remaining = Math.max(Number(order.total_amount || 0) - Number(order.paid_amount || 0), 0);
+          const canPay = order.status !== "cancelled" && remaining > 0;
+
+          target.innerHTML = `
+            <h3>Chi tiết đơn #${order.order_id}</h3>
+            <div class="admin-stats">
+              <div class="stat-card"><strong>${money(order.total_amount)}</strong><span>Tổng tiền</span></div>
+              <div class="stat-card"><strong>${money(order.paid_amount)}</strong><span>Đã thanh toán</span></div>
+              <div class="stat-card"><strong>${money(remaining)}</strong><span>Còn phải thu</span></div>
+              <div class="stat-card"><strong>${escapeHtml(order.status)}</strong><span>Trạng thái đơn</span></div>
+            </div>
+
+            <p><strong>Khách hàng:</strong> ${escapeHtml(order.customer_name)} - ${escapeHtml(order.phone || "")}</p>
+            <p><strong>Ngày tạo đơn:</strong> ${escapeHtml(formatDate(order.created_at))}. Khi gán ca, nhân viên phải đã được phân ca đúng ngày ${escapeHtml(dateOnly(order.created_at))}.</p>
+
+            <h4>Phân công nhân sự</h4>
+            <div class="form-section compact-form">
+              <label>Nhân viên bán hàng</label>
+              <select id="sales_${order.order_id}">${renderEmployeeOptions("sales", order.sales_rep_id)}</select>
+              <label>Kỹ thuật viên pha màu</label>
+              <select id="tech_${order.order_id}">${renderEmployeeOptions("tech", order.tech_id)}</select>
+              <label>Ca làm</label>
+              <select id="shift_${order.order_id}">${renderShiftOptions(order.shift_id)}</select>
+              <button class="inline-button" type="button" onclick="assignOrder(${order.order_id})">Lưu phân công</button>
+            </div>
+
+            <h4>Dòng sản phẩm</h4>
+            <table class="data-table">
+              <thead><tr><th>Sản phẩm</th><th>SKU</th><th>Base</th><th>Màu</th><th>SL</th><th>Giá bán</th><th>Thành tiền</th></tr></thead>
+              <tbody>
+                ${order.details.map((d) => `
+                  <tr>
+                    <td>${escapeHtml(d.brand_name)} - ${escapeHtml(d.line_name)} ${escapeHtml(d.volume || "")}</td>
+                    <td>${escapeHtml(d.sku_code)}</td>
+                    <td>${escapeHtml(d.base_name)}</td>
+                    <td>${escapeHtml(d.color_code)} - ${escapeHtml(d.color_name)}</td>
+                    <td>${d.quantity}</td>
+                    <td>${money(d.price_at_sale)}</td>
+                    <td>${money(Number(d.quantity) * Number(d.price_at_sale))}</td>
+                  </tr>
+                `).join("")}
+              </tbody>
+            </table>
+
+            <h4>Thanh toán & công nợ</h4>
+            <p><strong>Hạn mức:</strong> ${Number(order.credit_limit || 0) === 0 ? "Không giới hạn" : money(order.credit_limit)} | <strong>Công nợ hiện tại:</strong> ${money(order.current_debt)} | <strong>Payment status:</strong> ${escapeHtml(order.payment_status)}</p>
+            ${canPay ? `
+              <div class="form-section compact-form">
+                <label>Số tiền thanh toán</label>
+                <input id="payment_amount_${order.order_id}" type="number" min="1" max="${remaining}" value="${remaining}" />
+                <label>Phương thức</label>
+                <select id="payment_method_${order.order_id}">
+                  <option value="cash">Tiền mặt</option>
+                  <option value="bank_transfer">Chuyển khoản</option>
+                  <option value="card">Thẻ</option>
+                  <option value="other">Khác</option>
+                </select>
+                <label>Ghi chú</label>
+                <input id="payment_note_${order.order_id}" placeholder="Ví dụ: khách chuyển khoản lần 1" />
+                <button class="inline-button" type="button" onclick="addPayment(${order.order_id})">Ghi nhận thanh toán</button>
+              </div>
+            ` : '<p>Đơn không còn số tiền cần thanh toán hoặc đã hủy.</p>'}
+
+            <table class="data-table">
+              <thead><tr><th>Thời điểm</th><th>Số tiền</th><th>Phương thức</th><th>Ghi chú</th></tr></thead>
+              <tbody>
+                ${(order.payments || []).length ? order.payments.map((p) => `
+                  <tr>
+                    <td>${escapeHtml(formatDate(p.paid_at))}</td>
+                    <td>${money(p.amount)}</td>
+                    <td>${escapeHtml(p.payment_method)}</td>
+                    <td>${escapeHtml(p.note || "")}</td>
+                  </tr>
+                `).join("") : '<tr><td colspan="4">Chưa có thanh toán.</td></tr>'}
+              </tbody>
+            </table>
+
+            <h4>Nhật ký kho liên quan</h4>
+            <table class="data-table">
+              <thead><tr><th>Thời điểm</th><th>Loại</th><th>Đối tượng</th><th>Biến động</th><th>Trước</th><th>Sau</th><th>Ghi chú</th></tr></thead>
+              <tbody>
+                ${(order.movements || []).length ? order.movements.map((m) => `
+                  <tr>
+                    <td>${escapeHtml(formatDate(m.created_at))}</td>
+                    <td>${escapeHtml(m.inventory_type)} / ${escapeHtml(m.movement_type)}</td>
+                    <td>${escapeHtml(m.sku_code || m.colorant_name || "")}</td>
+                    <td>${Number(m.quantity_delta || 0).toLocaleString("vi-VN")}</td>
+                    <td>${Number(m.before_quantity || 0).toLocaleString("vi-VN")}</td>
+                    <td>${Number(m.after_quantity || 0).toLocaleString("vi-VN")}</td>
+                    <td>${escapeHtml(m.note || "")}</td>
+                  </tr>
+                `).join("") : '<tr><td colspan="7">Chưa có nhật ký kho.</td></tr>'}
+              </tbody>
+            </table>
+          `;
+        } catch (error) {
+          target.textContent = error.message;
+        }
       }
 
       loadOrders();

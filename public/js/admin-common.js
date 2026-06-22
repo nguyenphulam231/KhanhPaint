@@ -41,6 +41,7 @@ function renderAdminSidebar(activeNav) {
       <a class="menu-item ${activeNav === "shifts" ? "active" : ""}" data-admin-nav="shifts" href="/admin/shift-manage.html">Quản lý Ca làm</a>
       <a class="menu-item ${activeNav === "assign-shift" ? "active" : ""}" data-admin-nav="assign-shift" href="/admin/shift-assign.html">Phân ca làm việc</a>
       <a class="menu-item ${activeNav === "orders" ? "active" : ""}" data-admin-nav="orders" href="/admin/order-manage.html">Quản lý đơn hàng</a>
+      <a class="menu-item ${activeNav === "inventory-movements" ? "active" : ""}" data-admin-nav="inventory-movements" href="/admin/inventory-movements.html">Nhật ký kho</a>
       <a class="menu-item" href="#" id="logoutLink" style="color: #ffcccc">Đăng xuất</a>
     </aside>
   `;
@@ -176,6 +177,14 @@ async function renderDashboardSummary(targetId) {
         <div class="stat-card">
           <strong>${Number(stats.colorant_stock_ml || 0).toLocaleString("vi-VN")} ml</strong>
           <span>Tồn kho tinh màu</span>
+        </div>
+        <div class="stat-card">
+          <strong>${Number(stats.total_customer_debt || 0).toLocaleString("vi-VN")} đ</strong>
+          <span>Công nợ khách hàng</span>
+        </div>
+        <div class="stat-card">
+          <strong>${Number(stats.inventory_movements || 0)}</strong>
+          <span>Dòng nhật ký kho</span>
         </div>
       </div>
       <div class="content-card">

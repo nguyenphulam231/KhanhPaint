@@ -5,10 +5,16 @@ const db = require("../../db");
 router.get("/", async (req, res) => {
   try {
     const [[orderStats]] = await db.query(`
-      SELECT COUNT(*) AS total_orders, COALESCE(SUM(total_amount), 0) AS revenue
+      SELECT COUNT(*) AS total_orders,
+             COALESCE(SUM(CASE WHEN status <> 'cancelled' THEN total_amount ELSE 0 END), 0) AS revenue,
+             COALESCE(SUM(CASE WHEN status <> 'cancelled' THEN paid_amount ELSE 0 END), 0) AS paid_revenue
       FROM orders
     `);
-    const [[customerStats]] = await db.query("SELECT COUNT(*) AS total_customers FROM customers");
+    const [[customerStats]] = await db.query(`
+      SELECT COUNT(*) AS total_customers,
+             COALESCE(SUM(current_debt), 0) AS total_customer_debt
+      FROM customers
+    `);
     const [[variantStats]] = await db.query(`
       SELECT COUNT(*) AS total_variants, COALESCE(SUM(stock_quantity), 0) AS base_stock
       FROM productvariants
@@ -22,6 +28,10 @@ router.get("/", async (req, res) => {
       FROM orders
       WHERE status IN ('pending', 'confirmed')
     `);
+    const [[movementStats]] = await db.query(`
+      SELECT COUNT(*) AS inventory_movements
+      FROM inventory_movements
+    `);
 
     res.json({
       message: "Chào mừng Admin",
@@ -31,6 +41,7 @@ router.get("/", async (req, res) => {
         ...variantStats,
         ...colorantStats,
         ...pendingStats,
+        ...movementStats,
       },
     });
   } catch (err) {
