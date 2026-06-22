@@ -5,6 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Đăng ký tài khoản</title>
     <link rel="stylesheet" href="/style.css" />
+    <style>
+      /* Thêm một chút style cho các thẻ select tương thích với style.css cũ của bạn */
+      .login-container select {
+        width: 100%;
+        padding: 10px;
+        margin: 10px 0;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        box-sizing: border-box;
+        background-color: #fff;
+      }
+    </style>
   </head>
   <body>
     <div class="login-page-wrapper">
@@ -20,6 +32,22 @@
             placeholder="Mật khẩu"
             required
           />
+
+          <select id="province" required>
+            <option value="">-- Chọn Tỉnh / Thành phố --</option>
+          </select>
+
+          <select id="ward" required disabled>
+            <option value="">-- Chọn Phường / Xã --</option>
+          </select>
+
+          <input
+            type="text"
+            id="street_address"
+            placeholder="Địa chỉ cụ thể (Số nhà, tên đường...)"
+            required
+          />
+
           <button type="submit">Đăng ký</button>
         </form>
         <p id="message" style="text-align: center; margin-top: 15px"></p>
@@ -30,16 +58,72 @@
     </div>
 
     <script>
+      const provinceSelect = document.getElementById("province");
+      const wardSelect = document.getElementById("ward");
+
+      // 1. Tự động tải danh sách Tỉnh/Thành khi vừa mở trang
+      window.addEventListener("DOMContentLoaded", async () => {
+        try {
+          const response = await fetch("/api/auth/public/provinces");
+          if (response.ok) {
+            const provinces = await response.json();
+            provinces.forEach((p) => {
+              const option = document.createElement("option");
+              option.value = p.province_id;
+              option.textContent = p.province_name;
+              provinceSelect.appendChild(option);
+            });
+          }
+        } catch (err) {
+          console.error("Không thể tải danh sách tỉnh thành:", err);
+        }
+      });
+
+      // 2. Lắng nghe sự kiện đổi Tỉnh/Thành để tải Phường/Xã tương ứng
+      provinceSelect.addEventListener("change", async (e) => {
+        const provinceId = e.target.value;
+
+        // Reset ô chọn phường xã
+        wardSelect.innerHTML =
+          '<option value="">-- Chọn Phường / Xã --</option>';
+
+        if (!provinceId) {
+          wardSelect.disabled = true;
+          wardSelect.required = false;
+          return;
+        }
+
+        try {
+          const response = await fetch(`/api/auth/public/wards/${provinceId}`);
+          if (response.ok) {
+            const wards = await response.json();
+            wards.forEach((w) => {
+              const option = document.createElement("option");
+              option.value = w.ward_id;
+              option.textContent = w.ward_name;
+              wardSelect.appendChild(option);
+            });
+            wardSelect.disabled = false;
+          }
+        } catch (err) {
+          console.error("Không thể tải danh sách phường xã:", err);
+        }
+      });
+
+      // 3. Xử lý sự kiện gửi Form Đăng ký
       document
         .getElementById("registerForm")
         .addEventListener("submit", async (e) => {
           e.preventDefault();
 
+          // Thu thập đầy đủ dữ liệu cũ kèm các trường địa chỉ mới
           const userData = {
             name: document.getElementById("name").value,
             phone: document.getElementById("phone").value,
             email: document.getElementById("email").value,
             password: document.getElementById("password").value,
+            ward_id: document.getElementById("ward").value, // Gửi ID của Phường/Xã phục vụ khóa ngoại
+            street_address: document.getElementById("street_address").value, // Gửi text địa chỉ nhà
           };
 
           const response = await fetch("/api/auth/public/register", {
@@ -52,10 +136,12 @@
           const message = document.getElementById("message");
 
           if (response.ok) {
+            message.style.color = "green";
             message.innerText =
               "Đăng ký thành công! Chuyển hướng đến trang đăng nhập...";
             setTimeout(() => (window.location.href = "/client/login"), 2000);
           } else {
+            message.style.color = "red";
             message.innerText = data.error || "Đăng ký thất bại!";
           }
         });

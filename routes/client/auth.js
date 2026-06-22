@@ -4,6 +4,7 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const db = require("../../db");
 
+// Khuyến khích sau này đổi thành: const SECRET_KEY = process.env.JWT_SECRET;
 const SECRET_KEY = "your_secret_key_sieu_bi_mat";
 
 // --- ĐĂNG NHẬP KHÁCH HÀNG ---
@@ -14,7 +15,7 @@ router.post("/login", async (req, res) => {
     return res.status(400).json({ error: "Loại tài khoản không hợp lệ!" });
   }
 
-  const table = "Customers";
+  const table = "customers";
   const idField = "customer_id";
 
   try {
@@ -32,7 +33,7 @@ router.post("/login", async (req, res) => {
       const payload = {
         id: user[idField],
         email: user.email,
-        role: user.role || "customer",
+        role: "customer",
         type: type,
       };
 
@@ -48,17 +49,25 @@ router.post("/login", async (req, res) => {
       res.status(401).json({ error: "Sai mật khẩu!" });
     }
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    // Đồng bộ style báo lỗi dạng "Lỗi: " giống employee.js
+    res.status(500).json({ error: "Lỗi: " + err.message });
   }
 });
 
 // --- ĐĂNG KÝ (Dành riêng cho Khách hàng) ---
 router.post("/register", async (req, res) => {
-  const { name, phone, email, password } = req.body;
+  const { name, phone, email, password, street_address, ward_id } = req.body;
+
+  if (!name || !email || !password) {
+    return res.status(400).json({
+      error:
+        "Vui lòng điền đầy đủ các thông tin bắt buộc (Tên, Email, Mật khẩu)!",
+    });
+  }
 
   try {
     const [existing] = await db.query(
-      "SELECT * FROM Customers WHERE email = ?",
+      "SELECT * FROM customers WHERE email = ?",
       [email],
     );
     if (existing.length > 0) {
@@ -68,14 +77,43 @@ router.post("/register", async (req, res) => {
     const saltRounds = 10;
     const password_hash = await bcrypt.hash(password, saltRounds);
 
+    const finalWardId = ward_id ? parseInt(ward_id) : null;
+    const finalStreetAddress = street_address || null;
+    const finalPhone = phone || null;
+
     await db.query(
-      "INSERT INTO Customers (name, phone, email, password_hash, role) VALUES (?, ?, ?, ?, 'customer')",
-      [name, phone, email, password_hash],
+      "INSERT INTO customers (name, phone, email, password_hash, street_address, ward_id) VALUES (?, ?, ?, ?, ?, ?)",
+      [name, finalPhone, email, password_hash, finalStreetAddress, finalWardId],
     );
 
     res.status(201).json({ message: "Đăng ký thành công!" });
   } catch (err) {
-    res.status(500).json({ error: "Lỗi hệ thống: " + err.message });
+    // Đồng bộ style báo lỗi dạng "Lỗi: " giống employee.js
+    res.status(500).json({ error: "Lỗi: " + err.message });
+  }
+});
+
+// --- API BỔ TRỢ: Địa lý ---
+router.get("/provinces", async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      "SELECT * FROM provinces ORDER BY province_name",
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: "Lỗi: " + err.message });
+  }
+});
+
+router.get("/wards/:provinceId", async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      "SELECT * FROM wards WHERE province_id = ? ORDER BY ward_name",
+      [req.params.provinceId],
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: "Lỗi: " + err.message });
   }
 });
 
