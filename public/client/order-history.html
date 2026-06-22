@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>KhanhPaint - Đơn hàng của tôi</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>KhanhPaint</h1>
+      <nav>
+        <a href="/client/">Trang chủ</a>
+        <a href="/client/products">Sản phẩm</a>
+        <a href="/client/orders">Đơn hàng của tôi</a>
+      </nav>
+    </header>
+
+    <main class="client-page">
+      <div class="page-header">
+        <div>
+          <p class="eyebrow">CRM</p>
+          <h2>Lịch sử đơn hàng</h2>
+        </div>
+      </div>
+      <section id="orders" class="admin-card">Đang tải đơn hàng...</section>
+    </main>
+
+    <script src="/js/client-api.js"></script>
+    <script>
+      async function loadOrders() {
+        if (!getCustomerToken()) {
+          window.location.href = "/client/login";
+          return;
+        }
+
+        const response = await fetch(CLIENT_API_ROUTES.ORDERS, {
+          headers: getCustomerAuthHeaders(),
+        });
+        const orders = await response.json();
+        const target = document.getElementById("orders");
+
+        if (!response.ok) {
+          target.textContent = orders.error || "Không thể tải đơn hàng.";
+          return;
+        }
+
+        if (orders.length === 0) {
+          target.innerHTML = 'Bạn chưa có đơn hàng nào. <a href="/client/products">Mua sản phẩm</a>';
+          return;
+        }
+
+        target.innerHTML = `
+          <table class="data-table">
+            <thead><tr><th>Mã đơn</th><th>Trạng thái</th><th>Tổng tiền</th><th>Địa chỉ</th></tr></thead>
+            <tbody>
+              ${orders.map((o) => `
+                <tr>
+                  <td>#${o.order_id}</td>
+                  <td>${escapeHtml(o.status)}</td>
+                  <td>${Number(o.total_amount || 0).toLocaleString("vi-VN")} đ</td>
+                  <td>${escapeHtml(o.street_address || "Theo hồ sơ khách hàng")}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        `;
+      }
+
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#39;");
+      }
+
+      loadOrders();
+    </script>
+  </body>
+</html>

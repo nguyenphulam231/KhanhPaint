@@ -1,125 +1,63 @@
+// public/js/api.js
 const API_ROUTES = {
-  ADMIN_LOGIN: "/api/auth/admin/login",
-  CUSTOMER_LOGIN: "/api/auth/public/login",
-  CUSTOMER_REGISTER: "/api/auth/public/register",
-
   DASHBOARD: "/api/admin/dashboard",
 
   GET_JOBS: "/api/admin/jobs",
   ADD_JOB: "/api/admin/jobs/add",
+  UPDATE_JOB: (id) => `/api/admin/jobs/update/${id}`,
+  DELETE_JOB: (id) => `/api/admin/jobs/delete/${id}`,
 
+  GET_EMPLOYEES: "/api/admin/employees",
   ADD_EMPLOYEE: "/api/admin/employees/add",
+  UPDATE_EMPLOYEE: (id) => `/api/admin/employees/update/${id}`,
+  DELETE_EMPLOYEE: (id) => `/api/admin/employees/delete/${id}`,
 
-  GET_PRODUCTS: "/api/admin/products",
-  GET_BRANDS: "/api/admin/products/brands",
-  ADD_BRAND: "/api/admin/products/add-brand",
-  GET_LINES: "/api/admin/products/lines",
-  ADD_LINE: "/api/admin/products/add-line",
-  GET_LINES_BY_BRAND: "/api/admin/products/lines-by-brand",
-  GET_BASETYPES: "/api/admin/products/basetypes",
-  GET_BASETYPES_BY_LINE: "/api/admin/products/basetypes-by-line",
-  ADD_BASETYPE: "/api/admin/products/add-basetype",
-  GET_VARIANTS: "/api/admin/products/variants",
-  ADD_VARIANT: "/api/admin/products/add-variant",
-  DELETE_VARIANT: "/api/admin/products/delete-variant",
+  GET_BRANDS: "/api/admin/brands",
+  ADD_BRAND: "/api/admin/brands/add",
+  UPDATE_BRAND: (id) => `/api/admin/brands/update/${id}`,
+  DELETE_BRAND: (id) => `/api/admin/brands/delete/${id}`,
 
-  GET_INVENTORY_PRODUCTS: "/api/admin/lookup/inventory/products",
-  GET_INVENTORY_COLORANTS: "/api/admin/lookup/inventory/colorants",
-  GET_COLORS: "/api/admin/lookup/colors",
-  GET_COLOR_FORMULA: "/api/admin/lookup/colors",
-  SEARCH_FORMULA: "/api/admin/lookup/formulas",
-  GET_CUSTOMERS: "/api/admin/lookup/customers",
-  GET_CUSTOMER_DEBT: "/api/admin/lookup/customers/debt",
-  GET_CUSTOMER_ORDERS: "/api/admin/lookup/customers",
-  GET_ORDERS: "/api/admin/lookup/orders",
-  GET_ORDER_DETAIL: "/api/admin/orders",
-  GET_ORDER_OPTIONS: "/api/admin/orders/options",
-  CREATE_ORDER: "/api/admin/orders",
-  UPDATE_ORDER_STATUS: "/api/admin/orders",
-  GET_REVENUE_REPORT: "/api/admin/lookup/reports/revenue",
-  GET_TOP_PRODUCTS: "/api/admin/lookup/reports/top-products",
-  GET_TOP_COLORS: "/api/admin/lookup/reports/top-colors",
-  GET_DEBT_SUMMARY: "/api/admin/debts/summary",
-  GET_OVERDUE_DEBTS: "/api/admin/debts/overdue",
-  GET_DEBT_CUSTOMER_DETAIL: "/api/admin/debts/customers",
-  CREATE_DEBT_PAYMENT: "/api/admin/debts/payments",
-  UPDATE_CUSTOMER_CREDIT_LIMIT: "/api/admin/debts/customers",
+  GET_LINES: "/api/admin/lines",
+  GET_LINES_BY_BRAND: "/api/admin/lines/by-brand",
+  ADD_LINE: "/api/admin/lines/add",
+  UPDATE_LINE: (id) => `/api/admin/lines/update/${id}`,
+  DELETE_LINE: (id) => `/api/admin/lines/delete/${id}`,
 
-  CLIENT_PRODUCTS: "/api/client/products",
-  CLIENT_CATALOG_OPTIONS: "/api/client/catalog-options",
-  CLIENT_COLORS: "/api/client/colors",
-  CLIENT_PROFILE: "/api/client/profile",
-  CLIENT_ORDERS: "/api/client/orders",
-  CLIENT_PURCHASED_COLORS: "/api/client/purchased-colors",
+  GET_BASETYPES: "/api/admin/base",
+  ADD_BASETYPE: "/api/admin/base/add",
+  UPDATE_BASETYPE: (id) => `/api/admin/base/update/${id}`,
+  DELETE_BASETYPE: (id) => `/api/admin/base/delete/${id}`,
+
+  GET_VARIANTS: "/api/admin/variants",
+  ADD_VARIANT: "/api/admin/variants/add",
+  UPDATE_VARIANT: (id) => `/api/admin/variants/update/${id}`,
+  DELETE_VARIANT: (id) => `/api/admin/variants/delete/${id}`,
+
+  GET_COLORANTS: "/api/admin/colorants",
+  ADD_COLORANT: "/api/admin/colorants/add",
+  UPDATE_COLORANT: (id) => `/api/admin/colorants/update/${id}`,
+  DELETE_COLORANT: (id) => `/api/admin/colorants/delete/${id}`,
+
+  GET_COLORSYSTEM: "/api/admin/colorsystem",
+  ADD_COLORSYSTEM: "/api/admin/colorsystem/add",
+  GET_FORMULA: (id) => `/api/admin/colorsystem/formula/${id}`,
+  UPDATE_COLORSYSTEM: (id) => `/api/admin/colorsystem/update/${id}`,
+  DELETE_COLORSYSTEM: (id) => `/api/admin/colorsystem/delete/${id}`,
+
+  // Backward-compatible aliases for existing pages
+  GET_COLORS: "/api/admin/colorsystem",
+  ADD_COLOR: "/api/admin/colorsystem/add",
+  UPDATE_COLOR: (id) => `/api/admin/colorsystem/update/${id}`,
+  DELETE_COLOR: (id) => `/api/admin/colorsystem/delete/${id}`,
+
+  GET_SHIFTS: "/api/admin/shift",
+  ADD_SHIFT: "/api/admin/shift/add",
+  UPDATE_SHIFT: (id) => `/api/admin/shift/update/${id}`,
+  DELETE_SHIFT: (id) => `/api/admin/shift/delete/${id}`,
+  ASSIGN_SHIFT: "/api/admin/shift/assign",
+
+  GET_ORDERS: "/api/admin/orders",
+  GET_ORDER_DETAIL: (id) => `/api/admin/orders/${id}`,
+  UPDATE_ORDER_STATUS: (id) => `/api/admin/orders/${id}/status`,
+  ASSIGN_ORDER: (id) => `/api/admin/orders/${id}/assign`,
 };
-
-function getToken() {
-  return localStorage.getItem("token");
-}
-
-function saveAuthData(data) {
-  if (data.token) localStorage.setItem("token", data.token);
-  if (data.role) localStorage.setItem("role", data.role);
-  if (data.type) localStorage.setItem("type", data.type);
-  if (data.full_name) localStorage.setItem("full_name", data.full_name);
-  if (data.name) localStorage.setItem("name", data.name);
-}
-
-function clearAuthData() {
-  localStorage.removeItem("token");
-  localStorage.removeItem("role");
-  localStorage.removeItem("type");
-  localStorage.removeItem("full_name");
-  localStorage.removeItem("name");
-}
-
-function getAuthHeaders() {
-  const token = getToken();
-  const headers = { "Content-Type": "application/json" };
-
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
-
-  return headers;
-}
-
-async function parseJsonResponse(response) {
-  return response.json().catch(() => ({}));
-}
-
-async function apiRequest(url, options = {}) {
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      ...getAuthHeaders(),
-      ...(options.headers || {}),
-    },
-  });
-
-  const data = await parseJsonResponse(response);
-
-  if (!response.ok) {
-    throw new Error(data.error || data.message || "Có lỗi xảy ra khi gọi API.");
-  }
-
-  return data;
-}
-
-async function publicRequest(url, options = {}) {
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
-  });
-
-  const data = await parseJsonResponse(response);
-
-  if (!response.ok) {
-    throw new Error(data.error || data.message || "Có lỗi xảy ra khi gọi API.");
-  }
-
-  return data;
-}

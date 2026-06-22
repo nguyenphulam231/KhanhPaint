@@ -1,95 +1,97 @@
+// routes/admin/base.js
 const express = require("express");
 const router = express.Router();
 const db = require("../../db");
 
-function cleanText(value) {
-  const text = String(value || "").trim();
-  return text === "" ? null : text;
-}
-
-function toNullableNumber(value) {
-  if (value === undefined || value === null || value === "") return null;
-  const number = Number(value);
-  return Number.isFinite(number) ? number : null;
-}
-
-function handleDbError(res, err, message) {
-  console.error(message, err);
-  if (err.code === "ER_NO_REFERENCED_ROW_2") {
-    return res.status(400).json({ error: "Dòng sản phẩm không tồn tại." });
-  }
-  return res.status(500).json({ error: "Lỗi xử lý dữ liệu." });
-}
-
+// Lấy danh sách BaseTypes
 router.get("/", async (req, res) => {
   try {
-    const [rows] = await db.execute(`
-      SELECT
-        bt.base_id,
-        bt.line_id,
-        bt.base_name,
-        bt.coverage_rate,
-        bt.drying_time,
-        bt.gloss_level,
-        bt.recommended_layers,
-        pl.name AS line_name,
-        br.brand_id,
-        br.name AS brand_name
-      FROM basetypes bt
-      JOIN productlines pl ON bt.line_id = pl.line_id
-      JOIN brands br ON pl.brand_id = br.brand_id
-      ORDER BY br.name, pl.name, bt.base_name
-    `);
+    const [rows] = await db.execute("SELECT * FROM basetypes");
     res.json(rows);
   } catch (err) {
-    handleDbError(res, err, "Get base types error:");
+    res.status(500).json({ error: err.message });
   }
 });
 
-router.get("/by-line/:line_id", async (req, res) => {
-  try {
-    const [rows] = await db.execute(
-      `SELECT base_id, line_id, base_name, coverage_rate, drying_time, gloss_level, recommended_layers
-       FROM basetypes
-       WHERE line_id = ?
-       ORDER BY base_name`,
-      [req.params.line_id]
-    );
-    res.json(rows);
-  } catch (err) {
-    handleDbError(res, err, "Get base types by line error:");
-  }
-});
-
+// Thêm mới một loại Base (Đã bổ sung mô tả)
 router.post("/add", async (req, res) => {
-  const line_id = req.body.line_id;
-  const base_name = cleanText(req.body.base_name);
-  const coverage_rate = toNullableNumber(req.body.coverage_rate);
-  const drying_time = cleanText(req.body.drying_time);
-  const gloss_level = cleanText(req.body.gloss_level);
-  const recommended_layers = cleanText(req.body.recommended_layers);
+  const { base_name, description } = req.body;
 
-  if (!line_id || !base_name) {
-    return res.status(400).json({
-      error: "Vui lòng chọn dòng sản phẩm và nhập tên BaseType.",
-    });
+  if (!base_name || base_name.trim() === "") {
+    return res
+      .status(400)
+      .json({ success: false, message: "Tên loại base không được để trống." });
   }
 
+  try {
+    // Thêm cả base_name và description vào DB, nếu description trống thì để null
+    const sql = "INSERT INTO basetypes (base_name, description) VALUES (?, ?)";
+    await db.execute(sql, [
+      base_name.trim(),
+      description ? description.trim() : null,
+    ]);
+
+    res
+      .status(201)
+      .json({ success: true, message: "Thêm BaseType thành công!" });
+  } catch (error) {
+    console.error("Lỗi thêm base:", error);
+    res
+      .status(500)
+      .json({ success: false, message: "Lỗi server khi thêm loại base." });
+  }
+});
+
+// 3. CẬP NHẬT LOẠI BASE (MỚI)
+router.put("/update/:id", async (req, res) => {
+  const baseId = req.params.id;
+  const { base_name, description } = req.body;
+
+  if (!base_name || base_name.trim() === "") {
+    return res
+      .status(400)
+      .json({ error: "Tên loại base không được để trống!" });
+  }
+
+  try {
+    // Lưu ý đối chiếu chuẩn xác tên cột khóa chính dưới DB (ví dụ: base_id hoặc id)
+    const [result] = await db.execute(
+      "UPDATE basetypes SET base_name = ?, description = ? WHERE base_id = ?",
+      [base_name.trim(), description ? description.trim() : null, baseId],
+    );
+
+    if (result.affectedRows === 0) {
+      return res
+        .status(404)
+        .json({ error: "Không tìm thấy loại base để cập nhật!" });
+    }
+    res.json({ message: "Cập nhật loại base thành công!" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 4. XÓA LOẠI BASE (MỚI)
+router.delete("/delete/:id", async (req, res) => {
+  const baseId = req.params.id;
   try {
     const [result] = await db.execute(
-      `INSERT INTO basetypes
-       (line_id, base_name, coverage_rate, drying_time, gloss_level, recommended_layers)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [line_id, base_name, coverage_rate, drying_time, gloss_level, recommended_layers]
+      "DELETE FROM basetypes WHERE base_id = ?",
+      [baseId],
     );
 
-    res.status(201).json({
-      success: true,
-      base_id: result.insertId,
-      message: "Thêm BaseType thành công.",
-    });
+    if (result.affectedRows === 0) {
+      return res
+        .status(404)
+        .json({ error: "Không tìm thấy loại base để xóa!" });
+    }
+    res.json({ message: "Đã xóa loại base thành công!" });
   } catch (err) {
-    handleDbError(res, err, "Create base type error:");
+    res.status(500).json({
+      error:
+        "Không thể xóa loại base này vì đang có các sản phẩm/biến thể thuộc nhóm base này!" ||
+        err.message,
+    });
   }
 });
 

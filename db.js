@@ -1,14 +1,14 @@
+try { require("dotenv").config(); } catch (err) { /* dotenv is optional in local demo */ }
 const mysql = require("mysql2");
-const { getEnv } = require("./config/env");
 
 const pool = mysql.createPool({
-  host: getEnv("DB_HOST", "localhost"),
-  port: Number(getEnv("DB_PORT", "3306")),
-  user: getEnv("DB_USER", "root"),
-  password: getEnv("DB_PASSWORD", ""),
-  database: getEnv("DB_NAME", "khanhpaintdealerdatabase"),
+  host: process.env.DB_HOST || "localhost",
+  user: process.env.DB_USER || "root",
+  password: process.env.DB_PASSWORD || "",
+  database: process.env.DB_NAME || "khanhpaintdealerdatabase",
+  port: Number(process.env.DB_PORT || 3306),
   waitForConnections: true,
-  connectionLimit: Number(getEnv("DB_CONNECTION_LIMIT", "10")),
+  connectionLimit: Number(process.env.DB_CONNECTION_LIMIT || 10),
   queueLimit: 0,
   connectTimeout: 10000,
   enableKeepAlive: true,

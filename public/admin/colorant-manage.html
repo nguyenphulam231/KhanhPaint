@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/style.css" />
+    <title>Quản lý Tinh màu</title>
+    <style>
+      .btn-cancel {
+        background-color: #6c757d;
+        color: #fff;
+        border: none;
+        padding: 10px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-left: 5px;
+      }
+      .d-none {
+        display: none !important;
+      }
+      .action-link {
+        cursor: pointer;
+        border: none;
+        background: none;
+        text-decoration: underline;
+        font-weight: bold;
+      }
+      .edit-link {
+        color: #ffc107;
+        margin-right: 10px;
+      }
+      .delete-link {
+        color: #dc3545;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="admin-container">
+      <div id="admin-sidebar"></div>
+
+      <main class="main-content">
+        <div class="page-header">
+          <div>
+            <p class="eyebrow">Quản trị kho kỹ thuật</p>
+            <h1 id="formTitle">Thêm Tinh màu mới</h1>
+          </div>
+        </div>
+
+        <section class="admin-card" style="margin-bottom: 2rem">
+          <div class="form-section">
+            <input
+              type="text"
+              id="colorantName"
+              placeholder="Tên tinh màu (VD: Đen BK)"
+              required
+            />
+            <input
+              type="number"
+              id="colorantStock"
+              placeholder="Tồn kho ban đầu (ml) - Mặc định 0"
+              min="0"
+              step="0.01"
+            />
+            <input
+              type="number"
+              id="colorantPrice"
+              placeholder="Giá tiền / ml (VNĐ) - Mặc định 0"
+              min="0"
+              step="0.01"
+            />
+            <button id="saveColorantBtn" type="button">Lưu tinh màu</button>
+            <button id="cancelEditBtn" type="button" class="btn-cancel d-none">
+              Hủy sửa
+            </button>
+          </div>
+        </section>
+
+        <section class="admin-card">
+          <h3>Danh sách tinh màu hiện có</h3>
+          <div style="overflow-x: auto; margin-top: 1rem">
+            <table
+              style="width: 100%; border-collapse: collapse; text-align: left"
+            >
+              <thead>
+                <tr style="border-bottom: 2px solid #ddd; height: 40px">
+                  <th>ID</th>
+                  <th>Tên tinh màu</th>
+                  <th>Tồn kho (ml)</th>
+                  <th>Đơn giá / ml</th>
+                  <th>Hành động</th>
+                </tr>
+              </thead>
+              <tbody id="colorantListBody">
+                <tr>
+                  <td colspan="5" style="text-align: center; padding: 20px">
+                    Đang tải dữ liệu...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/admin-common.js"></script>
+    <script>
+      mountAdminSidebar("colorants");
+      initAdminShell();
+
+      const tbody = document.getElementById("colorantListBody");
+      const nameInput = document.getElementById("colorantName");
+      const stockInput = document.getElementById("colorantStock");
+      const priceInput = document.getElementById("colorantPrice");
+      const saveColorantBtn = document.getElementById("saveColorantBtn");
+      const cancelEditBtn = document.getElementById("cancelEditBtn");
+      const formTitle = document.getElementById("formTitle");
+
+      let editingColorantId = null;
+
+      // 1. Hàm load danh sách tinh màu từ server
+      async function loadColorants() {
+        try {
+          const response = await fetch(API_ROUTES.GET_COLORANTS, {
+            headers: { Authorization: "Bearer " + getAdminToken() },
+          });
+          if (!response.ok) throw new Error("Lỗi API");
+
+          const data = await response.json();
+          if (data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 20px;">Chưa có loại tinh màu nào trong kho.</td></tr>`;
+            return;
+          }
+
+          tbody.innerHTML = data
+            .map((item) => {
+              const escapedName = (item.colorant_name || "").replace(
+                /'/g,
+                "\\'",
+              );
+              return `
+                <tr style="border-bottom: 1px solid #eee; height: 40px;">
+                  <td><b>#${item.colorant_id}</b></td>
+                  <td><b>${item.colorant_name}</b></td>
+                  <td>${item.stock_ml.toLocaleString("vi-VN")} ml</td>
+                  <td>${item.unit_price_per_ml.toLocaleString("vi-VN")} đ</td>
+                  <td>
+                    <button class="action-link edit-link" onclick="prepareEdit(${item.colorant_id}, '${escapedName}', ${item.stock_ml}, ${item.unit_price_per_ml})">Sửa</button>
+                    <button class="action-link delete-link" onclick="deleteColorant(${item.colorant_id})">Xóa</button>
+                  </td>
+                </tr>
+              `;
+            })
+            .join("");
+        } catch (error) {
+          console.error("Không thể tải danh sách tinh màu:", error);
+          tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: red; padding: 20px;">Lỗi khi kết nối dữ liệu máy chủ!</td></tr>`;
+        }
+      }
+
+      // 2. Điền ngược dữ liệu lên form để chuẩn bị sửa
+      function prepareEdit(id, name, stock, price) {
+        editingColorantId = id;
+        formTitle.innerText = "Chỉnh sửa thông tin Tinh màu";
+        nameInput.value = name;
+        stockInput.value = stock;
+        priceInput.value = price;
+
+        saveColorantBtn.innerText = "Cập nhật";
+        cancelEditBtn.classList.remove("d-none");
+        nameInput.focus();
+      }
+
+      // 3. Hàm xóa sạch trạng thái form đưa về ban đầu
+      function resetForm() {
+        editingColorantId = null;
+        formTitle.innerText = "Thêm Tinh màu mới";
+        nameInput.value = "";
+        stockInput.value = "";
+        priceInput.value = "";
+        saveColorantBtn.innerText = "Lưu tinh màu";
+        cancelEditBtn.classList.add("d-none");
+      }
+
+      cancelEditBtn.addEventListener("click", resetForm);
+
+      // 4. Xử lý sự kiện Lưu (Thêm mới HOẶC Cập nhật)
+      saveColorantBtn.addEventListener("click", async () => {
+        const nameValue = nameInput.value.trim();
+        if (!nameValue) {
+          alert("Vui lòng nhập tên tinh màu!");
+          return;
+        }
+
+        const data = {
+          colorant_name: nameValue,
+          stock_ml: parseFloat(stockInput.value) || 0,
+          unit_price_per_ml: parseFloat(priceInput.value) || 0,
+        };
+
+        const token = getAdminToken();
+        const url = editingColorantId
+          ? API_ROUTES.UPDATE_COLORANT(editingColorantId)
+          : API_ROUTES.ADD_COLORANT;
+        const method = editingColorantId ? "PUT" : "POST";
+
+        try {
+          const response = await fetch(url, {
+            method: method,
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + token,
+            },
+            body: JSON.stringify(data),
+          });
+
+          const result = await response.json().catch(() => null);
+
+          if (response.ok && (editingColorantId || result?.colorant_id)) {
+            alert(
+              editingColorantId
+                ? "Cập nhật tinh màu thành công!"
+                : "Thêm tinh màu thành công!",
+            );
+            resetForm();
+            loadColorants();
+          } else {
+            alert(result?.error || "Có lỗi xảy ra khi lưu tinh màu!");
+          }
+        } catch (err) {
+          console.error("Lỗi kết nối:", err);
+          alert("Không thể kết nối đến máy chủ backend!");
+        }
+      });
+
+      // 5. Xử lý chức năng xóa tinh màu
+      async function deleteColorant(id) {
+        const token = getAdminToken();
+        if (!token) return;
+
+        if (
+          !confirm(
+            `Bạn có chắc chắn muốn xóa tinh màu #${id} không?\nHành động sẽ báo lỗi nếu có công thức pha màu đang liên kết với tinh màu này.`,
+          )
+        )
+          return;
+
+        try {
+          const response = await fetch(API_ROUTES.DELETE_COLORANT(id), {
+            method: "DELETE",
+            headers: { Authorization: "Bearer " + token },
+          });
+
+          const result = await response.json().catch(() => null);
+
+          if (response.ok && result?.success) {
+            alert("Đã xóa tinh màu thành công!");
+            if (editingColorantId === id) resetForm();
+            loadColorants();
+          } else {
+            alert(result?.error || "Lỗi hệ thống, không thể xóa tinh màu!");
+          }
+        } catch (err) {
+          console.error("Lỗi:", err);
+          alert("Lỗi hệ thống khi thực hiện xóa!");
+        }
+      }
+
+      // Tải danh sách khi mở trang
+      window.addEventListener("DOMContentLoaded", loadColorants);
+    </script>
+  </body>
+</html>

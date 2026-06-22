@@ -3,97 +3,49 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>KhanhPaint - Trang khách hàng</title>
+    <title>KhanhPaint - Trang chủ</title>
     <link rel="stylesheet" href="/style.css" />
   </head>
-  <body class="client-body">
-    <div id="clientHeader"></div>
+  <body>
+    <header>
+      <h1>KhanhPaint</h1>
+      <nav id="navbar">
+        <a href="/client/">Trang chủ</a>
+        <a href="/client/products">Sản phẩm</a>
+        <a href="/client/orders">Đơn hàng của tôi</a>
+        <span id="auth-actions">
+          <a href="/client/login">Đăng nhập</a> |
+          <a href="/client/register">Đăng ký</a>
+        </span>
+      </nav>
+    </header>
 
-    <main class="client-main">
-      <section class="client-hero">
-        <div>
-          <p class="eyebrow">Paint Supply Store</p>
-          <h1>Chọn sơn, chọn màu, đặt pha màu trực tuyến</h1>
-          <p>Khách hàng có thể xem danh mục sản phẩm, gửi yêu cầu đặt hàng, theo dõi lịch sử mua màu cũ và kiểm soát công nợ có hạn trả.</p>
-          <div class="page-actions">
-            <a class="action-link" href="/client/products.html">Xem sản phẩm</a>
-            <a class="action-link" href="/client/orders.html">Lịch sử mua hàng</a>
-          </div>
-        </div>
-        <div class="hero-card">
-          <strong>Truy vết màu cũ</strong>
-          <p>Lưu lại mã màu, base, dung tích và sản phẩm đã mua để khách quay lại có thể mua đúng màu cần dặm vá.</p>
-        </div>
-      </section>
-
-      <section id="customerSummary" class="content-card">Đang tải thông tin...</section>
-
-      <section class="dashboard-grid">
-        <div class="content-card quick-actions-card">
-          <h2>Khách hàng có thể làm gì?</h2>
-          <div class="quick-action-grid">
-            <a href="/client/products.html">Tra cứu sản phẩm</a>
-            <a href="/client/products.html#cartCard">Gửi yêu cầu đặt hàng</a>
-            <a href="/client/orders.html">Mua lại màu cũ</a>
-            <a href="/client/profile.html">Xem công nợ</a>
-          </div>
-        </div>
-        <div class="content-card">
-          <h2>Sản phẩm nổi bật</h2>
-          <div id="productPreview" class="product-grid compact-grid">Đang tải...</div>
+    <main class="client-home">
+      <section class="hero-card">
+        <p class="eyebrow">Trung tâm pha màu tự động</p>
+        <h2>Quản lý sơn gốc, tinh màu, công thức và đơn hàng trên cùng một hệ thống</h2>
+        <p>
+          Khách hàng có thể xem biến thể sơn, chọn mã màu tương thích với base, tạo đơn hàng và theo dõi trạng thái xử lý.
+        </p>
+        <div class="page-actions">
+          <a class="action-link" href="/client/products">Xem sản phẩm</a>
+          <a class="action-link secondary" href="/client/orders">Theo dõi đơn hàng</a>
         </div>
       </section>
     </main>
 
-    <script src="/js/api.js"></script>
-    <script src="/js/client-common.js"></script>
+    <script src="/js/client-api.js"></script>
     <script>
-      mountClientHeader("home");
-
-      async function loadCustomerSummary() {
-        const target = document.getElementById("customerSummary");
-        if (!isCustomerLoggedIn()) {
-          target.innerHTML = `
-            <div class="section-title-row"><h2>Chào mừng đến KhanhPaint</h2></div>
-            <p>Đăng nhập để xem lịch sử mua hàng, mua lại màu cũ, hạn mức công nợ và các đơn sắp đến hạn trả.</p>
-            <div class="page-actions"><a class="action-link compact" href="/client/login.html">Đăng nhập</a><a class="action-link compact" href="/client/register.html">Đăng ký</a></div>`;
-          return;
-        }
-
-        try {
-          const data = await apiRequest(API_ROUTES.CLIENT_PROFILE);
-          const profile = data.profile;
-          target.innerHTML = `
-            <div class="admin-stats enhanced">
-              <div class="stat-card"><span class="stat-label">Hạn mức công nợ</span><strong>${formatCurrency(profile.credit_limit)}</strong></div>
-              <div class="stat-card ${Number(profile.current_debt || 0) > 0 ? "warning-card" : ""}"><span class="stat-label">Đang nợ</span><strong>${formatCurrency(profile.current_debt)}</strong></div>
-              <div class="stat-card"><span class="stat-label">Còn được mua nợ</span><strong>${formatCurrency(profile.remaining_credit)}</strong></div>
-              <div class="stat-card ${Number(profile.overdue_amount || 0) > 0 ? "warning-card" : ""}"><span class="stat-label">Nợ quá hạn</span><strong>${formatCurrency(profile.overdue_amount)}</strong></div>
-            </div>
-            <p>Hạn trả gần nhất: <strong>${formatDateOnly(profile.next_due_date)}</strong> · Trạng thái: <span class="${badgeClass(profile.debt_status)}">${escapeHtml(profile.debt_status)}</span></p>`;
-        } catch (error) {
-          target.innerHTML = `<div class="message-panel error">${escapeHtml(error.message)}</div>`;
-        }
+      const token = getCustomerToken();
+      if (token) {
+        document.getElementById("auth-actions").innerHTML =
+          `<button class="inline-button" onclick="logout()">Đăng xuất</button>`;
       }
 
-      async function loadProductPreview() {
-        try {
-          const products = await publicRequest(`${API_ROUTES.CLIENT_PRODUCTS}?stock=available`);
-          document.getElementById("productPreview").innerHTML = products.slice(0, 4).map((item) => `
-            <article class="product-card">
-              <span class="badge neutral">${escapeHtml(item.brand_name)}</span>
-              <h3>${escapeHtml(item.line_name)} ${escapeHtml(item.volume || "")}</h3>
-              <p>${escapeHtml(item.base_name)} · ${escapeHtml(item.sku_code)}</p>
-              <strong>${formatCurrency(item.unit_price)}</strong>
-              <p><span class="${badgeClass(item.stock_status)}">${escapeHtml(item.stock_status)}</span></p>
-            </article>`).join("") || '<div class="empty-state">Chưa có sản phẩm.</div>';
-        } catch (error) {
-          document.getElementById("productPreview").innerHTML = `<div class="message-panel error">${escapeHtml(error.message)}</div>`;
-        }
+      function logout() {
+        clearCustomerToken();
+        window.location.reload();
       }
-
-      loadCustomerSummary();
-      loadProductPreview();
     </script>
   </body>
 </html>

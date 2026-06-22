@@ -52,7 +52,7 @@
             const data = await response.json();
 
             if (response.ok) {
-              localStorage.setItem("token", data.token);
+              localStorage.setItem("adminToken", data.token);
               window.location.href = "/admin/";
             } else {
               message.innerText = data.error || "Đăng nhập thất bại!";

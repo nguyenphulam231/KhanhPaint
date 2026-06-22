@@ -1,52 +1,83 @@
+// routes/admin/brand.js
 const express = require("express");
 const router = express.Router();
 const db = require("../../db");
 
-function cleanText(value) {
-  const text = String(value || "").trim();
-  return text === "" ? null : text;
-}
-
-function handleDbError(res, err, message) {
-  console.error(message, err);
-  if (err.code === "ER_DUP_ENTRY") {
-    return res.status(409).json({ error: "Dữ liệu đã tồn tại." });
-  }
-  return res.status(500).json({ error: "Lỗi xử lý dữ liệu." });
-}
-
+// Lấy danh sách thương hiệu (thường dùng để load vào select)
 router.get("/", async (req, res) => {
   try {
-    const [rows] = await db.execute(
-      "SELECT brand_id, name, origin, description FROM brands ORDER BY name"
-    );
+    const [rows] = await db.execute("SELECT * FROM brands");
     res.json(rows);
   } catch (err) {
-    handleDbError(res, err, "Get brands error:");
+    res.status(500).json({ error: err.message });
   }
 });
 
+// Thêm thương hiệu mới
 router.post("/add", async (req, res) => {
-  const name = cleanText(req.body.name);
-  const origin = cleanText(req.body.origin);
-  const description = cleanText(req.body.description);
+  const { name, origin, description } = req.body;
+  try {
+    const [result] = await db.execute(
+      "INSERT INTO brands (name, origin, description) VALUES (?, ?, ?)",
+      [name, origin, description],
+    );
+    res
+      .status(201)
+      .json({ brand_id: result.insertId, message: "Thêm thành công" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 3. CẬP NHẬT THƯƠNG HIỆU
+router.put("/update/:id", async (req, res) => {
+  const brandId = req.params.id;
+  const { name, origin, description } = req.body;
 
   if (!name) {
-    return res.status(400).json({ error: "Tên thương hiệu không được để trống." });
+    return res
+      .status(400)
+      .json({ error: "Tên thương hiệu không được để trống!" });
   }
 
   try {
     const [result] = await db.execute(
-      "INSERT INTO brands (name, origin, description) VALUES (?, ?, ?)",
-      [name, origin, description]
+      "UPDATE brands SET name = ?, origin = ?, description = ? WHERE brand_id = ?",
+      [name, origin || null, description || null, brandId],
     );
-    res.status(201).json({
-      success: true,
-      brand_id: result.insertId,
-      message: "Thêm thương hiệu thành công.",
-    });
+
+    if (result.affectedRows === 0) {
+      return res
+        .status(404)
+        .json({ error: "Không tìm thấy thương hiệu để cập nhật!" });
+    }
+    res.json({ message: "Cập nhật thương hiệu thành công!" });
   } catch (err) {
-    handleDbError(res, err, "Create brand error:");
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 4. XÓA THƯƠNG HIỆU
+router.delete("/delete/:id", async (req, res) => {
+  const brandId = req.params.id;
+  try {
+    const [result] = await db.execute("DELETE FROM brands WHERE brand_id = ?", [
+      brandId,
+    ]);
+
+    if (result.affectedRows === 0) {
+      return res
+        .status(404)
+        .json({ error: "Không tìm thấy thương hiệu để xóa!" });
+    }
+    res.json({ message: "Đã xóa thương hiệu thành công!" });
+  } catch (err) {
+    // Phòng trường hợp thương hiệu này đang ràng buộc khóa ngoại với bảng Lines (Dòng sơn/sản phẩm)
+    res.status(500).json({
+      error:
+        "Không thể xóa thương hiệu này vì đang có các dòng sản phẩm thuộc thương hiệu!" ||
+        err.message,
+    });
   }
 });
 

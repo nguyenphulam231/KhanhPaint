@@ -3,258 +3,173 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Sản phẩm - KhanhPaint</title>
+    <title>KhanhPaint - Sản phẩm</title>
     <link rel="stylesheet" href="/style.css" />
   </head>
-  <body class="client-body">
-    <div id="clientHeader"></div>
+  <body>
+    <header>
+      <h1>KhanhPaint</h1>
+      <nav>
+        <a href="/client/">Trang chủ</a>
+        <a href="/client/products">Sản phẩm</a>
+        <a href="/client/orders">Đơn hàng của tôi</a>
+        <span id="auth-actions"><a href="/client/login">Đăng nhập</a></span>
+      </nav>
+    </header>
 
-    <main class="client-main">
+    <main class="client-page">
       <div class="page-header">
         <div>
-          <p class="eyebrow">Catalog</p>
-          <h1>Danh mục sản phẩm</h1>
-          <p class="page-subtitle">Xem giá, tồn kho, loại base và chọn mã màu tương thích trước khi gửi yêu cầu đặt hàng.</p>
+          <p class="eyebrow">Catalog & Order Flow</p>
+          <h2>Chọn sản phẩm và mã màu</h2>
         </div>
       </div>
 
-      <section class="content-card">
-        <div class="toolbar wide">
-          <input id="productSearch" type="search" placeholder="Tìm SKU, thương hiệu, dòng sơn, base..." />
-          <select id="brandFilter"><option value="">Tất cả thương hiệu</option></select>
-          <select id="interiorFilter">
-            <option value="">Nội/ngoại thất</option>
-            <option value="1">Nội thất</option>
-            <option value="0">Ngoại thất</option>
-          </select>
-          <select id="stockFilter">
-            <option value="available">Còn hàng</option>
-            <option value="">Tất cả tồn kho</option>
-          </select>
-          <button class="secondary-btn" onclick="loadProducts()">Lọc</button>
-        </div>
-        <div id="productList" class="product-grid">Đang tải...</div>
+      <section class="filter-bar">
+        <input id="searchInput" placeholder="Tìm theo thương hiệu, dòng sơn, SKU..." />
+        <select id="brandFilter"><option value="">Tất cả thương hiệu</option></select>
+        <select id="lineFilter"><option value="">Tất cả dòng sơn</option></select>
+        <select id="baseFilter"><option value="">Tất cả base</option></select>
+        <button id="applyFilter" class="inline-button">Lọc</button>
       </section>
 
-      <section class="content-card" id="cartCard">
-        <div class="section-title-row">
-          <h2>Giỏ yêu cầu đặt hàng</h2>
-          <button class="mini-btn warning-outline" onclick="clearCartAndRender()">Xóa giỏ</button>
-        </div>
-        <div id="cartList" class="table-wrapper"></div>
-        <form id="checkoutForm" class="checkout-panel">
-          <div class="form-grid">
-            <label>Hình thức thanh toán
-              <select id="paymentMethod">
-                <option value="cash">Tiền mặt khi cửa hàng xác nhận</option>
-                <option value="debt">Mua công nợ</option>
-              </select>
-            </label>
-            <label>Hạn trả công nợ
-              <input type="date" id="debtDueDate" />
-            </label>
-          </div>
-          <p class="page-subtitle">Nếu chọn mua công nợ, hệ thống kiểm tra hạn mức tại backend và trigger trong database. Đơn gửi từ khách được lưu trạng thái pending và giữ tồn kho.</p>
-          <div class="form-actions"><button class="secondary-btn" type="submit">Gửi yêu cầu đặt hàng</button></div>
-          <div id="checkoutMessage"></div>
-        </form>
-      </section>
+      <p id="message"></p>
+      <section id="productGrid" class="product-grid">Đang tải sản phẩm...</section>
     </main>
 
-    <script src="/js/api.js"></script>
-    <script src="/js/client-common.js"></script>
+    <script src="/js/client-api.js"></script>
     <script>
-      mountClientHeader("products");
-      let products = [];
+      const grid = document.getElementById("productGrid");
+      const message = document.getElementById("message");
+      const cart = [];
 
-      function getDefaultDueDate() {
-        const date = new Date();
-        date.setDate(date.getDate() + 15);
-        return date.toISOString().slice(0, 10);
+      function renderAuth() {
+        const target = document.getElementById("auth-actions");
+        if (getCustomerToken()) {
+          target.innerHTML = `<button class="inline-button" onclick="logout()">Đăng xuất</button>`;
+        }
       }
 
-      document.getElementById("debtDueDate").value = getDefaultDueDate();
+      function logout() {
+        clearCustomerToken();
+        window.location.href = "/client/login";
+      }
 
-      async function loadCatalogOptions() {
-        try {
-          const data = await publicRequest(API_ROUTES.CLIENT_CATALOG_OPTIONS);
-          const brandSelect = document.getElementById("brandFilter");
-          brandSelect.innerHTML = '<option value="">Tất cả thương hiệu</option>' + data.brands.map((item) => `<option value="${Number(item.brand_id)}">${escapeHtml(item.name)}</option>`).join("");
-        } catch (error) {
-          console.error(error);
-        }
+      async function loadFilters() {
+        const response = await fetch(CLIENT_API_ROUTES.PRODUCT_FILTERS);
+        const data = await response.json();
+        fillSelect("brandFilter", data.brands, "brand_id", "name", "Tất cả thương hiệu");
+        fillSelect("lineFilter", data.lines, "line_id", "name", "Tất cả dòng sơn");
+        fillSelect("baseFilter", data.bases, "base_id", "base_name", "Tất cả base");
+      }
+
+      function fillSelect(id, rows, valueKey, textKey, firstText) {
+        const select = document.getElementById(id);
+        select.innerHTML = `<option value="">${firstText}</option>`;
+        rows.forEach((row) => {
+          const option = document.createElement("option");
+          option.value = row[valueKey];
+          option.textContent = row[textKey];
+          select.appendChild(option);
+        });
       }
 
       async function loadProducts() {
-        const query = buildQuery({
-          search: document.getElementById("productSearch").value,
-          brand_id: document.getElementById("brandFilter").value,
-          interior: document.getElementById("interiorFilter").value,
-          stock: document.getElementById("stockFilter").value,
+        const params = new URLSearchParams();
+        const q = document.getElementById("searchInput").value.trim();
+        const brand = document.getElementById("brandFilter").value;
+        const line = document.getElementById("lineFilter").value;
+        const base = document.getElementById("baseFilter").value;
+        if (q) params.set("q", q);
+        if (brand) params.set("brand_id", brand);
+        if (line) params.set("line_id", line);
+        if (base) params.set("base_id", base);
+
+        const response = await fetch(CLIENT_API_ROUTES.PRODUCTS + "?" + params.toString());
+        const products = await response.json();
+        if (!response.ok) {
+          grid.innerHTML = "Không thể tải sản phẩm.";
+          return;
+        }
+
+        if (products.length === 0) {
+          grid.innerHTML = "Chưa có sản phẩm phù hợp.";
+          return;
+        }
+
+        grid.innerHTML = "";
+        for (const p of products) {
+          const colorsResponse = await fetch(CLIENT_API_ROUTES.COLORS_BY_BASE(p.base_id));
+          const colors = colorsResponse.ok ? await colorsResponse.json() : [];
+          const card = document.createElement("article");
+          card.className = "product-card";
+          card.innerHTML = `
+            <h3>${escapeHtml(p.brand_name)} - ${escapeHtml(p.line_name)}</h3>
+            <p><strong>SKU:</strong> ${escapeHtml(p.sku_code)} | <strong>Dung tích:</strong> ${escapeHtml(p.volume || "N/A")}</p>
+            <p><strong>Base:</strong> ${escapeHtml(p.base_name)} | <strong>Tồn kho:</strong> ${Number(p.stock_quantity || 0)}</p>
+            <p class="price">${Number(p.unit_price || 0).toLocaleString("vi-VN")} đ</p>
+            <label>Mã màu tương thích</label>
+            <select class="color-select">
+              <option value="">-- Chọn màu --</option>
+              ${colors.map((c) => `<option value="${c.color_id}">${escapeHtml(c.color_code)} - ${escapeHtml(c.color_name)}</option>`).join("")}
+            </select>
+            <label>Số lượng</label>
+            <input class="quantity-input" type="number" min="1" value="1" />
+            <button class="order-button">Tạo đơn nhanh</button>
+          `;
+
+          card.querySelector(".order-button").addEventListener("click", () => submitQuickOrder(p, card));
+          grid.appendChild(card);
+        }
+      }
+
+      async function submitQuickOrder(product, card) {
+        if (!getCustomerToken()) {
+          window.location.href = "/client/login";
+          return;
+        }
+
+        const colorId = card.querySelector(".color-select").value;
+        const quantity = Number(card.querySelector(".quantity-input").value || 1);
+        if (!colorId) {
+          message.style.color = "red";
+          message.textContent = "Vui lòng chọn mã màu trước khi tạo đơn.";
+          return;
+        }
+
+        const response = await fetch(CLIENT_API_ROUTES.ORDERS, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...getCustomerAuthHeaders(),
+          },
+          body: JSON.stringify({
+            items: [{ variant_id: product.variant_id, color_id: colorId, quantity }],
+          }),
         });
-
-        try {
-          products = await publicRequest(`${API_ROUTES.CLIENT_PRODUCTS}${query}`);
-          renderProducts(products);
-        } catch (error) {
-          document.getElementById("productList").innerHTML = `<div class="message-panel error">${escapeHtml(error.message)}</div>`;
-        }
-      }
-
-      function renderProducts(rows) {
-        const target = document.getElementById("productList");
-        if (!rows.length) {
-          target.innerHTML = '<div class="empty-state">Không có sản phẩm phù hợp.</div>';
-          return;
-        }
-
-        target.innerHTML = rows.map((item) => `
-          <article class="product-card">
-            <div class="section-title-row">
-              <span class="badge neutral">${escapeHtml(item.brand_name)}</span>
-              <span class="${badgeClass(item.stock_status)}">${escapeHtml(item.stock_status)}</span>
-            </div>
-            <h3>${escapeHtml(item.line_name)} - ${escapeHtml(item.volume || "")}</h3>
-            <p><strong>SKU:</strong> ${escapeHtml(item.sku_code)}</p>
-            <p><strong>Base:</strong> ${escapeHtml(item.base_name)} · ${escapeHtml(item.is_interior ? "Nội thất" : "Ngoại thất")}</p>
-            <p><strong>Độ phủ:</strong> ${escapeHtml(item.coverage_rate || "-")} m²/lớp · <strong>Tồn:</strong> ${escapeHtml(item.stock_quantity)}</p>
-            <p class="product-price">${formatCurrency(item.unit_price)}</p>
-            <label>Mã màu tương thích
-              <select id="color-${Number(item.variant_id)}" onclick="loadColorsForVariant(${Number(item.variant_id)}, ${Number(item.base_id)})"></select>
-            </label>
-            <label>Số lượng
-              <input id="qty-${Number(item.variant_id)}" type="number" min="1" value="1" />
-            </label>
-            <button class="secondary-btn" onclick="addToCart(${Number(item.variant_id)})" ${Number(item.stock_quantity) <= 0 ? "disabled" : ""}>Thêm vào giỏ</button>
-          </article>`).join("");
-
-        rows.forEach((item) => loadColorsForVariant(Number(item.variant_id), Number(item.base_id)));
-      }
-
-      async function loadColorsForVariant(variantId, baseId) {
-        const select = document.getElementById(`color-${variantId}`);
-        if (!select || select.dataset.loaded === "1") return;
-        select.innerHTML = '<option value="">Đang tải màu...</option>';
-        try {
-          const colors = await publicRequest(`${API_ROUTES.CLIENT_COLORS}${buildQuery({ base_id: baseId })}`);
-          select.dataset.loaded = "1";
-          select.innerHTML = '<option value="">-- Chọn mã màu --</option>' + colors.map((item) => `<option value="${Number(item.color_id)}" ${String(item.mix_status).includes("Thiếu") ? "disabled" : ""}>${escapeHtml(item.color_code)} - ${escapeHtml(item.color_name)} (${escapeHtml(item.mix_status)})</option>`).join("");
-        } catch (error) {
-          select.innerHTML = `<option value="">${escapeHtml(error.message)}</option>`;
-        }
-      }
-
-      function addToCart(variantId) {
-        const item = products.find((product) => Number(product.variant_id) === Number(variantId));
-        const colorSelect = document.getElementById(`color-${variantId}`);
-        const qtyInput = document.getElementById(`qty-${variantId}`);
-        const quantity = Number(qtyInput.value || 0);
-        const colorId = Number(colorSelect.value || 0);
-        const colorText = colorSelect.options[colorSelect.selectedIndex]?.text || "";
-
-        if (!item || !colorId || quantity <= 0) {
-          alert("Vui lòng chọn mã màu và số lượng hợp lệ.");
-          return;
-        }
-
-        if (quantity > Number(item.stock_quantity)) {
-          alert("Số lượng yêu cầu vượt tồn kho hiện tại.");
-          return;
-        }
-
-        const cart = getCart();
-        const key = `${variantId}:${colorId}`;
-        const existing = cart.find((row) => row.key === key);
-        if (existing) {
-          existing.quantity += quantity;
-        } else {
-          cart.push({
-            key,
-            variant_id: variantId,
-            color_id: colorId,
-            quantity,
-            sku_code: item.sku_code,
-            brand_name: item.brand_name,
-            line_name: item.line_name,
-            base_name: item.base_name,
-            volume: item.volume,
-            unit_price: item.unit_price,
-            color_text: colorText,
-          });
-        }
-        saveCart(cart);
-        renderCart();
-        document.getElementById("cartCard").scrollIntoView({ behavior: "smooth" });
-      }
-
-      function removeCartItem(key) {
-        saveCart(getCart().filter((item) => item.key !== key));
-        renderCart();
-      }
-
-      function clearCartAndRender() {
-        clearCart();
-        renderCart();
-      }
-
-      function renderCart() {
-        const cart = getCart();
-        const target = document.getElementById("cartList");
-        if (!cart.length) {
-          target.innerHTML = '<div class="empty-state">Giỏ yêu cầu đang trống.</div>';
-          return;
-        }
-
-        const total = cart.reduce((sum, item) => sum + Number(item.unit_price || 0) * Number(item.quantity || 0), 0);
-        target.innerHTML = `
-          <table>
-            <thead><tr><th>Sản phẩm</th><th>Mã màu</th><th>Số lượng</th><th>Đơn giá</th><th>Thành tiền</th><th></th></tr></thead>
-            <tbody>
-              ${cart.map((item) => `
-                <tr>
-                  <td><strong>${escapeHtml(item.sku_code)}</strong><br>${escapeHtml(item.brand_name)} / ${escapeHtml(item.line_name)} / ${escapeHtml(item.base_name)} ${escapeHtml(item.volume || "")}</td>
-                  <td>${escapeHtml(item.color_text)}</td>
-                  <td>${escapeHtml(item.quantity)}</td>
-                  <td>${formatCurrency(item.unit_price)}</td>
-                  <td>${formatCurrency(Number(item.unit_price || 0) * Number(item.quantity || 0))}</td>
-                  <td><button class="mini-btn warning-outline" onclick="removeCartItem('${escapeHtml(item.key)}')">Xóa</button></td>
-                </tr>`).join("")}
-            </tbody>
-            <tfoot><tr><th colspan="4">Tạm tính</th><th colspan="2">${formatCurrency(total)}</th></tr></tfoot>
-          </table>`;
-      }
-
-      document.getElementById("checkoutForm").addEventListener("submit", async (event) => {
-        event.preventDefault();
-        if (!requireCustomerLogin()) return;
-
-        const cart = getCart();
-        if (!cart.length) {
-          showMessage("checkoutMessage", "Giỏ yêu cầu đang trống.", "error");
-          return;
-        }
-
-        try {
-          const result = await apiRequest(API_ROUTES.CLIENT_ORDERS, {
-            method: "POST",
-            body: JSON.stringify({
-              payment_method: document.getElementById("paymentMethod").value,
-              debt_due_date: document.getElementById("debtDueDate").value,
-              items: cart.map((item) => ({ variant_id: item.variant_id, color_id: item.color_id, quantity: item.quantity })),
-            }),
-          });
-          clearCart();
-          renderCart();
-          showMessage("checkoutMessage", `${result.message} Mã đơn: #${result.order.order_id}`, "success");
+        const data = await response.json();
+        if (response.ok) {
+          message.style.color = "green";
+          message.textContent = `Đã tạo đơn hàng #${data.order_id}.`;
           await loadProducts();
-        } catch (error) {
-          showMessage("checkoutMessage", error.message, "error");
+        } else {
+          message.style.color = "red";
+          message.textContent = data.error || "Không thể tạo đơn hàng.";
         }
-      });
+      }
 
-      loadCatalogOptions();
-      loadProducts();
-      renderCart();
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#39;");
+      }
+
+      document.getElementById("applyFilter").addEventListener("click", loadProducts);
+      renderAuth();
+      loadFilters().then(loadProducts);
     </script>
   </body>
 </html>

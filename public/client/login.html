@@ -20,13 +20,14 @@
           />
           <button type="submit">Đăng nhập</button>
           <p style="text-align: center; margin-top: 15px">
-            Chưa có tài khoản? <a href="/client/register.html">Đăng ký ngay</a>
+            Chưa có tài khoản? <a href="/client/register">Đăng ký ngay</a>
           </p>
           <p id="message"></p>
         </form>
       </div>
     </div>
 
+    <script src="/js/client-api.js"></script>
     <script>
       document
         .getElementById("loginForm")
@@ -38,7 +39,7 @@
           const message = document.getElementById("message");
 
           try {
-            const response = await fetch("/api/auth/public/login", {
+            const response = await fetch(CLIENT_API_ROUTES.LOGIN, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ email, password, type: "customer" }),
@@ -47,19 +48,16 @@
             const data = await response.json();
 
             if (response.ok) {
-              localStorage.setItem("token", data.token);
-              localStorage.setItem("role", data.role || "customer");
-              localStorage.setItem("type", data.type || "customer");
-              localStorage.setItem("name", data.name || "Khách hàng");
+              setCustomerToken(data.token);
 
               message.style.color = "green";
               message.innerText = "Đăng nhập thành công! Đang chuyển hướng...";
 
-              window.location.href = "/client/";
+              window.location.href = "/client/products";
             } else {
               message.style.color = "red";
               message.innerText =
-                data.error || data.message || "Email hoặc mật khẩu không chính xác!";
+                data.message || "Email hoặc mật khẩu không chính xác!";
             }
           } catch (error) {
             message.style.color = "red";

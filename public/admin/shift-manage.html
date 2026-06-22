@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/style.css" />
+    <title>Quản lý Ca làm việc</title>
+    <style>
+      .btn-cancel {
+        background-color: #6c757d;
+        color: #fff;
+        border: none;
+        padding: 10px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-left: 5px;
+      }
+      .d-none {
+        display: none !important;
+      }
+      .action-link {
+        cursor: pointer;
+        border: none;
+        background: none;
+        text-decoration: underline;
+        font-weight: bold;
+      }
+      .edit-link {
+        color: #ffc107;
+        margin-right: 10px;
+      }
+      .delete-link {
+        color: #dc3545;
+      }
+      .form-group-time {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="admin-container">
+      <div id="admin-sidebar"></div>
+      <main class="main-content">
+        <div class="page-header">
+          <div>
+            <p class="eyebrow">Quản trị nhân sự</p>
+            <h1 id="formTitle">Thêm Ca làm việc mới</h1>
+          </div>
+        </div>
+
+        <section class="admin-card" style="margin-bottom: 2rem">
+          <div class="form-section">
+            <input
+              type="text"
+              id="shiftName"
+              placeholder="Tên ca (VD: Ca Sáng)"
+              required
+            />
+            <div class="form-group-time">
+              <label for="startTime">Từ:</label>
+              <input type="time" id="startTime" required />
+            </div>
+            <div class="form-group-time">
+              <label for="endTime">Đến:</label>
+              <input type="time" id="endTime" required />
+            </div>
+            <button id="saveShiftBtn" type="button">Lưu Ca làm</button>
+            <button id="cancelEditBtn" type="button" class="btn-cancel d-none">
+              Hủy sửa
+            </button>
+          </div>
+        </section>
+
+        <section class="admin-card">
+          <h3>Danh sách ca làm việc hiện có</h3>
+          <div style="overflow-x: auto; margin-top: 1rem">
+            <table
+              style="width: 100%; border-collapse: collapse; text-align: left"
+            >
+              <thead>
+                <tr style="border-bottom: 2px solid #ddd; height: 40px">
+                  <th>ID</th>
+                  <th>Tên ca làm việc</th>
+                  <th>Giờ bắt đầu</th>
+                  <th>Giờ kết thúc</th>
+                  <th>Hành động</th>
+                </tr>
+              </thead>
+              <tbody id="shiftListBody">
+                <tr>
+                  <td colspan="5" style="text-align: center; padding: 20px">
+                    Đang tải danh sách ca làm...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/admin-common.js"></script>
+    <script>
+      mountAdminSidebar("shifts");
+      initAdminShell();
+
+      const tbody = document.getElementById("shiftListBody");
+      const nameInput = document.getElementById("shiftName");
+      const startInput = document.getElementById("startTime");
+      const endInput = document.getElementById("endTime");
+      const saveShiftBtn = document.getElementById("saveShiftBtn");
+      const cancelEditBtn = document.getElementById("cancelEditBtn");
+      const formTitle = document.getElementById("formTitle");
+
+      let editingShiftId = null;
+
+      // 1. Hàm tải danh sách ca làm từ hệ thống backend
+      async function loadShifts() {
+        try {
+          const response = await fetch(API_ROUTES.GET_SHIFTS, {
+            headers: { Authorization: "Bearer " + getAdminToken() },
+          });
+          if (!response.ok) throw new Error("Lỗi kết nối API");
+
+          const data = await response.json();
+          if (data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 20px;">Chưa cấu hình ca làm việc nào trên hệ thống.</td></tr>`;
+            return;
+          }
+
+          tbody.innerHTML = data
+            .map((item) => {
+              // Chuẩn hóa chuỗi thời gian để gán vào thuộc tính inline JS an toàn
+              const escapedName = (item.shift_name || "").replace(/'/g, "\\'");
+              // Cắt chuỗi lấy định dạng HH:mm đề phòng DB trả về dạng HH:mm:ss
+              const startTimeShort = item.start_time
+                ? item.start_time.substring(0, 5)
+                : "";
+              const endTimeShort = item.end_time
+                ? item.end_time.substring(0, 5)
+                : "";
+
+              return `
+                <tr style="border-bottom: 1px solid #eee; height: 40px;">
+                  <td>#${item.shift_id}</td>
+                  <td><strong>${item.shift_name}</strong></td>
+                  <td><span class="badge" style="background: #e9ecef; padding: 4px 8px; border-radius: 4px;">${startTimeShort}</span></td>
+                  <td><span class="badge" style="background: #e9ecef; padding: 4px 8px; border-radius: 4px;">${endTimeShort}</span></td>
+                  <td>
+                    <button class="action-link edit-link" onclick="prepareEdit(${item.shift_id}, '${escapedName}', '${startTimeShort}', '${endTimeShort}')">Sửa</button>
+                    <button class="action-link delete-link" onclick="deleteShift(${item.shift_id}, '${escapedName}')">Xóa</button>
+                  </td>
+                </tr>
+              `;
+            })
+            .join("");
+        } catch (error) {
+          console.error("Lỗi:", error);
+          tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: red; padding: 20px;">Lỗi khi tải dữ liệu ca làm việc từ server!</td></tr>`;
+        }
+      }
+
+      // 2. Chuyển form sang trạng thái Sửa và điền ngược dữ liệu
+      function prepareEdit(id, name, start, end) {
+        editingShiftId = id;
+        formTitle.innerText = "Chỉnh sửa thông tin Ca làm";
+        nameInput.value = name;
+        startInput.value = start;
+        endInput.value = end;
+
+        saveShiftBtn.innerText = "Cập nhật ca";
+        cancelEditBtn.classList.remove("d-none");
+        nameInput.focus();
+      }
+
+      // 3. Hàm reset form về trạng thái Thêm mới ban đầu
+      function resetForm() {
+        editingShiftId = null;
+        formTitle.innerText = "Thêm Ca làm việc mới";
+        nameInput.value = "";
+        startInput.value = "";
+        endInput.value = "";
+        saveShiftBtn.innerText = "Lưu Ca làm";
+        cancelEditBtn.classList.add("d-none");
+      }
+
+      cancelEditBtn.addEventListener("click", resetForm);
+
+      // 4. Xử lý sự kiện nút Lưu (Xử lý POST hoặc PUT tùy trạng thái)
+      saveShiftBtn.addEventListener("click", async () => {
+        const name = nameInput.value.trim();
+        const start = startInput.value;
+        const end = endInput.value;
+
+        if (!name || !start || !end) {
+          alert("Vui lòng điền đầy đủ thông tin ca làm!");
+          return;
+        }
+
+        const data = { shift_name: name, start_time: start, end_time: end };
+        const token = getAdminToken();
+
+        const url = editingShiftId
+          ? API_ROUTES.UPDATE_SHIFT(editingShiftId)
+          : API_ROUTES.ADD_SHIFT;
+        const method = editingShiftId ? "PUT" : "POST";
+
+        try {
+          const response = await fetch(url, {
+            method: method,
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + token,
+            },
+            body: JSON.stringify(data),
+          });
+
+          const result = await response.json().catch(() => null);
+
+          if (response.ok && (editingShiftId || result?.success)) {
+            alert(
+              editingShiftId
+                ? "Cập nhật ca làm việc thành công!"
+                : "Thêm ca làm việc thành công!",
+            );
+            resetForm();
+            loadShifts();
+          } else {
+            alert(result?.message || "Có lỗi xảy ra trong quá trình xử lý!");
+          }
+        } catch (err) {
+          console.error(err);
+          alert("Lỗi kết nối hệ thống mạng!");
+        }
+      });
+
+      // 5. Xử lý chức năng xóa ca làm
+      async function deleteShift(id, name) {
+        const token = getAdminToken();
+        if (!token) return;
+
+        if (
+          !confirm(
+            `Bạn có chắc chắn muốn xóa [ ${name} ] không?\nHành động này không thể hoàn tác nếu ca làm đã được xếp lịch.`,
+          )
+        )
+          return;
+
+        try {
+          const response = await fetch(API_ROUTES.DELETE_SHIFT(id), {
+            method: "DELETE",
+            headers: { Authorization: "Bearer " + token },
+          });
+
+          const result = await response.json().catch(() => null);
+
+          if (response.ok) {
+            alert("Đã xóa ca làm việc thành công!");
+            if (editingShiftId === id) resetForm();
+            loadShifts();
+          } else {
+            alert(result?.message || "Lỗi hệ thống, không thể xóa ca làm!");
+          }
+        } catch (err) {
+          console.error(err);
+          alert("Gặp sự cố khi thực hiện gửi yêu cầu xóa!");
+        }
+      }
+
+      // Kích hoạt nạp danh sách ngay khi tải xong trang cấu trúc DOM
+      window.addEventListener("DOMContentLoaded", loadShifts);
+    </script>
+  </body>
+</html>

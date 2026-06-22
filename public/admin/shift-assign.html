@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/style.css" />
+    <title>Phân ca làm việc</title>
+  </head>
+  <body>
+    <div class="admin-container">
+      <div id="admin-sidebar"></div>
+
+      <main class="main-content">
+        <div class="page-header">
+          <h1>Phân ca cho nhân viên</h1>
+        </div>
+
+        <section class="admin-card">
+          <div class="form-section">
+            <label for="employeeSelect">Chọn nhân viên:</label>
+            <select id="employeeSelect"></select>
+
+            <label for="shiftSelect">Chọn ca làm:</label>
+            <select id="shiftSelect"></select>
+
+            <label for="workingDate">Ngày làm việc:</label>
+            <input type="date" id="workingDate" required />
+
+            <button id="assignBtn" type="button">Lưu phân ca</button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/admin-common.js"></script>
+    <script>
+      mountAdminSidebar("assign-shift"); // Đảm bảo trùng với key trong admin-common.js
+      initAdminShell();
+
+      // Load dữ liệu khi trang vừa mở
+      window.onload = () => {
+        loadEmployeesIntoSelect("employeeSelect");
+        loadShiftsIntoSelect("shiftSelect");
+      };
+
+      document
+        .getElementById("assignBtn")
+        .addEventListener("click", async () => {
+          const empId = document.getElementById("employeeSelect").value;
+          const shiftId = document.getElementById("shiftSelect").value;
+          const date = document.getElementById("workingDate").value;
+
+          if (!empId || !shiftId || !date) {
+            return alert("Vui lòng điền đầy đủ thông tin!");
+          }
+
+          const response = await fetch(API_ROUTES.ASSIGN_SHIFT, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + getAdminToken(),
+            },
+            body: JSON.stringify({
+              employee_id: empId,
+              shift_id: shiftId,
+              working_date: date,
+            }),
+          });
+
+          const result = await response.json();
+          if (result.success) {
+            alert("Phân ca thành công!");
+            window.location.reload();
+          } else {
+            alert(result.message || "Lỗi khi phân ca");
+          }
+        });
+    </script>
+  </body>
+</html>

@@ -5,6 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Đăng ký tài khoản</title>
     <link rel="stylesheet" href="/style.css" />
+    <style>
+      .login-container select {
+        width: 100%;
+        padding: 10px;
+        margin: 10px 0;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        box-sizing: border-box;
+        background-color: #fff;
+      }
+    </style>
   </head>
   <body>
     <div class="login-page-wrapper">
@@ -14,23 +25,94 @@
           <input type="text" id="name" placeholder="Họ và tên" required />
           <input type="text" id="phone" placeholder="Số điện thoại" required />
           <input type="email" id="email" placeholder="Email" required />
-          <input type="text" id="address" placeholder="Địa chỉ giao hàng" />
           <input
             type="password"
             id="password"
             placeholder="Mật khẩu"
             required
           />
+
+          <select id="province" required>
+            <option value="">-- Chọn Tỉnh / Thành phố --</option>
+          </select>
+
+          <select id="ward" required disabled>
+            <option value="">-- Chọn Phường / Xã --</option>
+          </select>
+
+          <input
+            type="text"
+            id="street_address"
+            placeholder="Địa chỉ cụ thể (Số nhà, tên đường...)"
+            required
+          />
+
           <button type="submit">Đăng ký</button>
         </form>
         <p id="message" style="text-align: center; margin-top: 15px"></p>
         <p style="text-align: center">
-          <a href="/client/login.html">Đã có tài khoản? Đăng nhập ngay</a>
+          <a href="/client/login">Đã có tài khoản? Đăng nhập ngay</a>
         </p>
       </div>
     </div>
 
+    <script src="/js/client-api.js"></script>
+
     <script>
+      const provinceSelect = document.getElementById("province");
+      const wardSelect = document.getElementById("ward");
+
+      // 1. Tự động tải danh sách Tỉnh/Thành từ CLIENT_API_ROUTES
+      window.addEventListener("DOMContentLoaded", async () => {
+        try {
+          const response = await fetch(CLIENT_API_ROUTES.GET_PROVINCES);
+          if (response.ok) {
+            const provinces = await response.json();
+            provinces.forEach((p) => {
+              const option = document.createElement("option");
+              option.value = p.province_id;
+              option.textContent = p.province_name;
+              provinceSelect.appendChild(option);
+            });
+          }
+        } catch (err) {
+          console.error("Không thể tải danh sách tỉnh thành:", err);
+        }
+      });
+
+      // 2. Lắng nghe sự kiện đổi Tỉnh/Thành
+      provinceSelect.addEventListener("change", async (e) => {
+        const provinceId = e.target.value;
+
+        wardSelect.innerHTML =
+          '<option value="">-- Chọn Phường / Xã --</option>';
+
+        if (!provinceId) {
+          wardSelect.disabled = true;
+          return;
+        }
+
+        try {
+          // Sử dụng hàm dynamic route truyền vào provinceId
+          const response = await fetch(
+            CLIENT_API_ROUTES.GET_WARDS_BY_PROVINCE(provinceId),
+          );
+          if (response.ok) {
+            const wards = await response.json();
+            wards.forEach((w) => {
+              const option = document.createElement("option");
+              option.value = w.ward_id;
+              option.textContent = w.ward_name;
+              wardSelect.appendChild(option);
+            });
+            wardSelect.disabled = false;
+          }
+        } catch (err) {
+          console.error("Không thể tải danh sách phường xã:", err);
+        }
+      });
+
+      // 3. Xử lý sự kiện gửi Form Đăng ký
       document
         .getElementById("registerForm")
         .addEventListener("submit", async (e) => {
@@ -40,25 +122,32 @@
             name: document.getElementById("name").value,
             phone: document.getElementById("phone").value,
             email: document.getElementById("email").value,
-            address: document.getElementById("address").value,
             password: document.getElementById("password").value,
+            ward_id: document.getElementById("ward").value,
+            street_address: document.getElementById("street_address").value,
           };
 
-          const response = await fetch("/api/auth/public/register", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(userData),
-          });
+          try {
+            const response = await fetch(CLIENT_API_ROUTES.REGISTER, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(userData),
+            });
 
-          const data = await response.json();
-          const message = document.getElementById("message");
+            const data = await response.json();
+            const message = document.getElementById("message");
 
-          if (response.ok) {
-            message.innerText =
-              "Đăng ký thành công! Chuyển hướng đến trang đăng nhập...";
-            setTimeout(() => (window.location.href = "/client/login.html"), 2000);
-          } else {
-            message.innerText = data.error || "Đăng ký thất bại!";
+            if (response.ok) {
+              message.style.color = "green";
+              message.innerText =
+                "Đăng ký thành công! Chuyển hướng đến trang đăng nhập...";
+              setTimeout(() => (window.location.href = "/client/login"), 2000);
+            } else {
+              message.style.color = "red";
+              message.innerText = data.error || "Đăng ký thất bại!";
+            }
+          } catch (err) {
+            console.error("Lỗi hệ thống khi đăng ký:", err);
           }
         });
     </script>
