@@ -6,7 +6,6 @@
     <title>Đăng ký tài khoản</title>
     <link rel="stylesheet" href="/style.css" />
     <style>
-      /* Thêm một chút style cho các thẻ select tương thích với style.css cũ của bạn */
       .login-container select {
         width: 100%;
         padding: 10px;
@@ -57,14 +56,16 @@
       </div>
     </div>
 
+    <script src="/js/client-api.js"></script>
+
     <script>
       const provinceSelect = document.getElementById("province");
       const wardSelect = document.getElementById("ward");
 
-      // 1. Tự động tải danh sách Tỉnh/Thành khi vừa mở trang
+      // 1. Tự động tải danh sách Tỉnh/Thành từ CLIENT_API_ROUTES
       window.addEventListener("DOMContentLoaded", async () => {
         try {
-          const response = await fetch("/api/auth/public/provinces");
+          const response = await fetch(CLIENT_API_ROUTES.GET_PROVINCES);
           if (response.ok) {
             const provinces = await response.json();
             provinces.forEach((p) => {
@@ -79,22 +80,23 @@
         }
       });
 
-      // 2. Lắng nghe sự kiện đổi Tỉnh/Thành để tải Phường/Xã tương ứng
+      // 2. Lắng nghe sự kiện đổi Tỉnh/Thành
       provinceSelect.addEventListener("change", async (e) => {
         const provinceId = e.target.value;
 
-        // Reset ô chọn phường xã
         wardSelect.innerHTML =
           '<option value="">-- Chọn Phường / Xã --</option>';
 
         if (!provinceId) {
           wardSelect.disabled = true;
-          wardSelect.required = false;
           return;
         }
 
         try {
-          const response = await fetch(`/api/auth/public/wards/${provinceId}`);
+          // Sử dụng hàm dynamic route truyền vào provinceId
+          const response = await fetch(
+            CLIENT_API_ROUTES.GET_WARDS_BY_PROVINCE(provinceId),
+          );
           if (response.ok) {
             const wards = await response.json();
             wards.forEach((w) => {
@@ -116,33 +118,36 @@
         .addEventListener("submit", async (e) => {
           e.preventDefault();
 
-          // Thu thập đầy đủ dữ liệu cũ kèm các trường địa chỉ mới
           const userData = {
             name: document.getElementById("name").value,
             phone: document.getElementById("phone").value,
             email: document.getElementById("email").value,
             password: document.getElementById("password").value,
-            ward_id: document.getElementById("ward").value, // Gửi ID của Phường/Xã phục vụ khóa ngoại
-            street_address: document.getElementById("street_address").value, // Gửi text địa chỉ nhà
+            ward_id: document.getElementById("ward").value,
+            street_address: document.getElementById("street_address").value,
           };
 
-          const response = await fetch("/api/auth/public/register", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(userData),
-          });
+          try {
+            const response = await fetch(CLIENT_API_ROUTES.REGISTER, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(userData),
+            });
 
-          const data = await response.json();
-          const message = document.getElementById("message");
+            const data = await response.json();
+            const message = document.getElementById("message");
 
-          if (response.ok) {
-            message.style.color = "green";
-            message.innerText =
-              "Đăng ký thành công! Chuyển hướng đến trang đăng nhập...";
-            setTimeout(() => (window.location.href = "/client/login"), 2000);
-          } else {
-            message.style.color = "red";
-            message.innerText = data.error || "Đăng ký thất bại!";
+            if (response.ok) {
+              message.style.color = "green";
+              message.innerText =
+                "Đăng ký thành công! Chuyển hướng đến trang đăng nhập...";
+              setTimeout(() => (window.location.href = "/client/login"), 2000);
+            } else {
+              message.style.color = "red";
+              message.innerText = data.error || "Đăng ký thất bại!";
+            }
+          } catch (err) {
+            console.error("Lỗi hệ thống khi đăng ký:", err);
           }
         });
     </script>
