@@ -275,32 +275,31 @@ router.get("/customers", async (req, res) => {
   let where = "WHERE 1 = 1";
 
   if (search) {
-    where += " AND (c.name LIKE ? OR c.phone LIKE ? OR c.email LIKE ?)";
+    where += " AND (ds.name LIKE ? OR ds.phone LIKE ? OR ds.email LIKE ?)";
     params.push(likeTerm(search), likeTerm(search), likeTerm(search));
   }
 
   try {
     const [rows] = await db.execute(
       `SELECT
-        c.customer_id,
-        c.name,
-        c.phone,
-        c.email,
-        c.address,
-        c.credit_limit,
-        c.current_debt,
+        ds.customer_id,
+        ds.name,
+        ds.phone,
+        ds.email,
+        ds.address,
+        ds.credit_limit,
+        ds.current_debt,
+        ds.remaining_credit,
+        ds.next_due_date,
+        ds.overdue_amount,
+        ds.debt_status,
         COUNT(o.order_id) AS total_orders,
-        COALESCE(SUM(o.total_amount), 0) AS total_spent,
-        CASE
-          WHEN c.current_debt > c.credit_limit AND c.credit_limit > 0 THEN 'Vượt hạn mức'
-          WHEN c.current_debt > 0 THEN 'Đang nợ'
-          ELSE 'Không nợ'
-        END AS debt_status
-       FROM customers c
-       LEFT JOIN orders o ON c.customer_id = o.customer_id
+        COALESCE(SUM(o.total_amount), 0) AS total_spent
+       FROM v_customer_debt_summary ds
+       LEFT JOIN orders o ON ds.customer_id = o.customer_id
        ${where}
-       GROUP BY c.customer_id, c.name, c.phone, c.email, c.address, c.credit_limit, c.current_debt
-       ORDER BY c.current_debt DESC, c.name`,
+       GROUP BY ds.customer_id, ds.name, ds.phone, ds.email, ds.address, ds.credit_limit, ds.current_debt, ds.remaining_credit, ds.next_due_date, ds.overdue_amount, ds.debt_status
+       ORDER BY ds.overdue_amount DESC, ds.current_debt DESC, ds.name`,
       params
     );
 
@@ -313,21 +312,10 @@ router.get("/customers", async (req, res) => {
 router.get("/customers/debt", async (req, res) => {
   try {
     const [rows] = await db.execute(
-      `SELECT
-        customer_id,
-        name,
-        phone,
-        email,
-        credit_limit,
-        current_debt,
-        CASE
-          WHEN current_debt > credit_limit AND credit_limit > 0 THEN 'Vượt hạn mức'
-          WHEN current_debt > 0 THEN 'Đang nợ'
-          ELSE 'Không nợ'
-        END AS debt_status
-       FROM customers
+      `SELECT *
+       FROM v_customer_debt_summary
        WHERE current_debt > 0
-       ORDER BY current_debt DESC`
+       ORDER BY overdue_amount DESC, current_debt DESC, name`
     );
 
     res.json(rows);
@@ -353,6 +341,12 @@ router.get("/customers/:customer_id/orders", async (req, res) => {
         o.order_date,
         o.total_amount,
         o.payment_method,
+        o.payment_status,
+        o.debt_due_date,
+        CASE
+          WHEN o.payment_method = 'debt' AND o.payment_status <> 'paid' AND o.debt_due_date < CURRENT_DATE THEN DATEDIFF(CURRENT_DATE, o.debt_due_date)
+          ELSE 0
+        END AS days_overdue,
         o.status,
         sales.full_name AS sales_rep_name,
         tech.full_name AS tech_name,
@@ -362,7 +356,7 @@ router.get("/customers/:customer_id/orders", async (req, res) => {
        LEFT JOIN employees tech ON o.tech_id = tech.employee_id
        LEFT JOIN orderdetails od ON o.order_id = od.order_id
        WHERE o.customer_id = ?
-       GROUP BY o.order_id, o.order_date, o.total_amount, o.payment_method, o.status, sales.full_name, tech.full_name
+       GROUP BY o.order_id, o.order_date, o.total_amount, o.payment_method, o.payment_status, o.debt_due_date, o.status, sales.full_name, tech.full_name
        ORDER BY o.order_date DESC`,
       [req.params.customer_id]
     );
@@ -410,6 +404,12 @@ router.get("/orders", async (req, res) => {
         o.order_date,
         o.total_amount,
         o.payment_method,
+        o.payment_status,
+        o.debt_due_date,
+        CASE
+          WHEN o.payment_method = 'debt' AND o.payment_status <> 'paid' AND o.debt_due_date < CURRENT_DATE THEN DATEDIFF(CURRENT_DATE, o.debt_due_date)
+          ELSE 0
+        END AS days_overdue,
         o.status,
         c.customer_id,
         c.name AS customer_name,
@@ -425,7 +425,7 @@ router.get("/orders", async (req, res) => {
        LEFT JOIN shifts s ON o.shift_id = s.shift_id
        LEFT JOIN orderdetails od ON o.order_id = od.order_id
        ${where}
-       GROUP BY o.order_id, o.order_date, o.total_amount, o.payment_method, o.status, c.customer_id, c.name, c.phone, sales.full_name, tech.full_name, s.shift_name
+       GROUP BY o.order_id, o.order_date, o.total_amount, o.payment_method, o.payment_status, o.debt_due_date, o.status, c.customer_id, c.name, c.phone, sales.full_name, tech.full_name, s.shift_name
        ORDER BY o.order_date DESC
        LIMIT ${limit}`,
       params
@@ -445,6 +445,12 @@ router.get("/orders/:order_id", async (req, res) => {
         o.order_date,
         o.total_amount,
         o.payment_method,
+        o.payment_status,
+        o.debt_due_date,
+        CASE
+          WHEN o.payment_method = 'debt' AND o.payment_status <> 'paid' AND o.debt_due_date < CURRENT_DATE THEN DATEDIFF(CURRENT_DATE, o.debt_due_date)
+          ELSE 0
+        END AS days_overdue,
         o.status,
         c.customer_id,
         c.name AS customer_name,
@@ -505,11 +511,13 @@ router.get("/reports/revenue", async (req, res) => {
       group === "monthly"
         ? `SELECT DATE_FORMAT(order_date, '%Y-%m') AS period, COUNT(*) AS total_orders, COALESCE(SUM(total_amount), 0) AS revenue
            FROM orders
+           WHERE status <> 'cancelled'
            GROUP BY DATE_FORMAT(order_date, '%Y-%m')
            ORDER BY period DESC
            LIMIT 12`
         : `SELECT DATE(order_date) AS period, COUNT(*) AS total_orders, COALESCE(SUM(total_amount), 0) AS revenue
            FROM orders
+           WHERE status <> 'cancelled'
            GROUP BY DATE(order_date)
            ORDER BY period DESC
            LIMIT 30`;
@@ -536,6 +544,7 @@ router.get("/reports/top-products", async (req, res) => {
         COALESCE(SUM(od.quantity), 0) AS sold_quantity,
         COALESCE(SUM(od.quantity * od.price_at_sale), 0) AS revenue
        FROM orderdetails od
+       JOIN orders o ON od.order_id = o.order_id AND o.status <> 'cancelled'
        JOIN productvariants pv ON od.variant_id = pv.variant_id
        JOIN basetypes bt ON pv.base_id = bt.base_id
        JOIN productlines pl ON bt.line_id = pl.line_id
@@ -563,6 +572,7 @@ router.get("/reports/top-colors", async (req, res) => {
         COALESCE(SUM(od.quantity), 0) AS mixed_quantity,
         COALESCE(SUM(od.quantity * od.price_at_sale), 0) AS revenue
        FROM orderdetails od
+       JOIN orders o ON od.order_id = o.order_id AND o.status <> 'cancelled'
        JOIN colorsystem cs ON od.color_id = cs.color_id
        GROUP BY cs.color_id, cs.color_code, cs.color_name
        ORDER BY mixed_quantity DESC, revenue DESC

@@ -35,9 +35,22 @@ const API_ROUTES = {
   GET_ORDER_DETAIL: "/api/admin/orders",
   GET_ORDER_OPTIONS: "/api/admin/orders/options",
   CREATE_ORDER: "/api/admin/orders",
+  UPDATE_ORDER_STATUS: "/api/admin/orders",
   GET_REVENUE_REPORT: "/api/admin/lookup/reports/revenue",
   GET_TOP_PRODUCTS: "/api/admin/lookup/reports/top-products",
   GET_TOP_COLORS: "/api/admin/lookup/reports/top-colors",
+  GET_DEBT_SUMMARY: "/api/admin/debts/summary",
+  GET_OVERDUE_DEBTS: "/api/admin/debts/overdue",
+  GET_DEBT_CUSTOMER_DETAIL: "/api/admin/debts/customers",
+  CREATE_DEBT_PAYMENT: "/api/admin/debts/payments",
+  UPDATE_CUSTOMER_CREDIT_LIMIT: "/api/admin/debts/customers",
+
+  CLIENT_PRODUCTS: "/api/client/products",
+  CLIENT_CATALOG_OPTIONS: "/api/client/catalog-options",
+  CLIENT_COLORS: "/api/client/colors",
+  CLIENT_PROFILE: "/api/client/profile",
+  CLIENT_ORDERS: "/api/client/orders",
+  CLIENT_PURCHASED_COLORS: "/api/client/purchased-colors",
 };
 
 function getToken() {

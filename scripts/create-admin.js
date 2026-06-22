@@ -46,7 +46,6 @@ async function main() {
   } finally {
     rl.close();
     await db.end?.();
-    process.exit(0);
   }
 }
 

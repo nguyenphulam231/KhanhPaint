@@ -7,7 +7,7 @@ router.get("/", async (req, res) => {
     const [[employeeStats]] = await db.query("SELECT COUNT(*) AS total_employees FROM employees");
     const [[customerStats]] = await db.query("SELECT COUNT(*) AS total_customers FROM customers");
     const [[orderStats]] = await db.query(
-      "SELECT COUNT(*) AS total_orders, COALESCE(SUM(total_amount), 0) AS total_revenue FROM orders"
+      "SELECT COUNT(*) AS total_orders, COALESCE(SUM(total_amount), 0) AS total_revenue FROM orders WHERE status <> 'cancelled'"
     );
     const [[lowProductStats]] = await db.query(
       "SELECT COUNT(*) AS low_stock_products FROM productvariants WHERE stock_quantity <= 5"

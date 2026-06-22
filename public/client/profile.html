@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hồ sơ & công nợ - KhanhPaint</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body class="client-body">
+    <div id="clientHeader"></div>
+
+    <main class="client-main">
+      <div class="page-header">
+        <div>
+          <p class="eyebrow">Profile & Debt</p>
+          <h1>Hồ sơ khách hàng & công nợ</h1>
+          <p class="page-subtitle">Theo dõi hạn mức, công nợ hiện tại, hạn trả từng đơn và lịch sử thanh toán.</p>
+        </div>
+      </div>
+
+      <section id="debtSummary" class="content-card">Đang tải...</section>
+
+      <section class="dashboard-grid">
+        <div class="content-card">
+          <h2>Cập nhật hồ sơ</h2>
+          <form id="profileForm" class="form-grid">
+            <label>Họ tên
+              <input type="text" id="name" required />
+            </label>
+            <label>Số điện thoại
+              <input type="text" id="phone" required />
+            </label>
+            <label>Địa chỉ
+              <input type="text" id="address" />
+            </label>
+            <label>Email đăng nhập
+              <input type="email" id="email" disabled />
+            </label>
+            <div class="form-actions"><button class="secondary-btn" type="submit">Lưu hồ sơ</button></div>
+          </form>
+          <div id="profileMessage"></div>
+        </div>
+
+        <div class="content-card">
+          <h2>Đơn công nợ chưa tất toán</h2>
+          <div id="openDebtOrders" class="table-wrapper">Đang tải...</div>
+        </div>
+      </section>
+
+      <section class="content-card">
+        <h2>Lịch sử thanh toán công nợ</h2>
+        <div id="paymentHistory" class="table-wrapper">Đang tải...</div>
+      </section>
+    </main>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/client-common.js"></script>
+    <script>
+      mountClientHeader("profile");
+      requireCustomerLogin();
+
+      function renderDebtSummary(profile) {
+        document.getElementById("debtSummary").innerHTML = `
+          <div class="admin-stats enhanced">
+            <div class="stat-card"><span class="stat-label">Hạn mức</span><strong>${formatCurrency(profile.credit_limit)}</strong></div>
+            <div class="stat-card ${Number(profile.current_debt || 0) > 0 ? "warning-card" : ""}"><span class="stat-label">Công nợ hiện tại</span><strong>${formatCurrency(profile.current_debt)}</strong></div>
+            <div class="stat-card"><span class="stat-label">Hạn mức còn lại</span><strong>${formatCurrency(profile.remaining_credit)}</strong></div>
+            <div class="stat-card ${Number(profile.overdue_amount || 0) > 0 ? "warning-card" : ""}"><span class="stat-label">Quá hạn</span><strong>${formatCurrency(profile.overdue_amount)}</strong></div>
+          </div>
+          <p>Hạn trả gần nhất: <strong>${formatDateOnly(profile.next_due_date)}</strong> · Trạng thái: <span class="${badgeClass(profile.debt_status)}">${escapeHtml(profile.debt_status)}</span></p>`;
+      }
+
+      function fillProfileForm(profile) {
+        document.getElementById("name").value = profile.name || "";
+        document.getElementById("phone").value = profile.phone || "";
+        document.getElementById("address").value = profile.address || "";
+        document.getElementById("email").value = profile.email || "";
+      }
+
+      function renderOpenOrders(rows) {
+        const target = document.getElementById("openDebtOrders");
+        if (!rows.length) {
+          target.innerHTML = '<div class="empty-state">Không có đơn công nợ chưa tất toán.</div>';
+          return;
+        }
+        target.innerHTML = `
+          <table>
+            <thead><tr><th>Đơn</th><th>Ngày mua</th><th>Hạn trả</th><th>Tổng</th><th>Đã trả</th><th>Còn nợ</th><th>Trạng thái</th></tr></thead>
+            <tbody>
+              ${rows.map((item) => `
+                <tr>
+                  <td>#${escapeHtml(item.order_id)}</td>
+                  <td>${formatDateTime(item.order_date)}</td>
+                  <td>${formatDateOnly(item.debt_due_date)}${Number(item.days_overdue || 0) > 0 ? `<br><span class="badge danger">Trễ ${escapeHtml(item.days_overdue)} ngày</span>` : ""}</td>
+                  <td>${formatCurrency(item.total_amount)}</td>
+                  <td>${formatCurrency(item.paid_amount)}</td>
+                  <td>${formatCurrency(item.outstanding_amount)}</td>
+                  <td><span class="${badgeClass(item.payment_status)}">${escapeHtml(item.payment_status)}</span></td>
+                </tr>`).join("")}
+            </tbody>
+          </table>`;
+      }
+
+      function renderPayments(rows) {
+        const target = document.getElementById("paymentHistory");
+        if (!rows.length) {
+          target.innerHTML = '<div class="empty-state">Chưa có lịch sử thanh toán công nợ.</div>';
+          return;
+        }
+        target.innerHTML = `
+          <table>
+            <thead><tr><th>Ngày</th><th>Đơn</th><th>Số tiền</th><th>Phương thức</th><th>Ghi chú</th></tr></thead>
+            <tbody>
+              ${rows.map((item) => `
+                <tr>
+                  <td>${formatDateTime(item.payment_date)}</td>
+                  <td>${item.order_id ? `#${escapeHtml(item.order_id)}` : "Tổng công nợ"}</td>
+                  <td>${formatCurrency(item.amount)}</td>
+                  <td>${escapeHtml(item.payment_method)}</td>
+                  <td>${escapeHtml(item.note || "-")}</td>
+                </tr>`).join("")}
+            </tbody>
+          </table>`;
+      }
+
+      async function loadProfile() {
+        try {
+          const data = await apiRequest(API_ROUTES.CLIENT_PROFILE);
+          renderDebtSummary(data.profile);
+          fillProfileForm(data.profile);
+          renderOpenOrders(data.open_orders || []);
+          renderPayments(data.payments || []);
+        } catch (error) {
+          showMessage("debtSummary", error.message, "error");
+        }
+      }
+
+      document.getElementById("profileForm").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        try {
+          const result = await apiRequest(API_ROUTES.CLIENT_PROFILE, {
+            method: "PUT",
+            body: JSON.stringify({
+              name: document.getElementById("name").value,
+              phone: document.getElementById("phone").value,
+              address: document.getElementById("address").value,
+            }),
+          });
+          localStorage.setItem("name", document.getElementById("name").value);
+          showMessage("profileMessage", result.message, "success");
+          mountClientHeader("profile");
+          await loadProfile();
+        } catch (error) {
+          showMessage("profileMessage", error.message, "error");
+        }
+      });
+
+      loadProfile();
+    </script>
+  </body>
+</html>

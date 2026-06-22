@@ -27,4 +27,12 @@ const authorizeAdmin = (req, res, next) => {
   return res.status(403).json({ error: "Bạn không có quyền truy cập trang quản trị!" });
 };
 
-module.exports = { authenticate, authorizeAdmin };
+const authorizeCustomer = (req, res, next) => {
+  if (req.user && req.user.type === "customer" && req.user.role === "customer") {
+    return next();
+  }
+
+  return res.status(403).json({ error: "Bạn không có quyền truy cập khu vực khách hàng!" });
+};
+
+module.exports = { authenticate, authorizeAdmin, authorizeCustomer };

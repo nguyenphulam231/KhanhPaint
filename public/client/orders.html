@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Đơn hàng của tôi - KhanhPaint</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body class="client-body">
+    <div id="clientHeader"></div>
+
+    <main class="client-main">
+      <div class="page-header">
+        <div>
+          <p class="eyebrow">Order History</p>
+          <h1>Lịch sử mua hàng</h1>
+          <p class="page-subtitle">Tra cứu lại đơn đã mua, mã màu đã pha, base tương thích và mua lại màu cũ khi cần dặm vá.</p>
+        </div>
+      </div>
+
+      <section class="content-card">
+        <h2>Đơn hàng của tôi</h2>
+        <div id="orderList" class="table-wrapper">Đang tải...</div>
+      </section>
+
+      <section class="content-card">
+        <h2>Màu đã từng mua</h2>
+        <div id="purchasedColors" class="product-grid compact-grid">Đang tải...</div>
+      </section>
+
+      <section class="content-card" id="orderDetailCard">
+        <h2>Chi tiết đơn hàng</h2>
+        <div id="orderDetail" class="empty-state">Chọn đơn hàng để xem chi tiết.</div>
+      </section>
+    </main>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/client-common.js"></script>
+    <script>
+      mountClientHeader("orders");
+      requireCustomerLogin();
+
+      function statusText(order) {
+        return `${order.status} / ${order.payment_method}${order.payment_method === "debt" ? ` / ${order.payment_status}` : ""}`;
+      }
+
+      async function loadOrders() {
+        try {
+          const orders = await apiRequest(API_ROUTES.CLIENT_ORDERS);
+          const target = document.getElementById("orderList");
+          if (!orders.length) {
+            target.innerHTML = '<div class="empty-state">Bạn chưa có đơn hàng nào.</div>';
+            return;
+          }
+          target.innerHTML = `
+            <table>
+              <thead><tr><th>Mã đơn</th><th>Ngày</th><th>Số dòng</th><th>Tổng tiền</th><th>Thanh toán</th><th>Hạn trả</th><th>Trạng thái</th><th></th></tr></thead>
+              <tbody>
+                ${orders.map((item) => `
+                  <tr>
+                    <td>#${escapeHtml(item.order_id)}</td>
+                    <td>${formatDateTime(item.order_date)}</td>
+                    <td>${escapeHtml(item.item_count)}</td>
+                    <td>${formatCurrency(item.total_amount)}</td>
+                    <td>${escapeHtml(item.payment_method)}${item.payment_method === "debt" ? ` / ${escapeHtml(item.payment_status)}` : ""}</td>
+                    <td>${formatDateOnly(item.debt_due_date)}${Number(item.days_overdue || 0) > 0 ? `<br><span class="badge danger">Trễ ${escapeHtml(item.days_overdue)} ngày</span>` : ""}</td>
+                    <td><span class="${badgeClass(statusText(item))}">${escapeHtml(item.status)}</span></td>
+                    <td><button class="mini-btn" onclick="loadOrderDetail(${Number(item.order_id)})">Chi tiết</button></td>
+                  </tr>`).join("")}
+              </tbody>
+            </table>`;
+        } catch (error) {
+          showMessage("orderList", error.message, "error");
+        }
+      }
+
+      async function loadPurchasedColors() {
+        try {
+          const rows = await apiRequest(API_ROUTES.CLIENT_PURCHASED_COLORS);
+          const target = document.getElementById("purchasedColors");
+          if (!rows.length) {
+            target.innerHTML = '<div class="empty-state">Chưa có màu nào trong lịch sử mua.</div>';
+            return;
+          }
+          target.innerHTML = rows.map((item) => `
+            <article class="product-card">
+              <span class="badge neutral">${escapeHtml(item.color_code)}</span>
+              <h3>${escapeHtml(item.color_name)}</h3>
+              <p>Base: ${escapeHtml(item.base_name)}</p>
+              <p>Lần mua gần nhất: ${formatDateOnly(item.last_order_date)}</p>
+              <p>Đã mua: ${escapeHtml(item.total_quantity)} lon/thùng</p>
+              <p><small>SKU đã dùng: ${escapeHtml(item.purchased_skus || "-")}</small></p>
+              <button class="secondary-btn" onclick="buyAgain(${Number(item.color_id)}, ${Number(item.base_id)})">Mua lại màu này</button>
+            </article>`).join("");
+        } catch (error) {
+          showMessage("purchasedColors", error.message, "error");
+        }
+      }
+
+      async function loadOrderDetail(orderId) {
+        try {
+          const data = await apiRequest(`${API_ROUTES.CLIENT_ORDERS}/${orderId}`);
+          const order = data.order;
+          document.getElementById("orderDetail").innerHTML = `
+            <div class="invoice-header">
+              <div>
+                <h3>Đơn hàng #${escapeHtml(order.order_id)}</h3>
+                <p>${formatDateTime(order.order_date)} · ${escapeHtml(order.status)} · ${escapeHtml(order.payment_method)} ${order.payment_method === "debt" ? `/ ${escapeHtml(order.payment_status)} · Hạn trả ${formatDateOnly(order.debt_due_date)}` : ""}</p>
+                <p>Nhân viên bán: ${escapeHtml(order.sales_rep_name || "Chờ cửa hàng phân công")} · Kỹ thuật pha màu: ${escapeHtml(order.tech_name || "Chờ cửa hàng phân công")}</p>
+              </div>
+              <div class="invoice-total">${formatCurrency(order.total_amount)}</div>
+            </div>
+            <div class="table-wrapper">
+              <table>
+                <thead><tr><th>Sản phẩm</th><th>Mã màu</th><th>Số lượng</th><th>Đơn giá</th><th>Thành tiền</th><th></th></tr></thead>
+                <tbody>
+                  ${(data.details || []).map((item) => `
+                    <tr>
+                      <td><strong>${escapeHtml(item.sku_code)}</strong><br>${escapeHtml(item.brand_name)} / ${escapeHtml(item.line_name)} / ${escapeHtml(item.base_name)} ${escapeHtml(item.volume || "")}</td>
+                      <td>${escapeHtml(item.color_code)} - ${escapeHtml(item.color_name)}</td>
+                      <td>${escapeHtml(item.quantity)}</td>
+                      <td>${formatCurrency(item.price_at_sale)}</td>
+                      <td>${formatCurrency(item.line_total)}</td>
+                      <td><button class="mini-btn" onclick="buyAgain(${Number(item.color_id)}, ${Number(item.base_id)})">Mua lại màu</button></td>
+                    </tr>`).join("")}
+                </tbody>
+              </table>
+            </div>`;
+          document.getElementById("orderDetailCard").scrollIntoView({ behavior: "smooth" });
+        } catch (error) {
+          showMessage("orderDetail", error.message, "error");
+        }
+      }
+
+      async function buyAgain(colorId, baseId) {
+        try {
+          const products = await publicRequest(`${API_ROUTES.CLIENT_PRODUCTS}${buildQuery({ stock: "available" })}`);
+          const product = products.find((item) => Number(item.base_id) === Number(baseId));
+          const colors = await publicRequest(`${API_ROUTES.CLIENT_COLORS}${buildQuery({ base_id: baseId })}`);
+          const color = colors.find((item) => Number(item.color_id) === Number(colorId));
+          if (!product || !color) {
+            alert("Hiện chưa có sản phẩm hoặc công thức màu tương thích để mua lại.");
+            return;
+          }
+          const cart = getCart();
+          const key = `${product.variant_id}:${color.color_id}`;
+          const existing = cart.find((row) => row.key === key);
+          if (existing) {
+            existing.quantity += 1;
+          } else {
+            cart.push({
+              key,
+              variant_id: product.variant_id,
+              color_id: color.color_id,
+              quantity: 1,
+              sku_code: product.sku_code,
+              brand_name: product.brand_name,
+              line_name: product.line_name,
+              base_name: product.base_name,
+              volume: product.volume,
+              unit_price: product.unit_price,
+              color_text: `${color.color_code} - ${color.color_name}`,
+            });
+          }
+          saveCart(cart);
+          window.location.href = "/client/products.html#cartCard";
+        } catch (error) {
+          alert(error.message);
+        }
+      }
+
+      loadOrders();
+      loadPurchasedColors();
+    </script>
+  </body>
+</html>

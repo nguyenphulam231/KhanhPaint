@@ -11,6 +11,7 @@ app.use(express.json({ limit: "1mb" }));
 
 app.use("/api/auth/admin", require("./routes/admin/auth"));
 app.use("/api/auth/public", require("./routes/client/auth"));
+app.use("/api/client", require("./routes/client"));
 app.use("/api/admin", require("./routes/admin"));
 
 app.get("/", (req, res) => {

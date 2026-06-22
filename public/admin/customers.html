@@ -12,24 +12,30 @@
       <main class="main-content">
         <div class="page-header">
           <div>
-            <p class="eyebrow">CRM</p>
+            <p class="eyebrow">CRM & Debt Control</p>
             <h1>Khách hàng & công nợ</h1>
-            <p class="page-subtitle">Tra cứu thông tin khách hàng, hạn mức nợ và lịch sử mua hàng.</p>
+            <p class="page-subtitle">Quản lý hạn mức, hạn trả, đơn nợ quá hạn và phiếu thu công nợ. Các thao tác thanh toán được trigger tự cập nhật vào current_debt và payment_status.</p>
           </div>
         </div>
 
         <section class="content-card">
-          <div class="toolbar">
+          <div class="toolbar wide">
             <input id="customerSearch" type="search" placeholder="Tìm tên, số điện thoại hoặc email..." />
+            <select id="debtStatusFilter">
+              <option value="">Tất cả</option>
+              <option value="debt">Đang có nợ</option>
+              <option value="overdue">Quá hạn</option>
+              <option value="near_limit">Sắp vượt hạn mức</option>
+            </select>
             <button class="secondary-btn" type="button" onclick="loadCustomers()">Tìm</button>
-            <button class="secondary-btn warning-outline" type="button" onclick="loadDebtOnly()">Chỉ xem công nợ</button>
+            <button class="secondary-btn warning-outline" type="button" onclick="loadOverdueDebts()">Đơn quá hạn</button>
           </div>
           <div id="customerList" class="table-wrapper">Đang tải...</div>
         </section>
 
-        <section class="content-card" id="historyCard">
-          <h2>Lịch sử mua hàng</h2>
-          <div id="customerHistory" class="empty-state">Chọn khách hàng để xem lịch sử mua.</div>
+        <section class="content-card" id="debtDetailCard">
+          <h2>Chi tiết công nợ</h2>
+          <div id="debtDetail" class="empty-state">Chọn khách hàng để xem chi tiết công nợ, lịch sử mua hàng và ghi nhận thanh toán.</div>
         </section>
       </main>
     </div>
@@ -40,50 +46,149 @@
       mountAdminSidebar("customers");
       initAdminShell();
 
+      let selectedCustomerId = null;
+
+      function formatDateOnly(value) {
+        if (!value) return "-";
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return String(value);
+        return date.toLocaleDateString("vi-VN");
+      }
+
+      function renderDebtBadge(item) {
+        return `<span class="${getStockBadgeClass(item.debt_status)}">${escapeHtml(item.debt_status || "-")}</span>`;
+      }
+
       function renderCustomers(rows) {
         if (!rows.length) return '<div class="empty-state">Không có khách hàng phù hợp.</div>';
         return `
           <table>
-            <thead><tr><th>Khách hàng</th><th>Liên hệ</th><th>Hạn mức</th><th>Công nợ</th><th>Trạng thái</th><th>Số đơn</th><th>Tổng mua</th><th></th></tr></thead>
+            <thead><tr><th>Khách hàng</th><th>Hạn mức</th><th>Công nợ</th><th>Còn lại</th><th>Hạn trả gần nhất</th><th>Quá hạn</th><th>Trạng thái</th><th></th></tr></thead>
             <tbody>
               ${rows.map((item) => `
                 <tr>
-                  <td>${escapeHtml(item.name)}</td>
-                  <td>${escapeHtml(item.phone || "-")}<br><small>${escapeHtml(item.email || "")}</small></td>
+                  <td><strong>${escapeHtml(item.name)}</strong><br>${escapeHtml(item.phone || "-")}<br><small>${escapeHtml(item.email || "")}</small></td>
                   <td>${formatCurrency(item.credit_limit)}</td>
                   <td>${formatCurrency(item.current_debt)}</td>
-                  <td><span class="${getStockBadgeClass(item.debt_status)}">${escapeHtml(item.debt_status)}</span></td>
-                  <td>${escapeHtml(item.total_orders ?? "-")}</td>
-                  <td>${formatCurrency(item.total_spent)}</td>
-                  <td><button class="mini-btn" onclick="loadCustomerHistory(${Number(item.customer_id)})">Lịch sử</button></td>
+                  <td>${formatCurrency(item.remaining_credit)}</td>
+                  <td>${formatDateOnly(item.next_due_date)}</td>
+                  <td>${formatCurrency(item.overdue_amount)}</td>
+                  <td>${renderDebtBadge(item)}</td>
+                  <td><button class="mini-btn" onclick="loadDebtDetail(${Number(item.customer_id)})">Chi tiết</button></td>
                 </tr>`).join("")}
             </tbody>
           </table>`;
       }
 
-      function renderHistory(data) {
+      function renderOverdue(rows) {
+        if (!rows.length) return '<div class="empty-state">Không có đơn công nợ quá hạn.</div>';
+        return `
+          <table>
+            <thead><tr><th>Đơn</th><th>Khách hàng</th><th>Hạn trả</th><th>Trễ hạn</th><th>Tổng đơn</th><th>Đã trả</th><th>Còn nợ</th><th></th></tr></thead>
+            <tbody>
+              ${rows.map((item) => `
+                <tr>
+                  <td>#${escapeHtml(item.order_id)}</td>
+                  <td>${escapeHtml(item.customer_name)}<br><small>${escapeHtml(item.customer_phone || "")}</small></td>
+                  <td>${formatDateOnly(item.debt_due_date)}</td>
+                  <td><span class="badge danger">${escapeHtml(item.days_overdue)} ngày</span></td>
+                  <td>${formatCurrency(item.total_amount)}</td>
+                  <td>${formatCurrency(item.paid_amount)}</td>
+                  <td>${formatCurrency(item.outstanding_amount)}</td>
+                  <td><button class="mini-btn" onclick="loadDebtDetail(${Number(item.customer_id)})">Thu nợ</button></td>
+                </tr>`).join("")}
+            </tbody>
+          </table>`;
+      }
+
+      function renderDebtDetail(data) {
         const customer = data.customer;
-        const orders = data.orders || [];
+        const debtOrders = (data.orders || []).filter((order) => order.payment_method === "debt" && order.status !== "cancelled");
+        const selectableOrders = debtOrders.filter((order) => Number(order.outstanding_amount || 0) > 0);
+        selectedCustomerId = customer.customer_id;
+
         return `
           <div class="detail-grid">
             <div><strong>Khách hàng</strong><br>${escapeHtml(customer.name)}<br>${escapeHtml(customer.phone || "-")}<br>${escapeHtml(customer.email || "-")}</div>
-            <div><strong>Hạn mức nợ</strong><br>${formatCurrency(customer.credit_limit)}</div>
-            <div><strong>Công nợ hiện tại</strong><br>${formatCurrency(customer.current_debt)}</div>
+            <div><strong>Hạn mức</strong><br>${formatCurrency(customer.credit_limit)}<br><small>Còn lại: ${formatCurrency(customer.remaining_credit)}</small></div>
+            <div><strong>Công nợ hiện tại</strong><br>${formatCurrency(customer.current_debt)}<br><small>Quá hạn: ${formatCurrency(customer.overdue_amount)}</small></div>
+            <div><strong>Hạn trả gần nhất</strong><br>${formatDateOnly(customer.next_due_date)}<br>${renderDebtBadge(customer)}</div>
           </div>
+
+          <div class="dashboard-grid">
+            <section class="content-card compact-card">
+              <h3>Cập nhật hạn mức</h3>
+              <form id="creditLimitForm" class="form-grid">
+                <label>Hạn mức mới
+                  <input type="number" id="creditLimitInput" min="0" step="1000" value="${Number(customer.credit_limit || 0)}" />
+                </label>
+                <div class="form-actions"><button class="secondary-btn" type="submit">Lưu hạn mức</button></div>
+              </form>
+            </section>
+
+            <section class="content-card compact-card">
+              <h3>Ghi nhận thanh toán</h3>
+              <form id="debtPaymentForm" class="form-grid">
+                <label>Gán vào đơn nợ
+                  <select id="paymentOrderId">
+                    <option value="">-- Chọn đơn công nợ cần thanh toán --</option>
+                    ${selectableOrders.map((order) => `<option value="${Number(order.order_id)}">#${escapeHtml(order.order_id)} - còn ${formatCurrency(order.outstanding_amount)} - hạn ${formatDateOnly(order.debt_due_date)}</option>`).join("")}
+                  </select>
+                </label>
+                <label>Số tiền
+                  <input type="number" id="paymentAmount" min="1" step="1000" placeholder="VD: 500000" required />
+                </label>
+                <label>Phương thức
+                  <select id="paymentMethod">
+                    <option value="cash">Tiền mặt</option>
+                    <option value="bank_transfer">Chuyển khoản</option>
+                    <option value="e_wallet">Ví điện tử</option>
+                    <option value="other">Khác</option>
+                  </select>
+                </label>
+                <label>Ghi chú
+                  <input type="text" id="paymentNote" placeholder="VD: Khách thanh toán đợt 1" />
+                </label>
+                <div class="form-actions"><button class="secondary-btn" type="submit">Ghi nhận thu nợ</button></div>
+              </form>
+              <div id="paymentMessage"></div>
+            </section>
+          </div>
+
+          <h3 class="subsection-heading">Đơn hàng và hạn trả</h3>
           <div class="table-wrapper">
             <table>
-              <thead><tr><th>Mã đơn</th><th>Ngày</th><th>NV bán</th><th>Kỹ thuật</th><th>Số dòng</th><th>Tổng tiền</th><th>Trạng thái</th></tr></thead>
+              <thead><tr><th>Mã đơn</th><th>Ngày</th><th>Thanh toán</th><th>Hạn trả</th><th>Tổng tiền</th><th>Đã trả</th><th>Còn nợ</th><th>Trạng thái</th></tr></thead>
               <tbody>
-                ${orders.map((item) => `
+                ${(data.orders || []).map((item) => `
                   <tr>
                     <td>#${escapeHtml(item.order_id)}</td>
                     <td>${formatDateTime(item.order_date)}</td>
-                    <td>${escapeHtml(item.sales_rep_name || "-")}</td>
-                    <td>${escapeHtml(item.tech_name || "-")}</td>
-                    <td>${escapeHtml(item.item_count)}</td>
+                    <td>${escapeHtml(item.payment_method)} / ${escapeHtml(item.payment_status || "-")}</td>
+                    <td>${formatDateOnly(item.debt_due_date)}${Number(item.days_overdue || 0) > 0 ? `<br><span class="badge danger">Trễ ${escapeHtml(item.days_overdue)} ngày</span>` : ""}</td>
                     <td>${formatCurrency(item.total_amount)}</td>
+                    <td>${formatCurrency(item.paid_amount)}</td>
+                    <td>${formatCurrency(item.outstanding_amount)}</td>
                     <td><span class="badge neutral">${escapeHtml(item.status)}</span></td>
-                  </tr>`).join("") || '<tr><td colspan="7">Khách hàng chưa có lịch sử mua.</td></tr>'}
+                  </tr>`).join("") || '<tr><td colspan="8">Chưa có lịch sử đơn hàng.</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+
+          <h3 class="subsection-heading">Lịch sử phiếu thu công nợ</h3>
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>Ngày thu</th><th>Đơn</th><th>Số tiền</th><th>Phương thức</th><th>Người ghi nhận</th><th>Ghi chú</th></tr></thead>
+              <tbody>
+                ${(data.payments || []).map((item) => `
+                  <tr>
+                    <td>${formatDateTime(item.payment_date)}</td>
+                    <td>${item.order_id ? `#${escapeHtml(item.order_id)}` : "Tổng công nợ"}</td>
+                    <td>${formatCurrency(item.amount)}</td>
+                    <td>${escapeHtml(item.payment_method)}</td>
+                    <td>${escapeHtml(item.employee_name || "-")}</td>
+                    <td>${escapeHtml(item.note || "-")}</td>
+                  </tr>`).join("") || '<tr><td colspan="6">Chưa có phiếu thu.</td></tr>'}
               </tbody>
             </table>
           </div>`;
@@ -91,30 +196,70 @@
 
       async function loadCustomers() {
         try {
-          const rows = await apiRequest(`${API_ROUTES.GET_CUSTOMERS}${buildQuery({ search: document.getElementById("customerSearch").value })}`);
+          const rows = await apiRequest(`${API_ROUTES.GET_DEBT_SUMMARY}${buildQuery({ search: document.getElementById("customerSearch").value, status: document.getElementById("debtStatusFilter").value })}`);
           document.getElementById("customerList").innerHTML = renderCustomers(rows);
         } catch (error) {
           showPanelMessage("customerList", error.message, "error");
         }
       }
 
-      async function loadDebtOnly() {
+      async function loadOverdueDebts() {
         try {
-          const rows = await apiRequest(API_ROUTES.GET_CUSTOMER_DEBT);
-          document.getElementById("customerList").innerHTML = renderCustomers(rows);
+          const rows = await apiRequest(API_ROUTES.GET_OVERDUE_DEBTS);
+          document.getElementById("customerList").innerHTML = renderOverdue(rows);
         } catch (error) {
           showPanelMessage("customerList", error.message, "error");
         }
       }
 
-      async function loadCustomerHistory(customerId) {
+      async function loadDebtDetail(customerId) {
         try {
-          const data = await apiRequest(`${API_ROUTES.GET_CUSTOMER_ORDERS}/${customerId}/orders`);
-          document.getElementById("customerHistory").innerHTML = renderHistory(data);
-          document.getElementById("historyCard").scrollIntoView({ behavior: "smooth" });
+          const data = await apiRequest(`${API_ROUTES.GET_DEBT_CUSTOMER_DETAIL}/${customerId}/detail`);
+          document.getElementById("debtDetail").innerHTML = renderDebtDetail(data);
+          bindDebtForms(customerId);
+          document.getElementById("debtDetailCard").scrollIntoView({ behavior: "smooth" });
         } catch (error) {
-          showPanelMessage("customerHistory", error.message, "error");
+          showPanelMessage("debtDetail", error.message, "error");
         }
+      }
+
+      function bindDebtForms(customerId) {
+        document.getElementById("creditLimitForm").addEventListener("submit", async (event) => {
+          event.preventDefault();
+          try {
+            await apiRequest(`${API_ROUTES.UPDATE_CUSTOMER_CREDIT_LIMIT}/${customerId}/credit-limit`, {
+              method: "PATCH",
+              body: JSON.stringify({ credit_limit: Number(document.getElementById("creditLimitInput").value) }),
+            });
+            await loadCustomers();
+            await loadDebtDetail(customerId);
+          } catch (error) {
+            alert(error.message);
+          }
+        });
+
+        document.getElementById("debtPaymentForm").addEventListener("submit", async (event) => {
+          event.preventDefault();
+          const payload = {
+            customer_id: customerId,
+            order_id: document.getElementById("paymentOrderId").value,
+            amount: Number(document.getElementById("paymentAmount").value),
+            payment_method: document.getElementById("paymentMethod").value,
+            note: document.getElementById("paymentNote").value,
+          };
+
+          try {
+            const result = await apiRequest(API_ROUTES.CREATE_DEBT_PAYMENT, {
+              method: "POST",
+              body: JSON.stringify(payload),
+            });
+            document.getElementById("paymentMessage").innerHTML = `<div class="message-panel success">${escapeHtml(result.message)}</div>`;
+            await loadCustomers();
+            await loadDebtDetail(customerId);
+          } catch (error) {
+            document.getElementById("paymentMessage").innerHTML = `<div class="message-panel error">${escapeHtml(error.message)}</div>`;
+          }
+        });
       }
 
       loadCustomers();

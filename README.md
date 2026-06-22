@@ -4,37 +4,56 @@ Project demo quản lý đại lý sơn KhanhPaint bằng Node.js, Express và M
 
 ## Chức năng chính
 
-- Đăng nhập admin/client bằng JWT.
+### Admin
+
+- Đăng nhập admin bằng JWT.
 - Quản lý danh mục sản phẩm theo cây: Brand -> ProductLine -> BaseType -> ProductVariant.
 - Dashboard admin có thống kê nhanh và cảnh báo tồn kho.
 - Tra cứu tồn kho kép:
   - Sơn gốc theo số lượng lon/thùng.
   - Tinh màu theo ml.
 - Tra cứu mã màu và công thức pha màu theo lượng tinh màu.
-- Tra cứu khách hàng, công nợ và lịch sử mua hàng.
-- Tra cứu đơn hàng, xem chi tiết hóa đơn và log tồn kho.
 - Tạo đơn hàng mới bằng transaction.
-- Trigger trong database tự động:
-  - Kiểm tra base của mã màu có tương thích với sản phẩm hay không.
-  - Kiểm tra tồn kho sơn gốc và tinh màu.
-  - Trừ tồn kho ProductVariants.
-  - Trừ stock_ml của Colorants theo công thức.
-  - Tính total_amount của Orders.
-  - Cập nhật current_debt khi bán công nợ.
-  - Ghi inventory_logs để truy vết biến động kho.
+- Tra cứu đơn hàng, xem chi tiết hóa đơn và log tồn kho.
+- Quản lý khách hàng, hạn mức công nợ, hạn trả, đơn quá hạn và phiếu thu công nợ.
 - Báo cáo doanh thu, top sản phẩm bán chạy, top mã màu được pha nhiều.
+
+### Khách hàng
+
+- Đăng ký, đăng nhập tài khoản khách hàng.
+- Xem danh mục sản phẩm, giá bán, tồn kho, base và số mã màu tương thích.
+- Chọn sản phẩm + mã màu tương thích, thêm vào giỏ yêu cầu.
+- Gửi yêu cầu đặt hàng từ giao diện khách hàng. Đơn khách gửi được lưu `status = 'pending'` và hệ thống giữ tồn kho.
+- Xem lịch sử mua hàng và chi tiết mã màu đã pha.
+- Mua lại màu cũ từ lịch sử đơn hàng.
+- Xem hồ sơ cá nhân, hạn mức công nợ, công nợ hiện tại, hạn trả gần nhất, đơn quá hạn và lịch sử thanh toán.
 
 ## Kỹ thuật database đã dùng
 
 - Primary Key, Foreign Key.
 - Quan hệ 1-N và N-N.
 - Bảng trung gian: `orderdetails`, `colorsystem_colorants`, `employees_shifts`.
-- CHECK constraint cho số lượng, giá tiền, công nợ, role, trạng thái đơn hàng.
+- Bảng nghiệp vụ công nợ: `debt_payments`.
+- CHECK constraint cho số lượng, giá tiền, công nợ, role, trạng thái đơn hàng, trạng thái thanh toán.
 - UNIQUE constraint cho email, SKU, mã màu, tên brand.
-- INDEX cho các khóa ngoại và trường tìm kiếm.
-- VIEW: `v_product_inventory`, `v_order_summary`.
-- TRIGGER: tự động xử lý tồn kho kép và log giao dịch.
-- TRANSACTION trong API tạo đơn hàng.
+- INDEX cho khóa ngoại, tồn kho, công nợ và hạn trả.
+- VIEW:
+  - `v_product_inventory`.
+  - `v_order_summary`.
+  - `v_customer_debt_summary`.
+  - `v_overdue_debts`.
+- TRIGGER:
+  - `trg_orders_before_insert`: tự thiết lập `payment_status` và hạn trả mặc định 15 ngày cho đơn công nợ.
+  - `trg_orders_before_update`: chặn khôi phục đơn đã hủy và chuẩn hóa trạng thái thanh toán.
+  - `trg_orders_after_update`: khi hủy đơn, tự hoàn sơn gốc, hoàn tinh màu, ghi log và giảm công nợ còn tồn.
+  - `trg_orderdetails_before_insert`: kiểm tra số lượng, SKU, mã màu, base tương thích, tồn kho sơn gốc, tồn kho tinh màu và hạn mức công nợ ở cấp database.
+  - `trg_orderdetails_after_insert`: tự trừ tồn kho kép, tính `orders.total_amount`, cộng `customers.current_debt`, ghi `inventory_logs`.
+  - `trg_orderdetails_before_update`: chặn sửa trực tiếp dòng đơn hàng để tránh lệch tồn kho.
+  - `trg_orderdetails_after_delete`: tự hoàn tồn kho và giảm công nợ khi xóa dòng đơn hàng.
+  - `trg_debt_payments_before_insert`: kiểm tra số tiền trả nợ, kiểm tra đơn công nợ, chặn trả vượt số tiền còn lại.
+  - `trg_debt_payments_after_insert`: tự giảm `customers.current_debt` và cập nhật `orders.payment_status` thành `partial` hoặc `paid`.
+  - `trg_debt_payments_before_update/delete`: khóa lịch sử phiếu thu để bảo toàn kế toán.
+- TRANSACTION trong API tạo đơn admin và API khách hàng gửi yêu cầu đặt hàng.
 
 ## Cài đặt
 
@@ -72,17 +91,33 @@ Nếu dùng PowerShell và XAMPP:
 Sau khi vào `mysql>`:
 
 ```sql
-source C:/Users/LENOVO/OneDrive/Desktop/dtb/prj/KhanhPaint/khanhpaintdealerdatabase.sql
+source C:/duong-dan-toi-project/KhanhPaint/khanhpaintdealerdatabase.sql
 ```
 
 Hoặc dùng MySQL Workbench: mở file `khanhpaintdealerdatabase.sql` rồi chạy toàn bộ script.
 
-File SQL đã có dữ liệu mẫu để demo dashboard, tồn kho, công thức màu, đơn hàng, trigger, log kho và báo cáo.
+File SQL đã có dữ liệu mẫu để demo dashboard, tồn kho, công thức màu, đơn hàng, trigger, log kho, công nợ có hạn trả và báo cáo.
 
-## Tạo admin đầu tiên
+## Tài khoản demo
+
+Tạo admin mới:
 
 ```bash
 npm run create-admin
+```
+
+Dữ liệu mẫu cũng có tài khoản demo đã hash mật khẩu bằng cùng chuỗi hash mẫu trong hệ thống. Nếu không đăng nhập được bằng dữ liệu mẫu, hãy dùng script `npm run create-admin` để tạo tài khoản admin mới và đăng ký tài khoản khách hàng mới từ giao diện client.
+
+Trang admin:
+
+```text
+http://localhost:3000/admin/login.html
+```
+
+Trang khách hàng:
+
+```text
+http://localhost:3000/client/
 ```
 
 ## Chạy server
@@ -97,25 +132,22 @@ Mở trình duyệt:
 http://localhost:3000
 ```
 
-Trang admin:
-
-```text
-http://localhost:3000/admin/login.html
-```
-
 ## Luồng demo đề xuất
 
 1. Đăng nhập admin.
 2. Mở Dashboard để xem tổng quan.
 3. Vào Tồn kho kép để xem tồn sơn gốc và tinh màu.
 4. Vào Công thức màu để tra cứu mã màu.
-5. Vào Đơn hàng để tạo đơn hàng mới.
+5. Vào Đơn hàng để tạo đơn công nợ có hạn trả.
 6. Mở chi tiết đơn hàng để xem tổng tiền, dòng hàng và log tồn kho do trigger sinh ra.
-7. Quay lại Tồn kho để thấy số lượng đã bị trừ.
-8. Vào Khách hàng & công nợ để xem công nợ nếu đơn hàng thanh toán bằng debt.
+7. Vào Khách hàng & công nợ để xem hạn mức, hạn trả, đơn quá hạn và ghi nhận thanh toán.
+8. Đăng nhập/đăng ký tài khoản khách hàng.
+9. Vào Sản phẩm để chọn sản phẩm, chọn mã màu, gửi yêu cầu đặt hàng.
+10. Vào Đơn hàng của khách để xem lịch sử mua hàng và thử chức năng mua lại màu cũ.
+11. Vào Hồ sơ & công nợ của khách để xem công nợ hiện tại, hạn trả, đơn quá hạn và lịch sử thanh toán.
 
-## Lưu ý
+## Lưu ý đóng gói nộp bài
 
-- Không đưa `.env` lên GitHub vì chứa mật khẩu database và JWT secret.
+- Không đưa `.env` lên GitHub hoặc bản nộp vì chứa mật khẩu database và JWT secret.
 - Không cần nộp `node_modules`, chỉ cần `package.json` và `package-lock.json`.
 - Nếu đổi tên database trong `.env`, cần đổi tương ứng trong file SQL hoặc tạo database đúng tên.

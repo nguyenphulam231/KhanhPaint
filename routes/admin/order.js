@@ -37,6 +37,12 @@ async function getOrderDetail(orderId, connection = db) {
       o.order_date,
       o.total_amount,
       o.payment_method,
+      o.payment_status,
+      o.debt_due_date,
+      CASE
+        WHEN o.payment_method = 'debt' AND o.payment_status <> 'paid' AND o.debt_due_date < CURRENT_DATE THEN DATEDIFF(CURRENT_DATE, o.debt_due_date)
+        ELSE 0
+      END AS days_overdue,
       o.status,
       c.customer_id,
       c.name AS customer_name,
@@ -174,6 +180,10 @@ router.post("/", async (req, res) => {
   const techId = toInt(req.body.tech_id);
   const shiftId = toInt(req.body.shift_id);
   const paymentMethod = req.body.payment_method === "debt" ? "debt" : "cash";
+  const paymentStatus = paymentMethod === "debt" ? "unpaid" : "paid";
+  const debtDueDate = paymentMethod === "debt" && /^\d{4}-\d{2}-\d{2}$/.test(String(req.body.debt_due_date || ""))
+    ? req.body.debt_due_date
+    : null;
   const status = ["pending", "completed"].includes(req.body.status) ? req.body.status : "completed";
   const items = normalizeItems(req.body.items);
 
@@ -292,9 +302,9 @@ router.post("/", async (req, res) => {
 
     const [orderResult] = await conn.execute(
       `INSERT INTO orders
-       (customer_id, sales_rep_id, tech_id, shift_id, payment_method, status, total_amount)
-       VALUES (?, ?, ?, ?, ?, ?, 0)`,
-      [customerId, salesRepId || null, techId || null, shiftId || null, paymentMethod, status]
+       (customer_id, sales_rep_id, tech_id, shift_id, payment_method, payment_status, debt_due_date, status, total_amount)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+      [customerId, salesRepId || null, techId || null, shiftId || null, paymentMethod, paymentStatus, debtDueDate, status]
     );
 
     const orderId = orderResult.insertId;
@@ -328,6 +338,38 @@ router.post("/", async (req, res) => {
     res.status(500).json({ error: "Lỗi tạo đơn hàng." });
   } finally {
     conn.release();
+  }
+});
+
+router.patch("/:order_id/status", async (req, res) => {
+  const status = String(req.body.status || "").trim();
+  if (status !== "cancelled") {
+    return res.status(400).json({ error: "Hiện API chỉ hỗ trợ hủy đơn để trigger hoàn tồn kho và công nợ." });
+  }
+
+  try {
+    const [result] = await db.execute(
+      `UPDATE orders
+       SET status = ?
+       WHERE order_id = ? AND status <> 'cancelled'`,
+      [status, req.params.order_id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "Không tìm thấy đơn hàng hoặc đơn đã hủy." });
+    }
+
+    const detail = await getOrderDetail(req.params.order_id);
+    res.json({
+      message: "Đã hủy đơn hàng. Trigger đã hoàn tồn kho kép và giảm công nợ còn tồn.",
+      ...detail,
+    });
+  } catch (err) {
+    console.error("Update order status error:", err);
+    if (isDbBusinessError(err) || err.statusCode) {
+      return res.status(err.statusCode || 409).json({ error: err.message || "Không thể cập nhật trạng thái đơn hàng." });
+    }
+    res.status(500).json({ error: "Lỗi cập nhật trạng thái đơn hàng." });
   }
 });
 

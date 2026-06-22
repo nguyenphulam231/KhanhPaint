@@ -236,6 +236,13 @@ function formatDateTime(value) {
   return date.toLocaleString("vi-VN");
 }
 
+function formatDateOnly(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleDateString("vi-VN");
+}
+
 function getStockBadgeClass(status) {
   const text = String(status || "").toLowerCase();
   if (text.includes("hết") || text.includes("vượt")) return "badge danger";

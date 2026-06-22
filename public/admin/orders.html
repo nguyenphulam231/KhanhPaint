@@ -52,6 +52,10 @@
                 </select>
               </label>
               <label>
+                Hạn trả công nợ
+                <input id="debtDueDate" type="date" />
+              </label>
+              <label>
                 Trạng thái
                 <select id="newOrderStatus">
                   <option value="completed">completed</option>
@@ -110,6 +114,14 @@
 
       let orderOptions = { customers: [], employees: [], shifts: [], variants: [], colors: [] };
       let orderRowCounter = 0;
+
+      function defaultDebtDueDate() {
+        const date = new Date();
+        date.setDate(date.getDate() + 15);
+        return date.toISOString().slice(0, 10);
+      }
+
+      document.getElementById("debtDueDate").value = defaultDebtDueDate();
 
       function optionTextForCustomer(customer) {
         const debtInfo = `${formatCurrency(customer.current_debt)} / ${formatCurrency(customer.credit_limit)}`;
@@ -213,6 +225,7 @@
           tech_id: document.getElementById("techSelect").value || null,
           shift_id: document.getElementById("shiftSelect").value || null,
           payment_method: document.getElementById("paymentMethod").value,
+          debt_due_date: document.getElementById("debtDueDate").value,
           status: document.getElementById("newOrderStatus").value,
           items,
         };
@@ -250,7 +263,7 @@
         return `
           <table>
             <thead>
-              <tr><th>Mã đơn</th><th>Ngày</th><th>Khách hàng</th><th>NV bán</th><th>Kỹ thuật</th><th>SL dòng</th><th>Tổng tiền</th><th>Thanh toán</th><th>Trạng thái</th><th></th></tr>
+              <tr><th>Mã đơn</th><th>Ngày</th><th>Khách hàng</th><th>NV bán</th><th>Kỹ thuật</th><th>SL dòng</th><th>Tổng tiền</th><th>Thanh toán</th><th>Hạn trả</th><th>Trạng thái</th><th></th></tr>
             </thead>
             <tbody>
               ${rows.map((item) => `
@@ -262,7 +275,8 @@
                   <td>${escapeHtml(item.tech_name || "-")}</td>
                   <td>${escapeHtml(item.item_count)}</td>
                   <td>${formatCurrency(item.total_amount)}</td>
-                  <td><span class="badge ${item.payment_method === "debt" ? "warning" : "success"}">${escapeHtml(item.payment_method || "cash")}</span></td>
+                  <td><span class="badge ${item.payment_method === "debt" ? "warning" : "success"}">${escapeHtml(item.payment_method || "cash")}${item.payment_method === "debt" ? ` / ${escapeHtml(item.payment_status || "unpaid")}` : ""}</span></td>
+                  <td>${formatDateOnly(item.debt_due_date)}${Number(item.days_overdue || 0) > 0 ? `<br><span class="badge danger">Trễ ${escapeHtml(item.days_overdue)} ngày</span>` : ""}</td>
                   <td><span class="badge neutral">${escapeHtml(item.status)}</span></td>
                   <td><button class="mini-btn" onclick="loadOrderDetail(${Number(item.order_id)})">Xem</button></td>
                 </tr>`).join("")}
@@ -280,9 +294,12 @@
               <p class="eyebrow">KHANHPAINT INVOICE</p>
               <h2>Đơn hàng #${escapeHtml(order.order_id)}</h2>
               <p>Ngày tạo: ${formatDateTime(order.order_date)}</p>
-              <p>Thanh toán: <strong>${escapeHtml(order.payment_method || "cash")}</strong> · Trạng thái: <strong>${escapeHtml(order.status)}</strong></p>
+              <p>Thanh toán: <strong>${escapeHtml(order.payment_method || "cash")}</strong>${order.payment_method === "debt" ? ` · ${escapeHtml(order.payment_status || "unpaid")} · Hạn trả ${formatDateOnly(order.debt_due_date)}${Number(order.days_overdue || 0) > 0 ? ` · Trễ ${escapeHtml(order.days_overdue)} ngày` : ""}` : ""} · Trạng thái: <strong>${escapeHtml(order.status)}</strong></p>
             </div>
-            <div class="invoice-total">${formatCurrency(order.total_amount)}</div>
+            <div>
+              <div class="invoice-total">${formatCurrency(order.total_amount)}</div>
+              ${order.status !== "cancelled" ? `<button class="mini-btn warning-outline" type="button" onclick="cancelOrder(${Number(order.order_id)})">Hủy đơn</button>` : ""}
+            </div>
           </div>
           <div class="detail-grid">
             <div><strong>Khách hàng</strong><br>${escapeHtml(order.customer_name)}<br>${escapeHtml(order.customer_phone || "-")}<br>${escapeHtml(order.customer_email || "-")}</div>
@@ -323,6 +340,23 @@
               </tbody>
             </table>
           </div>`;
+      }
+
+
+      async function cancelOrder(orderId) {
+        if (!confirm("Hủy đơn sẽ kích hoạt trigger hoàn tồn kho kép và giảm công nợ còn tồn. Bạn chắc chắn muốn hủy?")) return;
+        try {
+          const data = await apiRequest(`${API_ROUTES.UPDATE_ORDER_STATUS}/${orderId}/status`, {
+            method: "PATCH",
+            body: JSON.stringify({ status: "cancelled" }),
+          });
+          showInlineMessage("createOrderMessage", data.message || "Đã hủy đơn.", "success");
+          document.getElementById("orderDetail").innerHTML = renderOrderDetail(data);
+          await loadOrders();
+          await loadOrderOptions();
+        } catch (error) {
+          showInlineMessage("createOrderMessage", error.message, "error");
+        }
       }
 
       async function loadOrders() {

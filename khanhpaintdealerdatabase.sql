@@ -5,10 +5,23 @@ CREATE DATABASE IF NOT EXISTS `khanhpaintdealerdatabase`
 USE `khanhpaintdealerdatabase`;
 
 SET FOREIGN_KEY_CHECKS = 0;
+DROP TRIGGER IF EXISTS `trg_orders_before_insert`;
+DROP TRIGGER IF EXISTS `trg_orders_before_update`;
+DROP TRIGGER IF EXISTS `trg_orders_after_update`;
 DROP TRIGGER IF EXISTS `trg_orderdetails_before_insert`;
 DROP TRIGGER IF EXISTS `trg_orderdetails_after_insert`;
+DROP TRIGGER IF EXISTS `trg_orderdetails_before_update`;
 DROP TRIGGER IF EXISTS `trg_orderdetails_after_delete`;
+DROP TRIGGER IF EXISTS `trg_debt_payments_before_insert`;
+DROP TRIGGER IF EXISTS `trg_debt_payments_after_insert`;
+DROP TRIGGER IF EXISTS `trg_debt_payments_before_update`;
+DROP TRIGGER IF EXISTS `trg_debt_payments_before_delete`;
+DROP VIEW IF EXISTS `v_overdue_debts`;
+DROP VIEW IF EXISTS `v_customer_debt_summary`;
+DROP VIEW IF EXISTS `v_order_summary`;
+DROP VIEW IF EXISTS `v_product_inventory`;
 DROP TABLE IF EXISTS `inventory_logs`;
+DROP TABLE IF EXISTS `debt_payments`;
 DROP TABLE IF EXISTS `orderdetails`;
 DROP TABLE IF EXISTS `orders`;
 DROP TABLE IF EXISTS `employees_shifts`;
@@ -70,6 +83,7 @@ CREATE TABLE `customers` (
   PRIMARY KEY (`customer_id`),
   UNIQUE KEY `uk_customers_email` (`email`),
   KEY `idx_customers_phone` (`phone`),
+  KEY `idx_customers_debt` (`current_debt`),
   CONSTRAINT `chk_customers_name_not_blank` CHECK (char_length(trim(`name`)) > 0),
   CONSTRAINT `chk_customers_role` CHECK (`role` IN ('customer')),
   CONSTRAINT `chk_customers_credit_nonnegative` CHECK (`credit_limit` >= 0 AND `current_debt` >= 0)
@@ -132,6 +146,7 @@ CREATE TABLE `productvariants` (
   PRIMARY KEY (`variant_id`),
   UNIQUE KEY `uk_productvariants_sku` (`sku_code`),
   KEY `idx_productvariants_base_id` (`base_id`),
+  KEY `idx_productvariants_stock` (`stock_quantity`),
   CONSTRAINT `fk_productvariants_base` FOREIGN KEY (`base_id`) REFERENCES `basetypes` (`base_id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `chk_productvariants_sku_not_blank` CHECK (char_length(trim(`sku_code`)) > 0),
   CONSTRAINT `chk_productvariants_price_stock` CHECK (`unit_price` >= 0 AND `stock_quantity` >= 0)
@@ -144,6 +159,7 @@ CREATE TABLE `colorants` (
   `unit_price_per_ml` decimal(12,2) NOT NULL DEFAULT '0.00',
   PRIMARY KEY (`colorant_id`),
   UNIQUE KEY `uk_colorants_name` (`colorant_name`),
+  KEY `idx_colorants_stock` (`stock_ml`),
   CONSTRAINT `chk_colorants_name_not_blank` CHECK (char_length(trim(`colorant_name`)) > 0),
   CONSTRAINT `chk_colorants_stock_price` CHECK (`stock_ml` >= 0 AND `unit_price_per_ml` >= 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -191,19 +207,24 @@ CREATE TABLE `orders` (
   `order_date` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `total_amount` decimal(14,2) NOT NULL DEFAULT '0.00',
   `payment_method` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'cash',
+  `payment_status` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'paid',
+  `debt_due_date` date DEFAULT NULL,
   `status` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'completed',
   PRIMARY KEY (`order_id`),
   KEY `idx_orders_customer_id` (`customer_id`),
   KEY `idx_orders_sales_rep_id` (`sales_rep_id`),
   KEY `idx_orders_tech_id` (`tech_id`),
   KEY `idx_orders_shift_id` (`shift_id`),
+  KEY `idx_orders_debt_due` (`payment_method`, `payment_status`, `debt_due_date`),
   CONSTRAINT `fk_orders_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`customer_id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `fk_orders_sales_rep` FOREIGN KEY (`sales_rep_id`) REFERENCES `employees` (`employee_id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_orders_tech` FOREIGN KEY (`tech_id`) REFERENCES `employees` (`employee_id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_orders_shift` FOREIGN KEY (`shift_id`) REFERENCES `shifts` (`shift_id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `chk_orders_total_nonnegative` CHECK (`total_amount` >= 0),
   CONSTRAINT `chk_orders_payment_method` CHECK (`payment_method` IN ('cash', 'debt')),
-  CONSTRAINT `chk_orders_status` CHECK (`status` IN ('pending', 'completed', 'cancelled'))
+  CONSTRAINT `chk_orders_payment_status` CHECK (`payment_status` IN ('unpaid', 'partial', 'paid')),
+  CONSTRAINT `chk_orders_status` CHECK (`status` IN ('pending', 'completed', 'cancelled')),
+  CONSTRAINT `chk_orders_debt_due_date` CHECK (`payment_method` <> 'debt' OR `debt_due_date` IS NOT NULL)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `orderdetails` (
@@ -219,6 +240,26 @@ CREATE TABLE `orderdetails` (
   CONSTRAINT `fk_orderdetails_variant` FOREIGN KEY (`variant_id`) REFERENCES `productvariants` (`variant_id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `fk_orderdetails_color` FOREIGN KEY (`color_id`) REFERENCES `colorsystem` (`color_id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `chk_orderdetails_quantity_price` CHECK (`quantity` > 0 AND `price_at_sale` >= 0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `debt_payments` (
+  `payment_id` bigint NOT NULL AUTO_INCREMENT,
+  `customer_id` int NOT NULL,
+  `order_id` int NOT NULL,
+  `employee_id` int DEFAULT NULL,
+  `amount` decimal(14,2) NOT NULL,
+  `payment_method` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'cash',
+  `payment_date` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `note` text COLLATE utf8mb4_unicode_ci,
+  PRIMARY KEY (`payment_id`),
+  KEY `idx_debt_payments_customer_id` (`customer_id`),
+  KEY `idx_debt_payments_order_id` (`order_id`),
+  KEY `idx_debt_payments_employee_id` (`employee_id`),
+  CONSTRAINT `fk_debt_payments_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`customer_id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_debt_payments_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`order_id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_debt_payments_employee` FOREIGN KEY (`employee_id`) REFERENCES `employees` (`employee_id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `chk_debt_payments_amount` CHECK (`amount` > 0),
+  CONSTRAINT `chk_debt_payments_method` CHECK (`payment_method` IN ('cash', 'bank_transfer', 'e_wallet', 'other'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `inventory_logs` (
@@ -243,10 +284,105 @@ CREATE TABLE `inventory_logs` (
 
 DELIMITER //
 
+CREATE TRIGGER `trg_orders_before_insert`
+BEFORE INSERT ON `orders`
+FOR EACH ROW
+BEGIN
+  IF NEW.order_date IS NULL THEN
+    SET NEW.order_date = CURRENT_TIMESTAMP;
+  END IF;
+
+  IF NEW.payment_method = 'debt' THEN
+    IF NEW.payment_status IS NULL OR NEW.payment_status = 'paid' THEN
+      SET NEW.payment_status = 'unpaid';
+    END IF;
+    IF NEW.debt_due_date IS NULL THEN
+      SET NEW.debt_due_date = DATE(NEW.order_date) + INTERVAL 15 DAY;
+    END IF;
+  ELSE
+    SET NEW.payment_status = 'paid';
+    SET NEW.debt_due_date = NULL;
+  END IF;
+END//
+
+CREATE TRIGGER `trg_orders_before_update`
+BEFORE UPDATE ON `orders`
+FOR EACH ROW
+BEGIN
+  IF OLD.status = 'cancelled' AND NEW.status <> 'cancelled' THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Không được khôi phục đơn hàng đã hủy vì tồn kho đã hoàn lại.';
+  END IF;
+
+  IF NEW.payment_method = 'debt' THEN
+    IF NEW.debt_due_date IS NULL THEN
+      SET NEW.debt_due_date = DATE(NEW.order_date) + INTERVAL 15 DAY;
+    END IF;
+    IF NEW.payment_status = 'paid' AND NEW.total_amount > COALESCE((SELECT SUM(amount) FROM debt_payments WHERE order_id = NEW.order_id), 0) THEN
+      SET NEW.payment_status = CASE
+        WHEN COALESCE((SELECT SUM(amount) FROM debt_payments WHERE order_id = NEW.order_id), 0) > 0 THEN 'partial'
+        ELSE 'unpaid'
+      END;
+    END IF;
+  ELSE
+    SET NEW.payment_status = 'paid';
+    SET NEW.debt_due_date = NULL;
+  END IF;
+END//
+
+CREATE TRIGGER `trg_orders_after_update`
+AFTER UPDATE ON `orders`
+FOR EACH ROW
+BEGIN
+  DECLARE v_paid_amount decimal(14,2) DEFAULT 0;
+  DECLARE v_outstanding decimal(14,2) DEFAULT 0;
+
+  IF OLD.status <> 'cancelled' AND NEW.status = 'cancelled' THEN
+    UPDATE productvariants pv
+    JOIN orderdetails od ON pv.variant_id = od.variant_id
+    SET pv.stock_quantity = pv.stock_quantity + od.quantity
+    WHERE od.order_id = NEW.order_id;
+
+    INSERT INTO inventory_logs (order_id, variant_id, movement_type, quantity_change, note)
+    SELECT NEW.order_id, od.variant_id, 'ORDER_PRODUCT_RESTORE', od.quantity, 'Hoàn sơn gốc khi hủy đơn hàng'
+    FROM orderdetails od
+    WHERE od.order_id = NEW.order_id;
+
+    UPDATE colorants c
+    JOIN (
+      SELECT csc.colorant_id, SUM(csc.amount_ml * od.quantity) AS restore_ml
+      FROM orderdetails od
+      JOIN colorsystem_colorants csc ON od.color_id = csc.color_id
+      WHERE od.order_id = NEW.order_id
+      GROUP BY csc.colorant_id
+    ) x ON c.colorant_id = x.colorant_id
+    SET c.stock_ml = c.stock_ml + x.restore_ml;
+
+    INSERT INTO inventory_logs (order_id, colorant_id, movement_type, ml_change, note)
+    SELECT NEW.order_id, csc.colorant_id, 'ORDER_COLORANT_RESTORE', SUM(csc.amount_ml * od.quantity), 'Hoàn tinh màu khi hủy đơn hàng'
+    FROM orderdetails od
+    JOIN colorsystem_colorants csc ON od.color_id = csc.color_id
+    WHERE od.order_id = NEW.order_id
+    GROUP BY csc.colorant_id;
+
+    IF OLD.payment_method = 'debt' THEN
+      SELECT COALESCE(SUM(amount), 0) INTO v_paid_amount
+      FROM debt_payments
+      WHERE order_id = OLD.order_id;
+
+      SET v_outstanding = GREATEST(OLD.total_amount - v_paid_amount, 0);
+
+      UPDATE customers
+      SET current_debt = GREATEST(current_debt - v_outstanding, 0)
+      WHERE customer_id = OLD.customer_id;
+    END IF;
+  END IF;
+END//
+
 CREATE TRIGGER `trg_orderdetails_before_insert`
 BEFORE INSERT ON `orderdetails`
 FOR EACH ROW
 BEGIN
+  DECLARE v_order_count int DEFAULT 0;
   DECLARE v_variant_count int DEFAULT 0;
   DECLARE v_color_count int DEFAULT 0;
   DECLARE v_formula_count int DEFAULT 0;
@@ -255,9 +391,32 @@ BEGIN
   DECLARE v_color_base_id int DEFAULT NULL;
   DECLARE v_stock_quantity int DEFAULT 0;
   DECLARE v_unit_price decimal(14,2) DEFAULT 0;
+  DECLARE v_payment_method varchar(20) DEFAULT 'cash';
+  DECLARE v_order_status varchar(100) DEFAULT 'completed';
+  DECLARE v_customer_id int DEFAULT NULL;
+  DECLARE v_credit_limit decimal(14,2) DEFAULT 0;
+  DECLARE v_current_debt decimal(14,2) DEFAULT 0;
+  DECLARE v_line_total decimal(14,2) DEFAULT 0;
 
   IF NEW.quantity IS NULL OR NEW.quantity <= 0 THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Số lượng bán phải lớn hơn 0.';
+  END IF;
+
+  SELECT COUNT(*) INTO v_order_count
+  FROM orders
+  WHERE order_id = NEW.order_id;
+
+  IF v_order_count = 0 THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Đơn hàng không tồn tại.';
+  END IF;
+
+  SELECT payment_method, status, customer_id
+  INTO v_payment_method, v_order_status, v_customer_id
+  FROM orders
+  WHERE order_id = NEW.order_id;
+
+  IF v_order_status = 'cancelled' THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Không thể thêm dòng vào đơn hàng đã hủy.';
   END IF;
 
   SELECT COUNT(*) INTO v_variant_count
@@ -314,83 +473,222 @@ BEGIN
   IF NEW.price_at_sale IS NULL OR NEW.price_at_sale <= 0 THEN
     SET NEW.price_at_sale = v_unit_price;
   END IF;
+
+  IF v_payment_method = 'debt' THEN
+    SELECT credit_limit, current_debt INTO v_credit_limit, v_current_debt
+    FROM customers
+    WHERE customer_id = v_customer_id;
+
+    SET v_line_total = NEW.quantity * NEW.price_at_sale;
+
+    IF v_credit_limit <= 0 OR v_current_debt + v_line_total > v_credit_limit THEN
+      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Đơn hàng vượt hạn mức công nợ của khách hàng.';
+    END IF;
+  END IF;
 END//
 
 CREATE TRIGGER `trg_orderdetails_after_insert`
 AFTER INSERT ON `orderdetails`
 FOR EACH ROW
 BEGIN
-  UPDATE productvariants
-  SET stock_quantity = stock_quantity - NEW.quantity
-  WHERE variant_id = NEW.variant_id;
+  DECLARE v_payment_method varchar(20) DEFAULT 'cash';
+  DECLARE v_order_status varchar(100) DEFAULT 'completed';
 
-  INSERT INTO inventory_logs (order_id, variant_id, movement_type, quantity_change, note)
-  VALUES (NEW.order_id, NEW.variant_id, 'ORDER_PRODUCT_OUT', -NEW.quantity, 'Xuất sơn gốc theo đơn hàng');
-
-  UPDATE colorants c
-  JOIN colorsystem_colorants csc ON c.colorant_id = csc.colorant_id
-  SET c.stock_ml = c.stock_ml - (csc.amount_ml * NEW.quantity)
-  WHERE csc.color_id = NEW.color_id;
-
-  INSERT INTO inventory_logs (order_id, colorant_id, movement_type, ml_change, note)
-  SELECT NEW.order_id, csc.colorant_id, 'ORDER_COLORANT_OUT', -(csc.amount_ml * NEW.quantity), 'Chiết tinh màu theo công thức'
-  FROM colorsystem_colorants csc
-  WHERE csc.color_id = NEW.color_id;
-
-  UPDATE orders
-  SET total_amount = total_amount + (NEW.quantity * NEW.price_at_sale)
+  SELECT payment_method, status INTO v_payment_method, v_order_status
+  FROM orders
   WHERE order_id = NEW.order_id;
 
-  UPDATE customers c
-  JOIN orders o ON c.customer_id = o.customer_id
-  SET c.current_debt = c.current_debt + (NEW.quantity * NEW.price_at_sale)
-  WHERE o.order_id = NEW.order_id
-    AND o.payment_method = 'debt'
-    AND o.status <> 'cancelled';
+  IF v_order_status <> 'cancelled' THEN
+    UPDATE productvariants
+    SET stock_quantity = stock_quantity - NEW.quantity
+    WHERE variant_id = NEW.variant_id;
+
+    INSERT INTO inventory_logs (order_id, variant_id, movement_type, quantity_change, note)
+    VALUES (NEW.order_id, NEW.variant_id, 'ORDER_PRODUCT_OUT', -NEW.quantity, 'Xuất sơn gốc theo đơn hàng');
+
+    UPDATE colorants c
+    JOIN colorsystem_colorants csc ON c.colorant_id = csc.colorant_id
+    SET c.stock_ml = c.stock_ml - (csc.amount_ml * NEW.quantity)
+    WHERE csc.color_id = NEW.color_id;
+
+    INSERT INTO inventory_logs (order_id, colorant_id, movement_type, ml_change, note)
+    SELECT NEW.order_id, csc.colorant_id, 'ORDER_COLORANT_OUT', -(csc.amount_ml * NEW.quantity), 'Chiết tinh màu theo công thức'
+    FROM colorsystem_colorants csc
+    WHERE csc.color_id = NEW.color_id;
+
+    UPDATE orders
+    SET total_amount = total_amount + (NEW.quantity * NEW.price_at_sale)
+    WHERE order_id = NEW.order_id;
+
+    UPDATE customers c
+    JOIN orders o ON c.customer_id = o.customer_id
+    SET c.current_debt = c.current_debt + (NEW.quantity * NEW.price_at_sale)
+    WHERE o.order_id = NEW.order_id
+      AND o.payment_method = 'debt'
+      AND o.status <> 'cancelled';
+  END IF;
+END//
+
+CREATE TRIGGER `trg_orderdetails_before_update`
+BEFORE UPDATE ON `orderdetails`
+FOR EACH ROW
+BEGIN
+  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Không cập nhật trực tiếp dòng đơn hàng; hãy xóa và tạo lại để trigger hoàn tồn kho chính xác.';
 END//
 
 CREATE TRIGGER `trg_orderdetails_after_delete`
 AFTER DELETE ON `orderdetails`
 FOR EACH ROW
 BEGIN
-  UPDATE productvariants
-  SET stock_quantity = stock_quantity + OLD.quantity
-  WHERE variant_id = OLD.variant_id;
+  DECLARE v_payment_method varchar(20) DEFAULT 'cash';
+  DECLARE v_order_status varchar(100) DEFAULT 'completed';
 
-  INSERT INTO inventory_logs (order_id, variant_id, movement_type, quantity_change, note)
-  VALUES (OLD.order_id, OLD.variant_id, 'ORDER_PRODUCT_RESTORE', OLD.quantity, 'Hoàn sơn gốc khi xóa dòng đơn hàng');
-
-  UPDATE colorants c
-  JOIN colorsystem_colorants csc ON c.colorant_id = csc.colorant_id
-  SET c.stock_ml = c.stock_ml + (csc.amount_ml * OLD.quantity)
-  WHERE csc.color_id = OLD.color_id;
-
-  INSERT INTO inventory_logs (order_id, colorant_id, movement_type, ml_change, note)
-  SELECT OLD.order_id, csc.colorant_id, 'ORDER_COLORANT_RESTORE', (csc.amount_ml * OLD.quantity), 'Hoàn tinh màu khi xóa dòng đơn hàng'
-  FROM colorsystem_colorants csc
-  WHERE csc.color_id = OLD.color_id;
-
-  UPDATE orders
-  SET total_amount = GREATEST(total_amount - (OLD.quantity * OLD.price_at_sale), 0)
+  SELECT payment_method, status INTO v_payment_method, v_order_status
+  FROM orders
   WHERE order_id = OLD.order_id;
 
-  UPDATE customers c
-  JOIN orders o ON c.customer_id = o.customer_id
-  SET c.current_debt = GREATEST(c.current_debt - (OLD.quantity * OLD.price_at_sale), 0)
-  WHERE o.order_id = OLD.order_id
-    AND o.payment_method = 'debt'
-    AND o.status <> 'cancelled';
+  IF v_order_status <> 'cancelled' THEN
+    UPDATE productvariants
+    SET stock_quantity = stock_quantity + OLD.quantity
+    WHERE variant_id = OLD.variant_id;
+
+    INSERT INTO inventory_logs (order_id, variant_id, movement_type, quantity_change, note)
+    VALUES (OLD.order_id, OLD.variant_id, 'ORDER_PRODUCT_RESTORE', OLD.quantity, 'Hoàn sơn gốc khi xóa dòng đơn hàng');
+
+    UPDATE colorants c
+    JOIN colorsystem_colorants csc ON c.colorant_id = csc.colorant_id
+    SET c.stock_ml = c.stock_ml + (csc.amount_ml * OLD.quantity)
+    WHERE csc.color_id = OLD.color_id;
+
+    INSERT INTO inventory_logs (order_id, colorant_id, movement_type, ml_change, note)
+    SELECT OLD.order_id, csc.colorant_id, 'ORDER_COLORANT_RESTORE', (csc.amount_ml * OLD.quantity), 'Hoàn tinh màu khi xóa dòng đơn hàng'
+    FROM colorsystem_colorants csc
+    WHERE csc.color_id = OLD.color_id;
+
+    UPDATE orders
+    SET total_amount = GREATEST(total_amount - (OLD.quantity * OLD.price_at_sale), 0)
+    WHERE order_id = OLD.order_id;
+
+    UPDATE customers c
+    JOIN orders o ON c.customer_id = o.customer_id
+    SET c.current_debt = GREATEST(c.current_debt - (OLD.quantity * OLD.price_at_sale), 0)
+    WHERE o.order_id = OLD.order_id
+      AND o.payment_method = 'debt'
+      AND o.status <> 'cancelled';
+  END IF;
+END//
+
+CREATE TRIGGER `trg_debt_payments_before_insert`
+BEFORE INSERT ON `debt_payments`
+FOR EACH ROW
+BEGIN
+  DECLARE v_current_debt decimal(14,2) DEFAULT 0;
+  DECLARE v_order_customer_id int DEFAULT NULL;
+  DECLARE v_payment_method varchar(20) DEFAULT NULL;
+  DECLARE v_order_status varchar(100) DEFAULT NULL;
+  DECLARE v_order_total decimal(14,2) DEFAULT 0;
+  DECLARE v_paid_for_order decimal(14,2) DEFAULT 0;
+
+  IF NEW.amount IS NULL OR NEW.amount <= 0 THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Số tiền thanh toán công nợ phải lớn hơn 0.';
+  END IF;
+
+  SELECT current_debt INTO v_current_debt
+  FROM customers
+  WHERE customer_id = NEW.customer_id;
+
+  IF NEW.amount > v_current_debt THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Số tiền thanh toán lớn hơn công nợ hiện tại.';
+  END IF;
+
+  IF NEW.order_id IS NOT NULL THEN
+    SELECT customer_id, payment_method, status, total_amount
+    INTO v_order_customer_id, v_payment_method, v_order_status, v_order_total
+    FROM orders
+    WHERE order_id = NEW.order_id;
+
+    IF v_order_customer_id IS NULL THEN
+      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Đơn công nợ không tồn tại.';
+    END IF;
+
+    IF v_order_customer_id <> NEW.customer_id THEN
+      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Đơn hàng không thuộc khách hàng đang thanh toán.';
+    END IF;
+
+    IF v_payment_method <> 'debt' THEN
+      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Chỉ được ghi nhận thanh toán cho đơn công nợ.';
+    END IF;
+
+    IF v_order_status = 'cancelled' THEN
+      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Không thanh toán cho đơn đã hủy.';
+    END IF;
+
+    SELECT COALESCE(SUM(amount), 0) INTO v_paid_for_order
+    FROM debt_payments
+    WHERE order_id = NEW.order_id;
+
+    IF v_paid_for_order + NEW.amount > v_order_total THEN
+      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Số tiền thanh toán vượt số tiền còn lại của đơn.';
+    END IF;
+  END IF;
+END//
+
+CREATE TRIGGER `trg_debt_payments_after_insert`
+AFTER INSERT ON `debt_payments`
+FOR EACH ROW
+BEGIN
+  DECLARE v_paid_for_order decimal(14,2) DEFAULT 0;
+  DECLARE v_order_total decimal(14,2) DEFAULT 0;
+
+  UPDATE customers
+  SET current_debt = GREATEST(current_debt - NEW.amount, 0)
+  WHERE customer_id = NEW.customer_id;
+
+  IF NEW.order_id IS NOT NULL THEN
+    SELECT COALESCE(SUM(amount), 0) INTO v_paid_for_order
+    FROM debt_payments
+    WHERE order_id = NEW.order_id;
+
+    SELECT total_amount INTO v_order_total
+    FROM orders
+    WHERE order_id = NEW.order_id;
+
+    UPDATE orders
+    SET payment_status = CASE
+      WHEN v_paid_for_order >= v_order_total THEN 'paid'
+      WHEN v_paid_for_order > 0 THEN 'partial'
+      ELSE 'unpaid'
+    END
+    WHERE order_id = NEW.order_id;
+  END IF;
+END//
+
+CREATE TRIGGER `trg_debt_payments_before_update`
+BEFORE UPDATE ON `debt_payments`
+FOR EACH ROW
+BEGIN
+  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Không sửa trực tiếp phiếu thu công nợ; hãy tạo phiếu điều chỉnh mới.';
+END//
+
+CREATE TRIGGER `trg_debt_payments_before_delete`
+BEFORE DELETE ON `debt_payments`
+FOR EACH ROW
+BEGIN
+  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Không xóa phiếu thu công nợ để bảo toàn lịch sử kế toán.';
 END//
 
 DELIMITER ;
 
-
 CREATE OR REPLACE VIEW `v_product_inventory` AS
 SELECT
   pv.variant_id,
+  pv.base_id,
   pv.sku_code,
+  b.brand_id,
   b.name AS brand_name,
+  pl.line_id,
   pl.name AS line_name,
+  pl.is_interior,
   bt.base_name,
   pv.volume,
   pv.unit_price,
@@ -412,6 +710,12 @@ SELECT
   o.order_date,
   o.total_amount,
   o.payment_method,
+  o.payment_status,
+  o.debt_due_date,
+  CASE
+    WHEN o.payment_method = 'debt' AND o.payment_status <> 'paid' AND o.debt_due_date < CURRENT_DATE THEN DATEDIFF(CURRENT_DATE, o.debt_due_date)
+    ELSE 0
+  END AS days_overdue,
   o.status,
   c.customer_id,
   c.name AS customer_name,
@@ -425,9 +729,69 @@ LEFT JOIN employees sales ON o.sales_rep_id = sales.employee_id
 LEFT JOIN employees tech ON o.tech_id = tech.employee_id
 LEFT JOIN shifts s ON o.shift_id = s.shift_id
 LEFT JOIN orderdetails od ON o.order_id = od.order_id
-GROUP BY o.order_id, o.order_date, o.total_amount, o.payment_method, o.status, c.customer_id, c.name, sales.full_name, tech.full_name, s.shift_name;
+GROUP BY o.order_id, o.order_date, o.total_amount, o.payment_method, o.payment_status, o.debt_due_date, o.status, c.customer_id, c.name, sales.full_name, tech.full_name, s.shift_name;
 
--- Du lieu mau phuc vu demo truy van, ton kho kep, cong thuc mau, trigger va transaction.
+CREATE OR REPLACE VIEW `v_customer_debt_summary` AS
+SELECT
+  c.customer_id,
+  c.name,
+  c.phone,
+  c.email,
+  c.address,
+  c.credit_limit,
+  c.current_debt,
+  GREATEST(c.credit_limit - c.current_debt, 0) AS remaining_credit,
+  MIN(CASE WHEN o.payment_method = 'debt' AND o.status <> 'cancelled' AND o.payment_status <> 'paid' THEN o.debt_due_date END) AS next_due_date,
+  COALESCE(SUM(CASE
+    WHEN o.payment_method = 'debt' AND o.status <> 'cancelled' AND o.payment_status <> 'paid' AND o.debt_due_date < CURRENT_DATE
+    THEN GREATEST(o.total_amount - COALESCE(p.paid_amount, 0), 0)
+    ELSE 0
+  END), 0) AS overdue_amount,
+  CASE
+    WHEN c.current_debt = 0 THEN 'Không nợ'
+    WHEN c.credit_limit > 0 AND c.current_debt > c.credit_limit THEN 'Vượt hạn mức'
+    WHEN COALESCE(SUM(CASE WHEN o.payment_method = 'debt' AND o.status <> 'cancelled' AND o.payment_status <> 'paid' AND o.debt_due_date < CURRENT_DATE THEN 1 ELSE 0 END), 0) > 0 THEN 'Quá hạn'
+    WHEN c.credit_limit > 0 AND c.current_debt >= c.credit_limit * 0.8 THEN 'Sắp vượt hạn mức'
+    ELSE 'Đang nợ'
+  END AS debt_status
+FROM customers c
+LEFT JOIN orders o ON c.customer_id = o.customer_id
+LEFT JOIN (
+  SELECT order_id, SUM(amount) AS paid_amount
+  FROM debt_payments
+  WHERE order_id IS NOT NULL
+  GROUP BY order_id
+) p ON o.order_id = p.order_id
+GROUP BY c.customer_id, c.name, c.phone, c.email, c.address, c.credit_limit, c.current_debt;
+
+CREATE OR REPLACE VIEW `v_overdue_debts` AS
+SELECT
+  o.order_id,
+  o.customer_id,
+  c.name AS customer_name,
+  c.phone AS customer_phone,
+  c.email AS customer_email,
+  o.order_date,
+  o.total_amount,
+  o.debt_due_date,
+  o.payment_status,
+  COALESCE(p.paid_amount, 0) AS paid_amount,
+  GREATEST(o.total_amount - COALESCE(p.paid_amount, 0), 0) AS outstanding_amount,
+  DATEDIFF(CURRENT_DATE, o.debt_due_date) AS days_overdue
+FROM orders o
+JOIN customers c ON o.customer_id = c.customer_id
+LEFT JOIN (
+  SELECT order_id, SUM(amount) AS paid_amount
+  FROM debt_payments
+  WHERE order_id IS NOT NULL
+  GROUP BY order_id
+) p ON o.order_id = p.order_id
+WHERE o.payment_method = 'debt'
+  AND o.status <> 'cancelled'
+  AND o.payment_status <> 'paid'
+  AND o.debt_due_date < CURRENT_DATE;
+
+-- Du lieu mau phuc vu demo truy van, ton kho kep, cong thuc mau, trigger, transaction va cong no co han tra.
 INSERT INTO `jobs` (`job_title`, `min_salary`, `max_salary`) VALUES
 ('Quản lý cửa hàng', 12000000, 20000000),
 ('Nhân viên bán hàng', 7000000, 12000000),
@@ -439,8 +803,16 @@ INSERT INTO `shifts` (`shift_name`, `start_time`, `end_time`) VALUES
 ('Ca tối', '18:00:00', '22:00:00');
 
 INSERT INTO `employees` (`full_name`, `email`, `phone`, `hire_date`, `password_hash`, `job_id`, `role`) VALUES
-('Nguyễn Phú Lâm', 'lam.sales@khanhpaint.local', '0911000001', '2026-05-01', '$2b$10$CwTycUXWue0Thq9StjUM0uJ8mV9QMwb.FsLd0lQpIKqzeC857jGqK', 2, 'staff'),
+('Nguyễn Phú Lâm', 'lam.sales@khanhpaint.local', '0911000001', '2026-05-01', '$2b$10$CwTycUXWue0Thq9StjUM0uJ8mV9QMwb.FsLd0lQpIKqzeC857jGqK', 2, 'admin'),
 ('Trần Gia Huy', 'huy.tech@khanhpaint.local', '0911000002', '2026-05-03', '$2b$10$CwTycUXWue0Thq9StjUM0uJ8mV9QMwb.FsLd0lQpIKqzeC857jGqK', 3, 'staff');
+
+INSERT INTO `employees_shifts` (`employee_id`, `shift_id`, `working_date`) VALUES
+(1, 1, '2026-06-01'),
+(2, 1, '2026-06-01'),
+(1, 2, '2026-06-05'),
+(2, 2, '2026-06-05'),
+(1, 1, '2026-06-10'),
+(2, 1, '2026-06-10');
 
 INSERT INTO `brands` (`name`, `origin`, `description`) VALUES
 ('Dulux', 'Netherlands', 'Thương hiệu sơn trang trí phổ biến cho nội thất và ngoại thất.'),
@@ -501,19 +873,22 @@ INSERT INTO `colorsystem_colorants` (`color_id`, `colorant_id`, `amount_ml`) VAL
 (6, 4, 20.00),
 (6, 6, 5.00);
 
-INSERT INTO `customers` (`name`, `phone`, `email`, `address`, `credit_limit`, `current_debt`) VALUES
-('Nguyễn Văn An', '0901000001', 'an.nguyen@example.com', 'Hà Nội', 5000000, 0),
-('Trần Thị Bình', '0901000002', 'binh.tran@example.com', 'Bắc Ninh', 3000000, 0),
-('Lê Minh Cường', '0901000003', 'cuong.le@example.com', 'Hải Phòng', 3000000, 0);
+INSERT INTO `customers` (`name`, `phone`, `email`, `password_hash`, `address`, `credit_limit`, `current_debt`) VALUES
+('Nguyễn Văn An', '0901000001', 'an.nguyen@example.com', '$2b$10$CwTycUXWue0Thq9StjUM0uJ8mV9QMwb.FsLd0lQpIKqzeC857jGqK', 'Hà Nội', 5000000, 0),
+('Trần Thị Bình', '0901000002', 'binh.tran@example.com', '$2b$10$CwTycUXWue0Thq9StjUM0uJ8mV9QMwb.FsLd0lQpIKqzeC857jGqK', 'Bắc Ninh', 3000000, 0),
+('Lê Minh Cường', '0901000003', 'cuong.le@example.com', '$2b$10$CwTycUXWue0Thq9StjUM0uJ8mV9QMwb.FsLd0lQpIKqzeC857jGqK', 'Hải Phòng', 5000000, 0);
 
-INSERT INTO `orders` (`customer_id`, `sales_rep_id`, `tech_id`, `shift_id`, `order_date`, `total_amount`, `payment_method`, `status`) VALUES
-(1, 1, 2, 1, '2026-06-01 09:30:00', 0, 'debt', 'completed'),
-(2, 1, 2, 2, '2026-06-05 15:10:00', 0, 'cash', 'completed'),
-(3, 1, 2, 1, '2026-06-10 10:45:00', 0, 'debt', 'pending');
+INSERT INTO `orders` (`customer_id`, `sales_rep_id`, `tech_id`, `shift_id`, `order_date`, `total_amount`, `payment_method`, `payment_status`, `debt_due_date`, `status`) VALUES
+(1, 1, 2, 1, '2026-06-01 09:30:00', 0, 'debt', 'unpaid', '2026-06-16', 'completed'),
+(2, 1, 2, 2, '2026-06-05 15:10:00', 0, 'cash', 'paid', NULL, 'completed'),
+(3, 1, 2, 1, '2026-06-10 10:45:00', 0, 'debt', 'unpaid', '2026-06-25', 'pending');
 
 INSERT INTO `orderdetails` (`order_id`, `variant_id`, `color_id`, `quantity`, `price_at_sale`) VALUES
 (1, 2, 1, 1, 720000),
 (1, 3, 3, 1, 765000),
 (2, 5, 4, 1, 890000),
 (3, 4, 6, 1, 2450000),
-(3, 6, 5, 1, 760000);
+(3, 6, 5, 1, 680000);
+
+INSERT INTO `debt_payments` (`customer_id`, `order_id`, `employee_id`, `amount`, `payment_method`, `payment_date`, `note`) VALUES
+(1, 1, 1, 500000, 'cash', '2026-06-12 10:00:00', 'Khách thanh toán một phần công nợ đơn #1');

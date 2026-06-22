@@ -48,6 +48,9 @@
 
             if (response.ok) {
               localStorage.setItem("token", data.token);
+              localStorage.setItem("role", data.role || "customer");
+              localStorage.setItem("type", data.type || "customer");
+              localStorage.setItem("name", data.name || "Khách hàng");
 
               message.style.color = "green";
               message.innerText = "Đăng nhập thành công! Đang chuyển hướng...";
@@ -56,7 +59,7 @@
             } else {
               message.style.color = "red";
               message.innerText =
-                data.message || "Email hoặc mật khẩu không chính xác!";
+                data.error || data.message || "Email hoặc mật khẩu không chính xác!";
             }
           } catch (error) {
             message.style.color = "red";

@@ -70,6 +70,7 @@ router.post("/register", async (req, res) => {
   const phone = String(req.body.phone || "").trim();
   const email = normalizeEmail(req.body.email);
   const password = String(req.body.password || "");
+  const address = String(req.body.address || "").trim();
 
   if (!name || !phone || !email || !password) {
     return res.status(400).json({ error: "Vui lòng nhập đầy đủ thông tin!" });
@@ -96,8 +97,8 @@ router.post("/register", async (req, res) => {
     const password_hash = await bcrypt.hash(password, 10);
 
     await db.query(
-      "INSERT INTO customers (name, phone, email, password_hash, role) VALUES (?, ?, ?, ?, 'customer')",
-      [name, phone, email, password_hash]
+      "INSERT INTO customers (name, phone, email, password_hash, role, address) VALUES (?, ?, ?, ?, 'customer', ?)",
+      [name, phone, email, password_hash, address || null]
     );
 
     res.status(201).json({ message: "Đăng ký thành công!" });
