@@ -259,15 +259,38 @@
           eventClick: function (info) {
             const data = info.event.extendedProps;
             modalDate.innerText = `Lịch ca: ${data.shiftName}`;
+            // Nhóm nhân viên theo job_title
+            const jobGroups = {};
+            data.employees.forEach((e) => {
+              const job = e.jobTitle || "Chưa phân loại";
+              if (!jobGroups[job]) jobGroups[job] = [];
+              jobGroups[job].push(e);
+            });
+
+            const groupHtml = Object.entries(jobGroups)
+              .map(
+                ([jobTitle, emps]) => `
+  <div style="margin-bottom:12px;">
+    <b>${jobTitle}</b> 
+    <span style="background:#007bff; color:white; border-radius:12px;
+                 padding:2px 8px; font-size:12px; margin-left:6px;">
+      ${emps.length} NV
+    </span>
+    <ul style="padding-left:20px; margin-top:6px;">
+      ${emps.map((e) => `<li>[NV-${e.id}] ${e.name}</li>`).join("")}
+    </ul>
+  </div>
+`,
+              )
+              .join("");
+
             modalBody.innerHTML = `
-              <p><b>Giờ làm:</b> ${data.startTime} - ${data.endTime}</p>
-              <p><b>Số lượng:</b> ${data.employees.length} nhân viên</p>
-              <hr/>
-              <p><b>Danh sách nhân sự:</b></p>
-              <ul style="padding-left: 20px;">
-                ${data.employees.map((e) => `<li>[NV-${e.id}] ${e.name}</li>`).join("")}
-              </ul>
-            `;
+  <p><b>Giờ làm:</b> ${data.startTime} - ${data.endTime}</p>
+  <p><b>Tổng số:</b> ${data.employees.length} nhân viên</p>
+  <hr/>
+  <p><b>Danh sách nhân sự theo bộ phận:</b></p>
+  ${groupHtml}
+`;
             shiftModal.style.display = "block";
           },
         });
@@ -356,7 +379,11 @@
 
             // Chống trùng nhân viên trong cùng 1 ca
             if (!groups[key].employees.find((e) => e.id === empId)) {
-              groups[key].employees.push({ id: empId, name: empName });
+              groups[key].employees.push({
+                id: empId,
+                name: empName,
+                jobTitle: item.job_title || "Chưa phân loại",
+              });
             }
           });
 

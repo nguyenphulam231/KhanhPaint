@@ -231,12 +231,15 @@ router.get("/assigned-list", async (req, res) => {
   es.shift_id,
   es.working_date,
   e.full_name,
+  e.job_id,
+  j.job_title,       
   s.shift_name,
   s.start_time,
   s.end_time
 FROM employees_shifts es
 JOIN shifts s ON es.shift_id = s.shift_id
 JOIN employees e ON es.employee_id = e.employee_id
+LEFT JOIN jobs j ON e.job_id = j.job_id   
 ${whereClause}
 ORDER BY es.working_date DESC, s.start_time ASC
     `;
