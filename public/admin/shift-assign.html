@@ -93,6 +93,105 @@
             </div>
           </div>
         </section>
+
+        <section class="admin-card" style="margin-top: 2rem">
+          <h3>Danh sách lịch làm việc</h3>
+
+          <div class="form-section">
+            <div
+              style="
+                display: flex;
+                gap: 15px;
+                flex-wrap: wrap;
+                align-items: flex-end;
+              "
+            >
+              <div style="flex: 1; min-width: 180px">
+                <label><b>Nhân viên:</b></label>
+                <select id="filterEmployee">
+                  <option value="">-- Tất cả --</option>
+                </select>
+              </div>
+              <div style="flex: 1; min-width: 150px">
+                <label><b>Từ ngày:</b></label>
+                <input type="date" id="filterStartDate" />
+              </div>
+              <div style="flex: 1; min-width: 150px">
+                <label><b>Đến ngày:</b></label>
+                <input type="date" id="filterEndDate" />
+              </div>
+              <div>
+                <button
+                  type="button"
+                  id="filterBtn"
+                  style="width: auto; padding: 10px 20px; margin-top: 0"
+                >
+                  Lọc
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div
+            style="
+              display: flex;
+              align-items: center;
+              gap: 12px;
+              margin-bottom: 12px;
+            "
+          >
+            <label
+              style="
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                cursor: pointer;
+              "
+            >
+              <input
+                type="checkbox"
+                id="selectAllCheck"
+                style="width: auto; margin: 0"
+              />
+              <span>Chọn tất cả</span>
+            </label>
+            <button
+              type="button"
+              id="deleteSelectedBtn"
+              style="
+                display: none;
+                width: auto;
+                padding: 8px 16px;
+                background: #dc3545;
+                margin-top: 0;
+              "
+            >
+              Xóa đã chọn (<span id="selectedCount">0</span>)
+            </button>
+          </div>
+
+          <div class="table-responsive">
+            <table class="schedule-table">
+              <thead>
+                <tr>
+                  <th style="width: 40px"></th>
+                  <th>Ngày làm việc</th>
+                  <th>Nhân viên</th>
+                  <th>Ca làm việc</th>
+                  <th>Giờ làm</th>
+                  <th>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="assignedListBody">
+                <tr>
+                  <td colspan="6" style="text-align: center">
+                    Nhấn "Lọc" để tải dữ liệu
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
       </main>
     </div>
 
@@ -121,6 +220,7 @@
       let calendar;
       let teamCalendar;
       const DAYS_MAPPING = [1, 2, 3, 4, 5, 6, 0];
+      let employeeMap = {};
 
       // 1. Khởi tạo 2 quyển lịch
       function initCalendar() {
@@ -242,12 +342,21 @@
                 employees: [],
               };
             }
+
+            // BỌC LÓT 3 LỚP CHẮC CHẮN:
+            // Lớp 1: Lấy trực tiếp item.full_name từ API assigned-list nếu có
+            // Lớp 2: Ép ID sang kiểu chuỗi String(item.employee_id) để tra trong employeeMap
+            // Lớp 3: Nếu không thấy nữa thì dùng chính item.employee_id làm tên tạm thời
+            const empId = item.employee_id;
+            const empName =
+              item.full_name ||
+              employeeMap[String(empId)] ||
+              employeeMap[empId] ||
+              `Nhân viên ${empId}`;
+
             // Chống trùng nhân viên trong cùng 1 ca
-            if (!groups[key].employees.find((e) => e.id === item.employee_id)) {
-              groups[key].employees.push({
-                id: item.employee_id,
-                name: item.full_name,
-              });
+            if (!groups[key].employees.find((e) => e.id === empId)) {
+              groups[key].employees.push({ id: empId, name: empName });
             }
           });
 
@@ -347,8 +456,8 @@
       window.addEventListener("DOMContentLoaded", async () => {
         initCalendar();
         await initWeeklyMatrix();
-        await fetchTeamCalendar(); // Tự động tải lịch tổng hợp ngay khi vào trang
 
+        // 1. TẢI NHÂN VIÊN TRƯỚC
         try {
           const empResponse = await fetch("/api/admin/employees", {
             headers: { Authorization: "Bearer " + getAdminToken() },
@@ -356,13 +465,196 @@
           let employees = await empResponse.json();
           if (employees && !Array.isArray(employees))
             employees = employees.data || employees.employees;
-          employees.forEach((emp) => {
-            employeeSelect.innerHTML += `<option value="${emp.employee_id || emp.id}">[NV-${emp.employee_id || emp.id}] ${emp.full_name}</option>`;
+
+          console.log("Dữ liệu nhân viên trả về từ API:", employees);
+
+          employeeSelect.innerHTML =
+            '<option value="">-- Chọn Nhân viên --</option>';
+
+          if (Array.isArray(employees)) {
+            employees.forEach((emp) => {
+              const empId = emp.employee_id || emp.id;
+              const empName =
+                emp.full_name || emp.fullName || emp.name || "Không rõ tên";
+              if (empId) {
+                employeeMap[String(empId)] = empName;
+                employeeMap[Number(empId)] = empName;
+                employeeSelect.innerHTML += `<option value="${empId}">[NV-${empId}] ${empName}</option>`;
+              }
+            });
+            syncFilterEmployeeDropdown();
+          }
+        } catch (err) {
+          console.error("Lỗi tải nhân viên:", err);
+        }
+
+        // 2. SAU KHI employeeMap ĐÃ ĐẦY ĐỦ, mới tải lịch tổng hợp
+        await fetchTeamCalendar();
+      });
+
+      // ─── DANH SÁCH LỊCH LÀM VIỆC ───────────────────────────────────────────────
+
+      let assignedListData = [];
+
+      function syncFilterEmployeeDropdown() {
+        const filterEmp = document.getElementById("filterEmployee");
+        filterEmp.innerHTML = '<option value="">-- Tất cả --</option>';
+        Object.entries(employeeMap).forEach(([id, name]) => {
+          if (isNaN(id)) return;
+          filterEmp.innerHTML += `<option value="${id}">[NV-${id}] ${name}</option>`;
+        });
+      }
+
+      function renderAssignedList(data) {
+        assignedListData = data;
+        const tbody = document.getElementById("assignedListBody");
+
+        document.getElementById("selectAllCheck").checked = false;
+        document.getElementById("deleteSelectedBtn").style.display = "none";
+        document.getElementById("selectedCount").textContent = "0";
+
+        if (!data.length) {
+          tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;">Không có dữ liệu</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = data
+          .map((item, idx) => {
+            const dateStr = new Date(item.working_date)
+              .toISOString()
+              .split("T")[0];
+            const empName = item.full_name || `Nhân viên ${item.employee_id}`;
+
+            return `
+      <tr>
+        <td>
+          <input type="checkbox" class="row-check"
+            data-emp-id="${item.employee_id}"
+            data-shift-id="${item.shift_id}"
+            data-date="${dateStr}"
+            style="width:auto; margin:0; transform:scale(1.2);" />
+        </td>
+        <td>${dateStr}</td>
+        <td>[NV-${item.employee_id}] ${empName}</td>
+        <td>${item.shift_name}</td>
+        <td>${item.start_time.substring(0, 5)} - ${item.end_time.substring(0, 5)}</td>
+        <td>
+          <button type="button"
+            onclick="deleteSingleShift(${item.employee_id}, ${item.shift_id}, '${dateStr}')"
+            style="width:auto; padding:6px 12px; background:#dc3545; font-size:13px; margin:0;">
+            Xóa
+          </button>
+        </td>
+      </tr>`;
+          })
+          .join("");
+
+        document.querySelectorAll(".row-check").forEach((chk) => {
+          chk.addEventListener("change", updateDeleteSelectedBtn);
+        });
+      }
+
+      function updateDeleteSelectedBtn() {
+        const checked = document.querySelectorAll(".row-check:checked");
+        const btn = document.getElementById("deleteSelectedBtn");
+        document.getElementById("selectedCount").textContent = checked.length;
+        btn.style.display = checked.length > 0 ? "inline-block" : "none";
+      }
+
+      document
+        .getElementById("filterBtn")
+        .addEventListener("click", async () => {
+          const empId = document.getElementById("filterEmployee").value;
+          const startDate = document.getElementById("filterStartDate").value;
+          const endDate = document.getElementById("filterEndDate").value;
+
+          const params = new URLSearchParams();
+          if (empId) params.append("employee_id", empId);
+          if (startDate) params.append("start_date", startDate);
+          if (endDate) params.append("end_date", endDate);
+
+          try {
+            const res = await fetch(
+              `/api/admin/shifts/assigned-list?${params.toString()}`,
+              {
+                headers: { Authorization: "Bearer " + getAdminToken() },
+              },
+            );
+            const data = await res.json();
+            renderAssignedList(Array.isArray(data) ? data : []);
+          } catch (err) {
+            console.error("Lỗi tải danh sách lịch:", err);
+          }
+        });
+
+      document
+        .getElementById("selectAllCheck")
+        .addEventListener("change", function () {
+          document.querySelectorAll(".row-check").forEach((chk) => {
+            chk.checked = this.checked;
           });
+          updateDeleteSelectedBtn();
+        });
+
+      async function deleteSingleShift(employee_id, shift_id, working_date) {
+        if (!confirm(`Xóa ca làm việc ngày ${working_date}?`)) return;
+
+        try {
+          const res = await fetch("/api/admin/shifts/assigned/single", {
+            method: "DELETE",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + getAdminToken(),
+            },
+            body: JSON.stringify({ employee_id, shift_id, working_date }),
+          });
+          if (res.ok) {
+            alert("Đã xóa thành công!");
+            document.getElementById("filterBtn").click(); // tải lại bảng
+            fetchAndRenderEmployeeCalendar();
+            fetchTeamCalendar();
+          } else {
+            alert("Xóa thất bại!");
+          }
         } catch (err) {
           console.error(err);
         }
-      });
+      }
+
+      document
+        .getElementById("deleteSelectedBtn")
+        .addEventListener("click", async () => {
+          const checked = [...document.querySelectorAll(".row-check:checked")];
+          if (!checked.length) return;
+          if (!confirm(`Xóa ${checked.length} ca đã chọn?`)) return;
+
+          const items = checked.map((chk) => ({
+            employee_id: parseInt(chk.dataset.empId),
+            shift_id: parseInt(chk.dataset.shiftId),
+            working_date: chk.dataset.date,
+          }));
+
+          try {
+            const res = await fetch("/api/admin/shifts/assigned/bulk-delete", {
+              method: "DELETE",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: "Bearer " + getAdminToken(),
+              },
+              body: JSON.stringify({ items }),
+            });
+            if (res.ok) {
+              alert("Đã xóa thành công!");
+              document.getElementById("filterBtn").click();
+              fetchAndRenderEmployeeCalendar();
+              fetchTeamCalendar();
+            } else {
+              alert("Xóa thất bại!");
+            }
+          } catch (err) {
+            console.error(err);
+          }
+        });
     </script>
   </body>
 </html>

@@ -203,22 +203,45 @@ router.post("/assign-bulk", async (req, res) => {
 
 // 7. API LẤY DANH SÁCH LỊCH ĐÃ PHÂN ĐỂ XEM
 router.get("/assigned-list", async (req, res) => {
+  const { employee_id, start_date, end_date } = req.query;
+
+  let conditions = [];
+  let params = [];
+
+  if (employee_id) {
+    conditions.push("es.employee_id = ?");
+    params.push(employee_id);
+  }
+  if (start_date) {
+    conditions.push("es.working_date >= ?");
+    params.push(start_date);
+  }
+  if (end_date) {
+    conditions.push("es.working_date <= ?");
+    params.push(end_date);
+  }
+
+  const whereClause =
+    conditions.length > 0 ? "WHERE " + conditions.join(" AND ") : "";
+
   try {
-    // Chỉ chọn các cột thực tế có trong bảng của bạn và bảng shifts
     const query = `
       SELECT 
-        es.employee_id,
-        es.working_date,
-        s.shift_name,
-        s.start_time,
-        s.end_time
-      FROM employees_shifts es
-      JOIN shifts s ON es.shift_id = s.shift_id
-      ORDER BY es.working_date DESC, s.start_time ASC
+  es.employee_id,
+  es.shift_id,
+  es.working_date,
+  e.full_name,
+  s.shift_name,
+  s.start_time,
+  s.end_time
+FROM employees_shifts es
+JOIN shifts s ON es.shift_id = s.shift_id
+JOIN employees e ON es.employee_id = e.employee_id
+${whereClause}
+ORDER BY es.working_date DESC, s.start_time ASC
     `;
-
-    const [rows] = await db.execute(query);
-    res.json(rows); // Trả về mảng dữ liệu sạch cho Front-end .map() mượt mà
+    const [rows] = await db.execute(query, params);
+    res.json(rows);
   } catch (err) {
     console.error("Lỗi SQL assigned-list:", err.message);
     res.status(500).json({ error: err.message });
@@ -245,6 +268,64 @@ router.get("/employee-calendar/:empId", async (req, res) => {
   } catch (err) {
     console.error("Lỗi lấy lịch nhân viên:", err.message);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// 9. XÓA 1 CA ĐÃ PHÂN
+router.delete("/assigned/single", async (req, res) => {
+  const { employee_id, shift_id, working_date } = req.body;
+
+  if (!employee_id || !shift_id || !working_date) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Thiếu thông tin!" });
+  }
+
+  try {
+    const [result] = await db.execute(
+      "DELETE FROM employees_shifts WHERE employee_id = ? AND shift_id = ? AND working_date = ?",
+      [employee_id, shift_id, working_date],
+    );
+    if (result.affectedRows === 0) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Không tìm thấy ca để xóa!" });
+    }
+    res.json({ success: true, message: "Đã xóa ca thành công!" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// 10. XÓA NHIỀU CA ĐÃ PHÂN
+router.delete("/assigned/bulk-delete", async (req, res) => {
+  const { items } = req.body;
+
+  if (!Array.isArray(items) || items.length === 0) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Danh sách không hợp lệ!" });
+  }
+
+  const connection = await db.getConnection();
+  try {
+    await connection.beginTransaction();
+    for (const item of items) {
+      await connection.execute(
+        "DELETE FROM employees_shifts WHERE employee_id = ? AND shift_id = ? AND working_date = ?",
+        [item.employee_id, item.shift_id, item.working_date],
+      );
+    }
+    await connection.commit();
+    res.json({
+      success: true,
+      message: `Đã xóa ${items.length} ca thành công!`,
+    });
+  } catch (err) {
+    await connection.rollback();
+    res.status(500).json({ success: false, message: err.message });
+  } finally {
+    connection.release();
   }
 });
 

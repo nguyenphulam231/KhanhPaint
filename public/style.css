@@ -4,7 +4,6 @@ body {
   background-color: #f4f7f6;
   margin: 0;
   padding: 0;
-
   flex-direction: column;
 }
 
@@ -44,7 +43,7 @@ input {
   margin: 10px 0;
   border: 1px solid #ddd;
   border-radius: 4px;
-  box-sizing: border-box; /* Quan trọng để không bị tràn khung */
+  box-sizing: border-box;
 }
 
 button {
@@ -90,6 +89,7 @@ a:hover {
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
+
 .header-admin {
   display: flex;
   justify-content: space-between;
@@ -98,6 +98,7 @@ a:hover {
   padding-bottom: 10px;
   margin-bottom: 20px;
 }
+
 .logout-btn {
   background-color: #dc3545 !important;
   width: auto !important;
@@ -108,74 +109,7 @@ a:hover {
   border-radius: 4px;
 }
 
-.form-section {
-  margin-bottom: 30px;
-  padding: 20px;
-  background: #f9f9f9;
-  border-radius: 8px;
-}
-
-.form-section input,
-.form-section select {
-  width: 100%;
-  padding: 10px;
-  margin-bottom: 10px;
-  box-sizing: border-box;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-}
-.form-section button {
-  width: 100%;
-  padding: 10px;
-  background-color: #28a745;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-/* --- BỔ SUNG GIAO DIỆN ADMIN MỚI --- */
-.admin-container {
-  display: flex;
-  min-height: 100vh;
-}
-.sidebar {
-  width: 250px;
-  background: #343a40;
-  color: white;
-  padding: 20px;
-  flex-shrink: 0;
-}
-.main-content {
-  flex: 1;
-  padding: 40px;
-  background: #f8f9fa;
-}
-.menu-item {
-  cursor: pointer;
-  padding: 15px;
-  border-bottom: 1px solid #495057;
-  display: block;
-  color: #ced4da;
-  text-decoration: none;
-  transition: 0.3s;
-}
-.menu-item:hover {
-  background: #495057;
-  color: white;
-  padding-left: 20px;
-}
-.menu-item.active {
-  background: #198754;
-  color: white;
-  font-weight: 600;
-}
-.content-section {
-  display: none;
-}
-.content-section.active {
-  display: block;
-}
+/* ── form-section (giữ định nghĩa đầy đủ nhất) ── */
 .form-section {
   margin-bottom: 30px;
   padding: 20px;
@@ -184,6 +118,7 @@ a:hover {
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
   border: 1px solid #e9ecef;
 }
+
 .form-section input,
 .form-section select {
   width: 100%;
@@ -193,6 +128,7 @@ a:hover {
   border: 1px solid #ccc;
   border-radius: 4px;
 }
+
 .form-section button {
   width: 100%;
   padding: 12px;
@@ -203,13 +139,65 @@ a:hover {
   cursor: pointer;
   font-weight: bold;
 }
+
 .form-section button:hover {
   background-color: #218838;
 }
 
-/* --- SỬA LỖI LAYOUT ĐĂNG NHẬP & ADMIN --- */
+/* Admin Sidebar Layout */
+.admin-container {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+  align-items: stretch;
+}
 
-/* 1. Reset lỗi do 'flex-direction: column' ở body cũ gây ra cho trang đăng nhập */
+.sidebar {
+  width: 250px;
+  background: #343a40;
+  color: white;
+  padding: 20px;
+  flex-shrink: 0;
+}
+
+.main-content {
+  flex: 1;
+  padding: 40px;
+  background: #f8f9fa;
+  min-width: 0;
+}
+
+.menu-item {
+  cursor: pointer;
+  padding: 15px;
+  border-bottom: 1px solid #495057;
+  display: block;
+  color: #ced4da;
+  text-decoration: none;
+  transition: 0.3s;
+}
+
+.menu-item:hover {
+  background: #495057;
+  color: white;
+  padding-left: 20px;
+}
+
+.menu-item.active {
+  background: #198754;
+  color: white;
+  font-weight: 600;
+}
+
+.content-section {
+  display: none;
+}
+
+.content-section.active {
+  display: block;
+}
+
+/* Login page wrapper */
 .login-page-wrapper {
   display: flex;
   justify-content: center;
@@ -218,31 +206,7 @@ a:hover {
   width: 100%;
 }
 
-/* 2. Ép buộc admin-container không bị ảnh hưởng bởi các cài đặt body chung */
-.admin-container {
-  display: flex;
-  min-height: 100vh;
-  width: 100%;
-  align-items: stretch; /* Đảm bảo sidebar luôn cao bằng main-content */
-}
-
-/* 3. Tinh chỉnh sidebar để không bị co bóp */
-.sidebar {
-  width: 250px;
-  background: #343a40;
-  color: white;
-  padding: 20px;
-  flex-shrink: 0; /* Quan trọng: Ngăn không cho sidebar co lại */
-}
-
-/* 4. Đảm bảo main-content không bị đẩy vỡ nếu dữ liệu dài */
-.main-content {
-  flex: 1;
-  padding: 40px;
-  background: #f8f9fa;
-  min-width: 0; /* Quan trọng: Giúp flex container co giãn hợp lý */
-}
-
+/* Page header */
 .page-header {
   display: flex;
   justify-content: space-between;
@@ -293,6 +257,8 @@ a:hover {
   padding: 24px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
 }
+
+/* Date range */
 .date-range-group {
   display: flex;
   gap: 15px;
@@ -303,6 +269,7 @@ a:hover {
   flex: 1;
 }
 
+/* Schedule table */
 .schedule-table {
   width: 100%;
   border-collapse: collapse;
@@ -339,7 +306,7 @@ a:hover {
   margin-top: 2px;
 }
 
-/* Lịch cá nhân - Màu xanh lá */
+/* Calendar events */
 .has-shift-event {
   background-color: #28a745 !important;
   border-color: #28a745 !important;
@@ -349,7 +316,6 @@ a:hover {
   text-align: center;
 }
 
-/* Lịch tổng hợp - Màu xanh dương */
 .team-shift-event {
   background-color: #007bff !important;
   border-color: #007bff !important;
@@ -359,7 +325,7 @@ a:hover {
   text-align: center;
 }
 
-/* Chia đôi layout lịch */
+/* Calendars layout */
 .calendars-wrapper {
   display: flex;
   gap: 20px;
@@ -376,6 +342,7 @@ a:hover {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
+/* Modal */
 .modal {
   display: none;
   position: fixed;
@@ -410,9 +377,7 @@ a:hover {
   color: #000;
 }
 
-/* ==========================================================================
-   2. Tách các thuộc tính inline style từ HTML sang đây cho sạch
-   ========================================================================== */
+/* Utility classes */
 .admin-card.mb-large {
   margin-bottom: 2rem;
 }
