@@ -67,12 +67,10 @@ router.put("/update/:id", async (req, res) => {
     ]);
 
     if (result.affectedRows === 0) {
-      return res
-        .status(404)
-        .json({
-          success: false,
-          message: "Không tìm thấy dữ liệu ca làm để cập nhật!",
-        });
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy dữ liệu ca làm để cập nhật!",
+      });
     }
     res.json({ success: true, message: "Cập nhật ca làm việc thành công!" });
   } catch (error) {
@@ -107,12 +105,10 @@ router.delete("/delete/:id", async (req, res) => {
           "Không thể xóa ca làm này do dữ liệu đang được sử dụng trong bảng phân lịch làm việc của nhân viên!",
       });
     }
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Lỗi hệ thống khi thực hiện xóa ca làm.",
-      });
+    res.status(500).json({
+      success: false,
+      message: "Lỗi hệ thống khi thực hiện xóa ca làm.",
+    });
   }
 });
 
@@ -136,6 +132,119 @@ router.post("/assign", async (req, res) => {
     res
       .status(500)
       .json({ success: false, message: "Lỗi server khi phân ca." });
+  }
+});
+
+// 6. PHÂN CA HÀNG LOẠT THEO LỊCH TUẦN (Đã tối ưu cho Khóa phức hợp: employee_id, shift_id, working_date)
+router.post("/assign-bulk", async (req, res) => {
+  const { employee_id, start_date, end_date, weekly_pattern } = req.body;
+
+  if (!employee_id || !start_date || !end_date || !weekly_pattern) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Thiếu thông tin cấu hình phân ca." });
+  }
+
+  const connection = await db.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    const start = new Date(start_date);
+    const end = new Date(end_date);
+    const insertValues = [];
+
+    let current = new Date(start);
+    while (current <= end) {
+      const dayOfWeek = current.getDay(); // 0: Chủ Nhật, 1: Thứ 2,...
+      const formattedDate = current.toISOString().split("T")[0];
+
+      const shiftsForThisDay = weekly_pattern[dayOfWeek];
+      if (
+        shiftsForThisDay &&
+        Array.isArray(shiftsForThisDay) &&
+        shiftsForThisDay.length > 0
+      ) {
+        shiftsForThisDay.forEach((shiftId) => {
+          insertValues.push([employee_id, shiftId, formattedDate]);
+        });
+      }
+      current.setDate(current.getDate() + 1);
+    }
+
+    if (insertValues.length > 0) {
+      // Sử dụng INSERT IGNORE: Nếu trùng lịch cũ (trùng cả 3 trường khóa chính) thì bỏ qua, không báo lỗi hệ thống
+      const sql =
+        "INSERT IGNORE INTO employees_shifts (employee_id, shift_id, working_date) VALUES ?";
+      const [result] = await connection.query(sql, [insertValues]);
+
+      await connection.commit();
+      res.status(201).json({
+        success: true,
+        message: `Đã xử lý đắp lịch tuần thành công! Tạo mới thành công ${result.affectedRows} ca làm việc (Các ca trùng lịch cũ đã được tự động bỏ qua).`,
+      });
+    } else {
+      await connection.rollback();
+      return res.status(400).json({
+        success: false,
+        message: "Không tìm thấy ca làm việc nào khớp để xếp lịch!",
+      });
+    }
+  } catch (error) {
+    await connection.rollback();
+    console.error("Lỗi phân ca hàng loạt:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi hệ thống khi đắp lịch tuần: " + error.message,
+    });
+  } finally {
+    connection.release();
+  }
+});
+
+// 7. API LẤY DANH SÁCH LỊCH ĐÃ PHÂN ĐỂ XEM
+router.get("/assigned-list", async (req, res) => {
+  try {
+    // Chỉ chọn các cột thực tế có trong bảng của bạn và bảng shifts
+    const query = `
+      SELECT 
+        es.employee_id,
+        es.working_date,
+        s.shift_name,
+        s.start_time,
+        s.end_time
+      FROM employees_shifts es
+      JOIN shifts s ON es.shift_id = s.shift_id
+      ORDER BY es.working_date DESC, s.start_time ASC
+    `;
+
+    const [rows] = await db.execute(query);
+    res.json(rows); // Trả về mảng dữ liệu sạch cho Front-end .map() mượt mà
+  } catch (err) {
+    console.error("Lỗi SQL assigned-list:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 8. API LẤY LỊCH LÀM VIỆC CỦA MỘT NHÂN VIÊN CỤ THỂ (MỚI)
+router.get("/employee-calendar/:empId", async (req, res) => {
+  const { empId } = req.params;
+  try {
+    const query = `
+      SELECT 
+        es.working_date,
+        s.shift_name,
+        s.start_time,
+        s.end_time
+      FROM employees_shifts es
+      JOIN shifts s ON es.shift_id = s.shift_id
+      WHERE es.employee_id = ?
+      ORDER BY es.working_date ASC
+    `;
+    const [rows] = await db.execute(query, [empId]);
+    res.json(rows);
+  } catch (err) {
+    console.error("Lỗi lấy lịch nhân viên:", err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 

@@ -4,7 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="/style.css" />
-    <title>Phân ca làm việc</title>
+    <title>Phân ca làm việc nâng cao & Thời khóa biểu</title>
+
+    <link
+      href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
   </head>
   <body>
     <div class="admin-container">
@@ -12,70 +18,351 @@
 
       <main class="main-content">
         <div class="page-header">
-          <h1>Phân ca cho nhân viên</h1>
+          <div>
+            <p class="eyebrow">Quản trị nhân sự</p>
+            <h1>Thiết lập & Đắp lịch tuần hàng loạt</h1>
+          </div>
         </div>
 
-        <section class="admin-card">
+        <section class="admin-card mb-large">
+          <h3>Bước 1: Chọn Nhân viên & Thời gian áp dụng</h3>
           <div class="form-section">
-            <label for="employeeSelect">Chọn nhân viên:</label>
-            <select id="employeeSelect"></select>
+            <label for="employeeSelect"
+              ><b>Chọn nhân viên áp dụng lịch:</b></label
+            >
+            <select id="employeeSelect" required>
+              <option value="">-- Chọn Nhân viên --</option>
+            </select>
 
-            <label for="shiftSelect">Chọn ca làm:</label>
-            <select id="shiftSelect"></select>
+            <div class="date-range-group">
+              <div>
+                <label for="startDate"><b>Từ ngày:</b></label>
+                <input type="date" id="startDate" required />
+              </div>
+              <div>
+                <label for="endDate"><b>Đến ngày:</b></label>
+                <input type="date" id="endDate" required />
+              </div>
+            </div>
 
-            <label for="workingDate">Ngày làm việc:</label>
-            <input type="date" id="workingDate" required />
+            <h3 class="mt-20">
+              Bước 2: Click tick chọn các ca làm việc trong tuần
+            </h3>
 
-            <button id="assignBtn" type="button">Lưu phân ca</button>
+            <div class="table-responsive">
+              <table class="schedule-table">
+                <thead>
+                  <tr>
+                    <th>Ca làm việc</th>
+                    <th>T2</th>
+                    <th>T3</th>
+                    <th>T4</th>
+                    <th>T5</th>
+                    <th>T6</th>
+                    <th>T7</th>
+                    <th>CN</th>
+                  </tr>
+                </thead>
+                <tbody id="scheduleTemplateBody">
+                  <tr>
+                    <td colspan="8">Đang tải...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <button id="assignBulkBtn" type="button">
+              Kích hoạt đắp lịch chu kỳ tuần hàng loạt
+            </button>
+          </div>
+        </section>
+
+        <section class="admin-card">
+          <h3>Bước 3: Thời khóa biểu trực quan</h3>
+          <div class="calendars-wrapper">
+            <div class="calendar-container">
+              <h4 class="calendar-title-personal">Lịch cá nhân nhân viên</h4>
+              <div id="calendar"></div>
+            </div>
+
+            <div class="calendar-container">
+              <h4 class="calendar-title-team">
+                Lịch tổng hợp theo ca (Toàn công ty)
+              </h4>
+              <div id="teamCalendar"></div>
+            </div>
           </div>
         </section>
       </main>
     </div>
 
+    <div id="shiftModal" class="modal">
+      <div class="modal-content">
+        <span class="close-btn" id="closeModal">&times;</span>
+        <h3 id="modalDate">Chi tiết ngày làm việc</h3>
+        <div id="modalBody"></div>
+      </div>
+    </div>
+
     <script src="/js/api.js"></script>
     <script src="/js/admin-common.js"></script>
     <script>
-      mountAdminSidebar("assign-shift"); // Đảm bảo trùng với key trong admin-common.js
+      mountAdminSidebar("assign-shift");
       initAdminShell();
 
-      // Load dữ liệu khi trang vừa mở
-      window.onload = () => {
-        loadEmployeesIntoSelect("employeeSelect");
-        loadShiftsIntoSelect("shiftSelect");
-      };
+      const scheduleTemplateBody = document.getElementById(
+        "scheduleTemplateBody",
+      );
+      const employeeSelect = document.getElementById("employeeSelect");
+      const shiftModal = document.getElementById("shiftModal");
+      const modalDate = document.getElementById("modalDate");
+      const modalBody = document.getElementById("modalBody");
 
-      document
-        .getElementById("assignBtn")
-        .addEventListener("click", async () => {
-          const empId = document.getElementById("employeeSelect").value;
-          const shiftId = document.getElementById("shiftSelect").value;
-          const date = document.getElementById("workingDate").value;
+      let calendar;
+      let teamCalendar;
+      const DAYS_MAPPING = [1, 2, 3, 4, 5, 6, 0];
 
-          if (!empId || !shiftId || !date) {
-            return alert("Vui lòng điền đầy đủ thông tin!");
-          }
+      // 1. Khởi tạo 2 quyển lịch
+      function initCalendar() {
+        const calendarEl = document.getElementById("calendar");
+        calendar = new FullCalendar.Calendar(calendarEl, {
+          initialView: "dayGridMonth",
+          locale: "vi",
+          firstDay: 1,
+          eventOrder: "startTime",
+          headerToolbar: {
+            left: "prev,next today",
+            center: "title",
+            right: "",
+          },
+          eventClick: function (info) {
+            const data = info.event.extendedProps;
+            modalDate.innerText = "Chi tiết ca: " + info.event.title;
+            modalBody.innerHTML = `<p><b>Thời gian:</b> ${data.startTime} - ${data.endTime}</p>`;
+            shiftModal.style.display = "block";
+          },
+        });
+        calendar.render();
 
-          const response = await fetch(API_ROUTES.ASSIGN_SHIFT, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: "Bearer " + getAdminToken(),
+        const teamCalendarEl = document.getElementById("teamCalendar");
+        teamCalendar = new FullCalendar.Calendar(teamCalendarEl, {
+          initialView: "dayGridMonth",
+          locale: "vi",
+          firstDay: 1,
+          eventOrder: "startTime",
+          displayEventTime: false,
+          headerToolbar: {
+            left: "prev,next today",
+            center: "title",
+            right: "",
+          },
+          eventClick: function (info) {
+            const data = info.event.extendedProps;
+            modalDate.innerText = `Lịch ca: ${data.shiftName}`;
+            modalBody.innerHTML = `
+              <p><b>Giờ làm:</b> ${data.startTime} - ${data.endTime}</p>
+              <p><b>Số lượng:</b> ${data.employees.length} nhân viên</p>
+              <hr/>
+              <p><b>Danh sách nhân sự:</b></p>
+              <ul style="padding-left: 20px;">
+                ${data.employees.map((e) => `<li>[NV-${e.id}] ${e.name}</li>`).join("")}
+              </ul>
+            `;
+            shiftModal.style.display = "block";
+          },
+        });
+        teamCalendar.render();
+      }
+
+      // 2. Tải lịch cá nhân (Đã có lọc trùng)
+      async function fetchAndRenderEmployeeCalendar() {
+        const empId = employeeSelect.value;
+        if (!empId) {
+          calendar.removeAllEvents();
+          return;
+        }
+        try {
+          const response = await fetch(
+            `/api/admin/shifts/employee-calendar/${empId}`,
+            {
+              headers: { Authorization: "Bearer " + getAdminToken() },
             },
-            body: JSON.stringify({
-              employee_id: empId,
-              shift_id: shiftId,
-              working_date: date,
-            }),
+          );
+          const shifts = await response.json();
+          calendar.removeAllEvents();
+
+          const uniqueEvents = [];
+          const seen = new Set();
+          shifts.forEach((item) => {
+            const dateStr = new Date(item.working_date)
+              .toISOString()
+              .split("T")[0];
+            const key = dateStr + "_" + item.shift_name;
+            if (!seen.has(key)) {
+              seen.add(key);
+              uniqueEvents.push({
+                title: item.shift_name,
+                start: dateStr,
+                className: "has-shift-event",
+                extendedProps: {
+                  startTime: item.start_time.substring(0, 5),
+                  endTime: item.end_time.substring(0, 5),
+                },
+              });
+            }
+          });
+          calendar.addEventSource(uniqueEvents);
+        } catch (error) {
+          console.error(error);
+        }
+      }
+
+      // 2b. Tải lịch tổng hợp (Team View)
+      async function fetchTeamCalendar() {
+        try {
+          const response = await fetch("/api/admin/shifts/assigned-list", {
+            headers: { Authorization: "Bearer " + getAdminToken() },
+          });
+          const list = await response.json();
+          teamCalendar.removeAllEvents();
+
+          // Nhóm nhân viên theo ngày và ca
+          const groups = {};
+          list.forEach((item) => {
+            const dateStr = new Date(item.working_date)
+              .toISOString()
+              .split("T")[0];
+            const key = dateStr + "_" + item.shift_name;
+            if (!groups[key]) {
+              groups[key] = {
+                date: dateStr,
+                shiftName: item.shift_name,
+                start: item.start_time.substring(0, 5),
+                end: item.end_time.substring(0, 5),
+                employees: [],
+              };
+            }
+            // Chống trùng nhân viên trong cùng 1 ca
+            if (!groups[key].employees.find((e) => e.id === item.employee_id)) {
+              groups[key].employees.push({
+                id: item.employee_id,
+                name: item.full_name,
+              });
+            }
           });
 
-          const result = await response.json();
-          if (result.success) {
-            alert("Phân ca thành công!");
-            window.location.reload();
-          } else {
-            alert(result.message || "Lỗi khi phân ca");
+          const events = Object.values(groups).map((g) => ({
+            title: `${g.shiftName} (${g.employees.length} NV)`,
+            start: g.date,
+            className: "team-shift-event",
+            extendedProps: {
+              shiftName: g.shiftName,
+              startTime: g.start,
+              endTime: g.end,
+              employees: g.employees,
+            },
+          }));
+
+          teamCalendar.addEventSource(events);
+        } catch (error) {
+          console.error(error);
+        }
+      }
+
+      employeeSelect.addEventListener("change", fetchAndRenderEmployeeCalendar);
+
+      async function initWeeklyMatrix() {
+        try {
+          const response = await fetch("/api/admin/shifts", {
+            headers: { Authorization: "Bearer " + getAdminToken() },
+          });
+          const shifts = await response.json();
+          scheduleTemplateBody.innerHTML = shifts
+            .map((shift) => {
+              const columns = DAYS_MAPPING.map(
+                (day) =>
+                  `<td><label class="checkbox-cell"><input type="checkbox" class="shift-pattern-check" data-shift-id="${shift.shift_id}" data-day="${day}"></label></td>`,
+              ).join("");
+              return `<tr><td style="text-align:left;"><b>${shift.shift_name}</b><br/><small>${shift.start_time.substring(0, 5)}-${shift.end_time.substring(0, 5)}</small></td>${columns}</tr>`;
+            })
+            .join("");
+        } catch (err) {
+          console.error(err);
+        }
+      }
+
+      document
+        .getElementById("assignBulkBtn")
+        .addEventListener("click", async () => {
+          const empId = employeeSelect.value;
+          const start_date = document.getElementById("startDate").value;
+          const end_date = document.getElementById("endDate").value;
+          if (!empId || !start_date || !end_date)
+            return alert("Thiếu thông tin!");
+
+          const weekly_pattern = {
+            0: [],
+            1: [],
+            2: [],
+            3: [],
+            4: [],
+            5: [],
+            6: [],
+          };
+          document
+            .querySelectorAll(".shift-pattern-check:checked")
+            .forEach((chk) => {
+              weekly_pattern[chk.dataset.day].push(
+                parseInt(chk.dataset.shiftId),
+              );
+            });
+
+          try {
+            const response = await fetch("/api/admin/shifts/assign-bulk", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: "Bearer " + getAdminToken(),
+              },
+              body: JSON.stringify({
+                employee_id: parseInt(empId),
+                start_date,
+                end_date,
+                weekly_pattern,
+              }),
+            });
+            if (response.ok) {
+              alert("Đắp lịch thành công!");
+              fetchAndRenderEmployeeCalendar();
+              fetchTeamCalendar(); // Cập nhật luôn cả lịch tổng hợp
+            }
+          } catch (err) {
+            console.error(err);
           }
         });
+
+      document.getElementById("closeModal").onclick = () =>
+        (shiftModal.style.display = "none");
+
+      window.addEventListener("DOMContentLoaded", async () => {
+        initCalendar();
+        await initWeeklyMatrix();
+        await fetchTeamCalendar(); // Tự động tải lịch tổng hợp ngay khi vào trang
+
+        try {
+          const empResponse = await fetch("/api/admin/employees", {
+            headers: { Authorization: "Bearer " + getAdminToken() },
+          });
+          let employees = await empResponse.json();
+          if (employees && !Array.isArray(employees))
+            employees = employees.data || employees.employees;
+          employees.forEach((emp) => {
+            employeeSelect.innerHTML += `<option value="${emp.employee_id || emp.id}">[NV-${emp.employee_id || emp.id}] ${emp.full_name}</option>`;
+          });
+        } catch (err) {
+          console.error(err);
+        }
+      });
     </script>
   </body>
 </html>
