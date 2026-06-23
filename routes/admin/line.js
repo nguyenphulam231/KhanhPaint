@@ -4,14 +4,60 @@ const router = express.Router();
 const db = require("../../db");
 
 router.get("/", async (req, res) => {
+  const {
+    brand_id,
+    is_interior,
+    gloss_level,
+    coverage_min,
+    coverage_max,
+    layers_min,
+    layers_max,
+  } = req.query;
+
+  let conditions = [];
+  let params = [];
+
+  if (brand_id) {
+    conditions.push("pl.brand_id = ?");
+    params.push(brand_id);
+  }
+  if (is_interior !== undefined && is_interior !== "") {
+    conditions.push("pl.is_interior = ?");
+    params.push(is_interior);
+  }
+  if (gloss_level) {
+    conditions.push("pl.gloss_level = ?");
+    params.push(gloss_level);
+  }
+  if (coverage_min) {
+    conditions.push("pl.coverage_rate >= ?");
+    params.push(parseFloat(coverage_min));
+  }
+  if (coverage_max) {
+    conditions.push("pl.coverage_rate <= ?");
+    params.push(parseFloat(coverage_max));
+  }
+  if (layers_min) {
+    conditions.push("CAST(pl.recommended_layers AS UNSIGNED) >= ?");
+    params.push(parseInt(layers_min));
+  }
+  if (layers_max) {
+    conditions.push("CAST(pl.recommended_layers AS UNSIGNED) <= ?");
+    params.push(parseInt(layers_max));
+  }
+
+  const whereClause =
+    conditions.length > 0 ? "WHERE " + conditions.join(" AND ") : "";
+
   try {
     const query = `
       SELECT pl.*, b.name AS brand_name 
       FROM productlines pl
       LEFT JOIN brands b ON pl.brand_id = b.brand_id
+      ${whereClause}
       ORDER BY pl.line_id DESC
     `;
-    const [rows] = await db.execute(query);
+    const [rows] = await db.execute(query, params);
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -74,6 +74,70 @@
         font-size: 12px;
         font-weight: bold;
       }
+
+      .filter-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: flex-end;
+        margin-bottom: 16px;
+      }
+      .filter-grid > div {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 140px;
+        flex: 1;
+      }
+      .filter-grid label {
+        font-size: 12px;
+        font-weight: bold;
+        color: #555;
+      }
+      .filter-grid input,
+      .filter-grid select {
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 13px;
+        width: 100%;
+        box-sizing: border-box;
+        margin: 0;
+      }
+      .filter-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+      }
+      .btn-filter {
+        background-color: #0d6efd;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: bold;
+      }
+      .btn-reset-filter {
+        background-color: #6c757d;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .btn-delete-selected {
+        background-color: #dc3545;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: bold;
+        display: none;
+      }
     </style>
   </head>
   <body>
@@ -138,32 +202,127 @@
 
         <section class="admin-card mt-4">
           <h2>Danh sách dòng sản phẩm hiện tại</h2>
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Dòng sản phẩm</th>
-                <th>Thương hiệu</th>
-                <th>Loại sơn</th>
-                <th>Thông số kỹ thuật</th>
-                <th>Hành động</th>
-              </tr>
-            </thead>
-            <tbody id="lineTableBody">
-              <tr>
-                <td
-                  colspan="6"
-                  style="text-align: center; font-style: italic; color: #777"
-                >
-                  Đang tải danh sách dòng sản phẩm...
-                </td>
-              </tr>
-            </tbody>
-          </table>
+
+          <!-- Bộ lọc -->
+          <div class="filter-grid">
+            <div>
+              <label>Thương hiệu</label>
+              <select id="filterBrand">
+                <option value="">-- Tất cả --</option>
+              </select>
+            </div>
+            <div>
+              <label>Loại sơn</label>
+              <select id="filterInterior">
+                <option value="">-- Tất cả --</option>
+                <option value="1">Nội thất</option>
+                <option value="0">Ngoại thất</option>
+              </select>
+            </div>
+            <div>
+              <label>Độ bóng</label>
+              <select id="filterGloss">
+                <option value="">-- Tất cả --</option>
+                <option value="Mờ">Mờ</option>
+                <option value="Vỏ trứng">Vỏ trứng</option>
+                <option value="Bóng nhẹ">Bóng nhẹ</option>
+                <option value="Bán bóng">Bán bóng</option>
+                <option value="Siêu bóng">Siêu bóng</option>
+              </select>
+            </div>
+            <div>
+              <label>Độ phủ từ (m²/lít)</label>
+              <input
+                type="number"
+                id="filterCoverageMin"
+                placeholder="VD: 8"
+                step="0.01"
+              />
+            </div>
+            <div>
+              <label>Đến</label>
+              <input
+                type="number"
+                id="filterCoverageMax"
+                placeholder="VD: 15"
+                step="0.01"
+              />
+            </div>
+            <div>
+              <label>Số lớp từ</label>
+              <input
+                type="number"
+                id="filterLayersMin"
+                placeholder="VD: 1"
+                min="1"
+              />
+            </div>
+            <div>
+              <label>Đến</label>
+              <input
+                type="number"
+                id="filterLayersMax"
+                placeholder="VD: 3"
+                min="1"
+              />
+            </div>
+          </div>
+
+          <div class="filter-actions">
+            <button class="btn-filter" id="applyFilterBtn">Lọc</button>
+            <button class="btn-reset-filter" id="resetFilterBtn">Bỏ lọc</button>
+            <label
+              style="
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                cursor: pointer;
+                margin-left: 8px;
+              "
+            >
+              <input
+                type="checkbox"
+                id="selectAllCheck"
+                style="width: auto; margin: 0; transform: scale(1.2)"
+              />
+              <span style="font-size: 14px">Chọn tất cả</span>
+            </label>
+            <button class="btn-delete-selected" id="deleteSelectedBtn">
+              Xóa đã chọn (<span id="selectedCount">0</span>)
+            </button>
+          </div>
+
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th style="width: 40px"></th>
+                  <th>ID</th>
+                  <th>Dòng sản phẩm</th>
+                  <th>Thương hiệu</th>
+                  <th>Loại sơn</th>
+                  <th>Thông số kỹ thuật</th>
+                  <th>Hành động</th>
+                </tr>
+              </thead>
+              <tbody id="lineTableBody">
+                <tr>
+                  <td
+                    colspan="7"
+                    style="text-align: center; font-style: italic; color: #777"
+                  >
+                    Đang tải danh sách dòng sản phẩm...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </section>
       </main>
     </div>
 
+    <script src="/js/api.js"></script>
+    <script src="/js/admin-common.js"></script>
     <script src="/js/api.js"></script>
     <script src="/js/admin-common.js"></script>
     <script>
@@ -187,66 +346,201 @@
 
       let editingLineId = null;
 
-      // --- 1. TẢI DANH SÁCH DÒNG SẢN PHẨM ---
-      async function loadProductLines() {
+      // ── Đồng bộ dropdown lọc thương hiệu ──────────────────────────────────────
+      async function syncFilterBrands() {
         try {
-          const response = await fetch(API_ROUTES.GET_LINES, {
+          const res = await fetch(API_ROUTES.GET_BRANDS, {
+            headers: { Authorization: "Bearer " + getAdminToken() },
+          });
+          const brands = await res.json();
+          const filterBrand = document.getElementById("filterBrand");
+          filterBrand.innerHTML = '<option value="">-- Tất cả --</option>';
+          brands.forEach((b) => {
+            filterBrand.innerHTML += `<option value="${b.brand_id}">${b.name}</option>`;
+          });
+        } catch (err) {
+          console.error("Lỗi tải thương hiệu lọc:", err);
+        }
+      }
+
+      // ── 1. TẢI DANH SÁCH (có filter) ──────────────────────────────────────────
+      async function loadProductLines(params = {}) {
+        try {
+          const query = new URLSearchParams();
+          if (params.brand_id) query.append("brand_id", params.brand_id);
+          if (params.is_interior !== undefined && params.is_interior !== "")
+            query.append("is_interior", params.is_interior);
+          if (params.gloss_level)
+            query.append("gloss_level", params.gloss_level);
+          if (params.coverage_min)
+            query.append("coverage_min", params.coverage_min);
+          if (params.coverage_max)
+            query.append("coverage_max", params.coverage_max);
+          if (params.layers_min) query.append("layers_min", params.layers_min);
+          if (params.layers_max) query.append("layers_max", params.layers_max);
+
+          const url =
+            API_ROUTES.GET_LINES +
+            (query.toString() ? "?" + query.toString() : "");
+          const response = await fetch(url, {
             headers: { Authorization: "Bearer " + getAdminToken() },
           });
           if (!response.ok) throw new Error("Không thể tải danh sách.");
 
           const lines = await response.json();
-          tableBody.innerHTML = "";
 
+          // Reset checkbox
+          document.getElementById("selectAllCheck").checked = false;
+          document.getElementById("deleteSelectedBtn").style.display = "none";
+          document.getElementById("selectedCount").textContent = "0";
+
+          tableBody.innerHTML = "";
           if (lines.length === 0) {
-            tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center;">Chưa có dòng sản phẩm nào.</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="7" style="text-align:center;">Không có dòng sản phẩm nào phù hợp.</td></tr>`;
             return;
           }
 
           lines.forEach((line) => {
             const row = document.createElement("tr");
             const currentId = line.line_id || line.id;
-
-            // Render nhãn Nội thất / Ngoại thất
             const typeBadge =
               line.is_interior == 1
                 ? `<span class="badge-in">Nội thất</span>`
                 : `<span class="badge-ex">Ngoại thất</span>`;
 
             row.innerHTML = `
-              <td><b>#${currentId}</b></td>
-              <td>
-                <div><b>${line.name}</b></div>
-                <small style="color: #777; display:block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${line.description || ""}">
-                  ${line.description || "Không có mô tả"}
-                </small>
-              </td>
-              <td><span class="badge">${line.brand_name || "Chưa rõ"}</span></td>
-              <td>${typeBadge}</td>
-              <td>
-                <small style="color: #555; line-height: 1.4;">
-                  • Độ phủ: ${line.coverage_rate || "Chưa rõ"} m²/lít<br>
-                  • Khô: ${line.drying_time || "Chưa rõ"}<br>
-                  • Bóng: ${line.gloss_level || "Chưa rõ"}<br>
-                  • Số lớp: ${line.recommended_layers || "Chưa rõ"}
-                </small>
-              </td>
-              <td>
-                <button class="btn-edit" onclick="prepareEdit(${currentId}, ${line.brand_id}, '${line.name}', ${line.is_interior}, '${line.coverage_rate || ""}', '${line.drying_time || ""}', '${line.gloss_level || ""}', '${line.recommended_layers || ""}', '${line.description || ""}')">Sửa</button>
-                <button class="btn-delete" onclick="deleteLine(${currentId})">Xóa</button>
-              </td>
-            `;
+          <td style="text-align:center;">
+            <input type="checkbox" class="row-check" data-id="${currentId}"
+              style="width:auto; margin:0; transform:scale(1.2); cursor:pointer;" />
+          </td>
+          <td><b>#${currentId}</b></td>
+          <td>
+            <div><b>${line.name}</b></div>
+            <small style="color:#777; display:block; max-width:200px;
+              overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"
+              title="${line.description || ""}">
+              ${line.description || "Không có mô tả"}
+            </small>
+          </td>
+          <td><span class="badge">${line.brand_name || "Chưa rõ"}</span></td>
+          <td>${typeBadge}</td>
+          <td>
+            <small style="color:#555; line-height:1.4;">
+              • Độ phủ: ${line.coverage_rate || "Chưa rõ"} m²/lít<br>
+              • Khô: ${line.drying_time || "Chưa rõ"}<br>
+              • Bóng: ${line.gloss_level || "Chưa rõ"}<br>
+              • Số lớp: ${line.recommended_layers || "Chưa rõ"}
+            </small>
+          </td>
+          <td>
+            <button class="btn-edit" onclick="prepareEdit(${currentId}, ${line.brand_id},
+              '${line.name}', ${line.is_interior}, '${line.coverage_rate || ""}',
+              '${line.drying_time || ""}', '${line.gloss_level || ""}',
+              '${line.recommended_layers || ""}', '${line.description || ""}')">Sửa</button>
+            <button class="btn-delete" onclick="deleteLine(${currentId})">Xóa</button>
+          </td>
+        `;
             tableBody.appendChild(row);
+          });
+
+          // Gắn sự kiện checkbox từng dòng
+          document.querySelectorAll(".row-check").forEach((chk) => {
+            chk.addEventListener("change", updateDeleteSelectedBtn);
           });
         } catch (err) {
           console.error(err);
-          tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: red;">Lỗi khi tải dữ liệu!</td></tr>`;
+          tableBody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:red;">Lỗi khi tải dữ liệu!</td></tr>`;
         }
       }
 
-      window.addEventListener("DOMContentLoaded", loadProductLines);
+      // ── Cập nhật nút xóa đã chọn ──────────────────────────────────────────────
+      function updateDeleteSelectedBtn() {
+        const checked = document.querySelectorAll(".row-check:checked");
+        const btn = document.getElementById("deleteSelectedBtn");
+        document.getElementById("selectedCount").textContent = checked.length;
+        btn.style.display = checked.length > 0 ? "inline-block" : "none";
+        // Sync checkbox chọn tất cả
+        const all = document.querySelectorAll(".row-check");
+        document.getElementById("selectAllCheck").checked =
+          all.length > 0 && checked.length === all.length;
+      }
 
-      // --- 2. ĐẨY DỮ LIỆU CŨ LÊN FORM ĐỂ SỬA ---
+      // ── Chọn tất cả ───────────────────────────────────────────────────────────
+      document
+        .getElementById("selectAllCheck")
+        .addEventListener("change", function () {
+          document.querySelectorAll(".row-check").forEach((chk) => {
+            chk.checked = this.checked;
+          });
+          updateDeleteSelectedBtn();
+        });
+
+      // ── Nút Lọc ───────────────────────────────────────────────────────────────
+      document
+        .getElementById("applyFilterBtn")
+        .addEventListener("click", () => {
+          loadProductLines({
+            brand_id: document.getElementById("filterBrand").value,
+            is_interior: document.getElementById("filterInterior").value,
+            gloss_level: document.getElementById("filterGloss").value,
+            coverage_min: document.getElementById("filterCoverageMin").value,
+            coverage_max: document.getElementById("filterCoverageMax").value,
+            layers_min: document.getElementById("filterLayersMin").value,
+            layers_max: document.getElementById("filterLayersMax").value,
+          });
+        });
+
+      // ── Nút Bỏ lọc ────────────────────────────────────────────────────────────
+      document
+        .getElementById("resetFilterBtn")
+        .addEventListener("click", () => {
+          document.getElementById("filterBrand").value = "";
+          document.getElementById("filterInterior").value = "";
+          document.getElementById("filterGloss").value = "";
+          document.getElementById("filterCoverageMin").value = "";
+          document.getElementById("filterCoverageMax").value = "";
+          document.getElementById("filterLayersMin").value = "";
+          document.getElementById("filterLayersMax").value = "";
+          loadProductLines();
+        });
+
+      // ── Xóa nhiều ─────────────────────────────────────────────────────────────
+      document
+        .getElementById("deleteSelectedBtn")
+        .addEventListener("click", async () => {
+          const checked = [...document.querySelectorAll(".row-check:checked")];
+          if (!checked.length) return;
+          if (
+            !confirm(
+              `Xóa ${checked.length} dòng sản phẩm đã chọn?\nLưu ý: Sẽ thất bại nếu có biến thể thuộc dòng này.`,
+            )
+          )
+            return;
+
+          const ids = checked.map((chk) => chk.dataset.id);
+          let successCount = 0;
+          let failCount = 0;
+
+          for (const id of ids) {
+            try {
+              const res = await fetch(API_ROUTES.DELETE_LINE(id), {
+                method: "DELETE",
+                headers: { Authorization: "Bearer " + getAdminToken() },
+              });
+              if (res.ok) successCount++;
+              else failCount++;
+            } catch {
+              failCount++;
+            }
+          }
+
+          alert(
+            `Đã xóa ${successCount} dòng thành công.${failCount > 0 ? `\n${failCount} dòng thất bại (có biến thể liên kết).` : ""}`,
+          );
+          loadProductLines();
+        });
+
+      // ── 2. CHUẨN BỊ SỬA ───────────────────────────────────────────────────────
       function prepareEdit(
         id,
         brandId,
@@ -268,10 +562,10 @@
         glossLevelSelect.value = glossLevel;
         recommendedLayersInput.value = recommendedLayers;
         lineDescInput.value = description;
-
         saveLineBtn.innerText = "Cập nhật";
         cancelEditBtn.classList.remove("d-none");
         lineNameInput.focus();
+        window.scrollTo({ top: 0, behavior: "smooth" });
       }
 
       function resetForm() {
@@ -291,13 +585,12 @@
 
       cancelEditBtn.addEventListener("click", resetForm);
 
-      // --- 3. XỬ LÝ LƯU (THÊM MỚI HOẶC CẬP NHẬT) ---
+      // ── 3. LƯU (THÊM / CẬP NHẬT) ─────────────────────────────────────────────
       saveLineBtn.addEventListener("click", async () => {
         if (!brandSelect.value || !lineNameInput.value.trim()) {
           alert("Vui lòng điền đầy đủ Tên dòng sản phẩm và Chọn thương hiệu!");
           return;
         }
-
         const data = {
           brand_id: brandSelect.value,
           name: lineNameInput.value,
@@ -308,34 +601,26 @@
           recommended_layers: recommendedLayersInput.value,
           description: lineDescInput.value,
         };
-
         const url = editingLineId
           ? API_ROUTES.UPDATE_LINE(editingLineId)
           : API_ROUTES.ADD_LINE;
         const method = editingLineId ? "PUT" : "POST";
-
         try {
           const response = await fetch(url, {
-            method: method,
+            method,
             headers: {
               "Content-Type": "application/json",
               Authorization: "Bearer " + getAdminToken(),
             },
             body: JSON.stringify(data),
           });
-
           const result = await response.json().catch(() => null);
-
           if (response.ok && (editingLineId || result?.success)) {
-            alert(
-              editingLineId
-                ? "Cập nhật dòng sản phẩm thành công!"
-                : "Thêm dòng sản phẩm thành công!",
-            );
+            alert(editingLineId ? "Cập nhật thành công!" : "Thêm thành công!");
             resetForm();
             loadProductLines();
           } else {
-            alert(result?.error || "Có lỗi xảy ra khi xử lý dữ liệu!");
+            alert(result?.error || "Có lỗi xảy ra!");
           }
         } catch (err) {
           console.error(err);
@@ -343,25 +628,22 @@
         }
       });
 
-      // --- 4. XỬ LÝ XÓA DÒNG SẢN PHẨM ---
+      // ── 4. XÓA 1 DÒNG ─────────────────────────────────────────────────────────
       async function deleteLine(id) {
         if (
           !confirm(
-            `Bạn có chắc chắn muốn xóa dòng sản phẩm #${id} không?\nLưu ý: Hành động này sẽ thất bại nếu có các biến thể/thùng sơn thuộc dòng sản phẩm này.`,
+            `Xóa dòng sản phẩm #${id}?\nLưu ý: Thất bại nếu có biến thể liên kết.`,
           )
         )
           return;
-
         try {
           const response = await fetch(API_ROUTES.DELETE_LINE(id), {
             method: "DELETE",
             headers: { Authorization: "Bearer " + getAdminToken() },
           });
-
           const result = await response.json().catch(() => null);
-
           if (response.ok) {
-            alert("Đã xóa dòng sản phẩm thành công!");
+            alert("Đã xóa thành công!");
             if (editingLineId === id) resetForm();
             loadProductLines();
           } else {
@@ -372,6 +654,12 @@
           alert("Lỗi hệ thống khi xóa!");
         }
       }
+
+      // ── KHỞI ĐỘNG ─────────────────────────────────────────────────────────────
+      window.addEventListener("DOMContentLoaded", () => {
+        syncFilterBrands();
+        loadProductLines();
+      });
     </script>
   </body>
 </html>
