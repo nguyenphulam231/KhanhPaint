@@ -49,4 +49,10 @@ const API_ROUTES = {
   GET_FORMULA: (id) => `/api/admin/colorsystem/formula/${id}`,
   UPDATE_COLOR: (id) => `/api/admin/colorsystem/update/${id}`,
   DELETE_COLOR: (id) => `/api/admin/colorsystem/delete/${id}`,
+  GET_CUSTOMERS: "/api/admin/customers",
+  ADD_CUSTOMER: "/api/admin/customers/add",
+  UPDATE_CUSTOMER: (id) => `/api/admin/customers/update/${id}`,
+  DELETE_CUSTOMER: (id) => `/api/admin/customers/delete/${id}`,
+  GEO_PROVINCES: "/api/auth/provinces",
+  GEO_WARDS: (provinceId) => `/api/auth/wards/${provinceId}`,
 };

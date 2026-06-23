@@ -40,6 +40,7 @@ function renderAdminSidebar(activeNav) {
       <a class="menu-item ${activeNav === "colorsystem" ? "active" : ""}" data-admin-nav="colorsystem" href="/admin/colorsystem-manage.html">Quản lý Mã màu</a>
       <a class="menu-item ${activeNav === "shifts" ? "active" : ""}" data-admin-nav="shifts" href="/admin/shift-manage.html">Quản lý Ca làm</a>
       <a class="menu-item ${activeNav === "assign-shift" ? "active" : ""}" data-admin-nav="assign-shift" href="/admin/shift-assign.html">Phân ca làm việc</a>
+      <a class="menu-item ${activeNav === "customers" ? "active" : ""}" data-admin-nav="customers" href="/admin/customer-manage.html">Quản lý Khách hàng</a>
       <a class="menu-item" href="#" id="logoutLink" style="color: #ffcccc">Đăng xuất</a>
     </aside>
   `;
@@ -106,6 +107,79 @@ async function loadBaseTypesIntoSelect(selectId) {
     });
   } catch (error) {
     console.error("Không thể tải danh sách BaseTypes:", error);
+  }
+}
+
+// Tải danh sách Tỉnh/Thành phố an toàn
+async function loadProvincesIntoSelect(selectId) {
+  try {
+    const response = await fetch(API_ROUTES.GEO_PROVINCES);
+
+    if (!response.ok) {
+      console.error(
+        `[Lỗi địa lý] API Tỉnh trả về mã: ${response.status} từ đường dẫn: ${API_ROUTES.GEO_PROVINCES}`,
+      );
+      return;
+    }
+
+    const provinces = await response.json();
+
+    if (!Array.isArray(provinces)) {
+      console.error(
+        "[Lỗi địa lý] Dữ liệu tỉnh thành trả về không phải dạng mảng:",
+        provinces,
+      );
+      return;
+    }
+
+    const select = document.getElementById(selectId);
+    if (!select) return;
+
+    select.innerHTML = '<option value="">-- Chọn Tỉnh/Thành phố --</option>';
+    provinces.forEach((p) => {
+      select.innerHTML += `<option value="${p.province_id}">${p.province_name}</option>`;
+    });
+  } catch (err) {
+    console.error("Không thể kết nối đến API tỉnh thành:", err);
+  }
+}
+
+// Tải danh sách Phường/Xã an toàn
+async function loadWardsIntoSelect(provinceId, selectId) {
+  const select = document.getElementById(selectId);
+  if (!select) return;
+
+  if (!provinceId) {
+    select.innerHTML = '<option value="">-- Chọn Phường/Xã --</option>';
+    return;
+  }
+
+  try {
+    const response = await fetch(API_ROUTES.GEO_WARDS(provinceId));
+
+    if (!response.ok) {
+      console.error(
+        `[Lỗi địa lý] API Xã trả về mã: ${response.status} cho Tỉnh ID: ${provinceId}`,
+      );
+      return;
+    }
+
+    const wards = await response.json();
+
+    if (!Array.isArray(wards)) {
+      console.error(
+        "[Lỗi địa lý] Dữ liệu phường xã trả về không phải dạng mảng:",
+        wards,
+      );
+      return;
+    }
+
+    select.innerHTML = '<option value="">-- Chọn Phường/Xã --</option>';
+    wards.forEach((w) => {
+      select.innerHTML += `<option value="${w.ward_id}">${w.ward_name}</option>`;
+    });
+  } catch (err) {
+    console.error("Không thể kết nối đến API phường xã:", err);
   }
 }
 

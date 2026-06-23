@@ -19,7 +19,7 @@ app.use("/api/admin", require("./routes/admin"));
 app.use("/api/admin/shifts", require("./routes/admin/shift"));
 app.use("/api/admin/colorsystem", colorsystemRoutes);
 // --- KẾT THÚC CẬP NHẬT ---
-
+app.use("/api/auth", require("./routes/client/auth"));
 app.get("/", (req, res) => {
   res.redirect("/client/index.html");
 });
