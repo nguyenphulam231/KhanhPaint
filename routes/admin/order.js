@@ -194,11 +194,7 @@ router.post("/:id/payments", async (req, res) => {
   }
 
   try {
-    await db.query(
-      `INSERT INTO payments (order_id, amount, payment_method, note)
-       VALUES (?, ?, ?, ?)`,
-      [req.params.id, amount, paymentMethod, note],
-    );
+    await db.query("CALL sp_record_payment(?, ?, ?, ?)", [req.params.id, amount, paymentMethod, note]);
 
     const order = await readOrderSummary(db, req.params.id);
     res.status(201).json({ message: "Ghi nhận thanh toán thành công.", order });
@@ -271,38 +267,26 @@ router.patch("/:id/status", async (req, res) => {
     return res.status(400).json({ error: "Trạng thái đơn hàng không hợp lệ." });
   }
 
-  const connection = await db.getConnection();
   try {
-    await connection.beginTransaction();
-
     if (status === "completed") {
-      const [[currentOrder]] = await connection.query(
+      const [[currentOrder]] = await db.query(
         "SELECT sales_rep_id, tech_id, shift_id FROM orders WHERE order_id = ?",
         [req.params.id],
       );
-      if (!currentOrder) {
-        const err = new Error("Không tìm thấy đơn hàng.");
-        err.statusCode = 404;
-        throw err;
-      }
-      await validateAssignment(connection, req.params.id, currentOrder.sales_rep_id, currentOrder.tech_id, currentOrder.shift_id);
+      if (!currentOrder) return res.status(404).json({ error: "Không tìm thấy đơn hàng." });
+      await validateAssignment(db, req.params.id, currentOrder.sales_rep_id, currentOrder.tech_id, currentOrder.shift_id);
+      await db.query("CALL sp_complete_order(?)", [req.params.id]);
+    } else if (status === "cancelled") {
+      await db.query("CALL sp_cancel_order(?)", [req.params.id]);
+    } else {
+      const [result] = await db.query("UPDATE orders SET status = ? WHERE order_id = ?", [status, req.params.id]);
+      if (result.affectedRows === 0) return res.status(404).json({ error: "Không tìm thấy đơn hàng." });
     }
 
-    const [result] = await connection.query("UPDATE orders SET status = ? WHERE order_id = ?", [status, req.params.id]);
-    if (result.affectedRows === 0) {
-      const err = new Error("Không tìm thấy đơn hàng.");
-      err.statusCode = 404;
-      throw err;
-    }
-
-    const order = await readOrderSummary(connection, req.params.id);
-    await connection.commit();
+    const order = await readOrderSummary(db, req.params.id);
     res.json({ message: "Cập nhật trạng thái đơn hàng thành công.", order });
   } catch (err) {
-    await connection.rollback();
     res.status(err.statusCode || 400).json({ error: err.message });
-  } finally {
-    connection.release();
   }
 });
 
@@ -311,31 +295,14 @@ router.patch("/:id/assign", async (req, res) => {
   const techId = req.body.tech_id ? Number(req.body.tech_id) : null;
   const shiftId = req.body.shift_id ? Number(req.body.shift_id) : null;
 
-  const connection = await db.getConnection();
   try {
-    await connection.beginTransaction();
-    await validateAssignment(connection, req.params.id, salesRepId, techId, shiftId);
+    await validateAssignment(db, req.params.id, salesRepId, techId, shiftId);
+    await db.query("CALL sp_assign_order_staff(?, ?, ?, ?)", [req.params.id, salesRepId, techId, shiftId]);
 
-    const [result] = await connection.query(
-      `UPDATE orders
-       SET sales_rep_id = ?, tech_id = ?, shift_id = ?
-       WHERE order_id = ?`,
-      [salesRepId, techId, shiftId, req.params.id],
-    );
-    if (result.affectedRows === 0) {
-      const err = new Error("Không tìm thấy đơn hàng.");
-      err.statusCode = 404;
-      throw err;
-    }
-
-    const order = await readOrderSummary(connection, req.params.id);
-    await connection.commit();
+    const order = await readOrderSummary(db, req.params.id);
     res.json({ message: "Gán nhân sự/ca làm cho đơn hàng thành công.", order });
   } catch (err) {
-    await connection.rollback();
     res.status(err.statusCode || 400).json({ error: err.message });
-  } finally {
-    connection.release();
   }
 });
 

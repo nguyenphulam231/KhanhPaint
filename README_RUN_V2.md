@@ -1,29 +1,26 @@
-# KhanhPaint V2.1 - Hướng dẫn chạy và các điểm đã nâng cấp
 
-## 1. Chuẩn bị database
+## 1. Thứ tự chạy database
 
-1. Mở MySQL Workbench hoặc terminal MySQL.
-2. Chạy file dữ liệu nền:
+Mở MySQL Workbench hoặc terminal MySQL, chạy theo thứ tự:
 
 ```sql
 SOURCE khanhpaintdatabasewithdata.sql;
-```
-
-3. Chạy migration nghiệp vụ. File này đã được sửa để **idempotent**, tức là có thể chạy lại nhiều lần mà không lỗi trùng constraint/index/column:
-
-```sql
 SOURCE database/upgrade_v2.sql;
-```
-
-4. Chạy seed dữ liệu nghiệp vụ để có sản phẩm, SKU, mã màu, công thức demo, nhân sự bán hàng/kỹ thuật và phân ca mẫu:
-
-```sql
+SOURCE database/upgrade_v2_2_compact_erd.sql;
 SOURCE database/seed_business_v2.sql;
 ```
 
+Ghi chú:
+
+- `upgrade_v2.sql` tạo nền V2.1: trigger, payment, công nợ, inventory movements.
+- `upgrade_v2_2_compact_erd.sql` nâng cấp ERD gọn: `baseinventory`, formula version, mix/QC status, stored procedures, view và index.
+- `seed_business_v2.sql` có thể chạy sau V2.2 vì V2.2 đã có trigger tự tạo `baseinventory` khi thêm `productvariants`.
+
+Nếu database đã có dữ liệu từ bản cũ, vẫn chạy được theo dạng migration bổ sung. Nếu cần dựng sạch nhất, drop database rồi chạy lại đúng thứ tự trên.
+
 ## 2. Chuẩn bị biến môi trường
 
-Copy `.env.example` thành `.env`, rồi sửa mật khẩu MySQL:
+Copy `.env.example` thành `.env`, rồi sửa thông tin MySQL:
 
 ```bash
 cp .env.example .env
@@ -59,104 +56,126 @@ Mở trình duyệt:
 - Client: http://localhost:3000/client
 - Admin: http://localhost:3000/admin/login
 
-## 4. Tài khoản admin có sẵn
+## 4. Điểm nâng cấp chính trong V2.2
 
-Theo dữ liệu hiện tại, tài khoản admin mẫu là:
+### 4.1. Tách BaseInventory đúng theo ERD
 
-- Email: `admin@khanhpaint.com`
-- Mật khẩu: dùng mật khẩu đã hash trong dữ liệu nhóm đã nhập trước đó.
+Tồn kho sơn gốc không còn lấy trực tiếp từ `productvariants.stock_quantity` làm nguồn chính. V2.2 thêm bảng:
 
-Nếu không đăng nhập được, hãy tạo lại nhân viên admin bằng trang quản trị hoặc cập nhật `password_hash` bằng bcrypt.
+```sql
+baseinventory(variant_id, stock_quantity, warehouse_location, reorder_level)
+```
 
-## 5. Các nâng cấp mới trong V2.1
+Ý nghĩa:
 
-### 5.1. Hoàn kho khi hủy đơn
+- `productvariants` là danh mục bán hàng: SKU, dung tích, giá, base.
+- `baseinventory` là số lượng tồn kho thực tế.
 
-Khi admin đổi `orders.status` sang `cancelled`, trigger `trg_orders_bu_business_rules` tự động:
+Route admin/product và view catalog đã được chỉnh để đọc tồn kho từ `baseinventory`.
 
-- hoàn lại `productvariants.stock_quantity`,
-- hoàn lại `colorants.stock_ml` theo công thức màu,
-- ghi log vào `inventory_movements`,
-- đánh dấu `orders.inventory_restored = 1`,
-- chặn mở lại đơn đã hủy để tránh sai lệch tồn kho.
+### 4.2. Version hóa công thức nhưng không thêm bảng mới
 
-### 5.2. Thêm thời gian tạo/cập nhật đơn
+Không thêm `color_formulas` / `color_formula_details` để tránh rối ERD. Thay vào đó, mở rộng bảng quan hệ N-N hiện có:
 
-Bảng `orders` được bổ sung:
+```sql
+colorsystem_colorants(
+  color_id,
+  colorant_id,
+  amount_ml,
+  formula_version,
+  effective_from,
+  effective_to,
+  is_active
+)
+```
 
-- `created_at`,
-- `updated_at`,
-- `cancelled_at`,
-- `inventory_restored`.
+Khi cập nhật công thức màu, hệ thống không xóa công thức cũ mà tạo `formula_version` mới. `orderdetails` lưu `formula_version` đã dùng để hóa đơn cũ vẫn truy vết đúng công thức pha.
 
-Các màn hình admin/client đã hiển thị thêm thời gian tạo đơn.
+### 4.3. Trạng thái pha và QC nằm trên OrderDetails
 
-### 5.3. Kiểm soát vai trò nhân viên khi gán đơn
+Không thêm bảng `mixing_jobs`. Mỗi dòng `orderdetails` được bổ sung:
 
-Endpoint `PATCH /api/admin/orders/:id/assign` và trigger database cùng kiểm tra:
+```sql
+formula_version,
+mix_status,
+qc_status,
+mixed_at,
+qc_note
+```
 
-- `sales_rep_id` phải là nhân viên có job liên quan đến Bán hàng hoặc admin,
-- `tech_id` phải là Kỹ thuật viên/Pha màu hoặc admin.
+Điều này hợp lý vì mỗi dòng đơn hàng tương ứng với một sản phẩm/màu cần pha.
 
-Khi chuyển đơn sang `completed`, hệ thống bắt buộc phải có đủ nhân viên bán hàng, kỹ thuật viên và ca làm.
+### 4.4. Stored procedures cho nghiệp vụ chính
 
-### 5.4. Kiểm tra nhân viên có thuộc ca làm hay không
+Backend đã được chỉnh để gọi stored procedure thay vì tự thao tác rời rạc:
 
-Khi gán `shift_id`, hệ thống kiểm tra bảng `employees_shifts` theo đúng ngày tạo đơn `DATE(orders.created_at)`. Nếu nhân viên chưa được phân vào ca đó, API sẽ báo lỗi.
+```sql
+sp_create_order
+sp_assign_order_staff
+sp_complete_order
+sp_cancel_order
+sp_record_payment
+sp_adjust_inventory
+```
 
-### 5.5. Nhật ký biến động kho
+Trong đó `sp_create_order` dùng transaction và khóa tồn kho bằng `FOR UPDATE` / row lock trước khi insert orderdetails. Trigger vẫn là lớp bảo vệ cuối cùng.
 
-Thêm bảng `inventory_movements` và view `v_inventory_movements`. Mọi biến động do trigger tạo ra đều lưu:
+### 4.5. Tồn kho kép và audit kho
 
-- loại kho: `base` hoặc `colorant`,
-- mã đơn liên quan,
-- SKU hoặc tinh màu,
-- số lượng biến động,
-- tồn trước và tồn sau,
-- loại nghiệp vụ: thêm/sửa/xóa chi tiết đơn, hủy đơn hoàn kho.
+Khi tạo đơn, hệ thống trừ đồng thời:
 
-Trang mới:
+- `baseinventory.stock_quantity` cho sơn gốc.
+- `colorants.stock_ml` cho tinh màu.
 
-- Admin: http://localhost:3000/admin/inventory-movements.html
+Mọi biến động được ghi vào `inventory_movements`, gồm tồn trước, tồn sau, loại biến động, SKU/tinh màu và mã đơn liên quan.
 
-### 5.6. Migration chạy lại an toàn
+### 4.6. View báo cáo/truy vết
 
-`database/upgrade_v2.sql` đã dùng các stored procedure tạm:
+Các view quan trọng:
 
-- `sp_add_column_if_not_exists`,
-- `sp_add_unique_if_not_exists`,
-- `sp_add_check_if_not_exists`,
-- `sp_add_index_if_not_exists`.
+```sql
+v_product_catalog
+v_color_formula
+v_color_formula_current
+v_order_trace
+v_inventory_movements
+v_low_stock_alert
+v_daily_revenue
+v_employee_performance
+v_customer_debt
+```
 
-Vì vậy chạy lại migration không còn bị lỗi `Duplicate key name` hoặc constraint đã tồn tại.
+Đặc biệt, `v_order_trace` dùng để demo truy vết 360 độ: khách hàng, sản phẩm, base, mã màu, formula version, sales, tech, ca làm, trạng thái pha và trạng thái thanh toán.
 
-### 5.7. Công nợ và thanh toán
+## 5. Luồng demo nên trình bày
 
-Bổ sung:
+1. Client tạo đơn với sản phẩm và màu tương thích base.
+2. Backend gọi `sp_create_order`.
+3. Procedure khóa dòng tồn kho, kiểm tra sơn gốc, tinh màu và công thức active.
+4. Trigger insert `orderdetails` trừ `baseinventory` và `colorants`.
+5. Hệ thống ghi `inventory_movements`.
+6. Admin gán sales/tech/shift bằng `sp_assign_order_staff`.
+7. Admin complete đơn bằng `sp_complete_order`; hệ thống kiểm tra phân ca và công nợ.
+8. Admin ghi nhận thanh toán bằng `sp_record_payment`.
+9. Admin hủy một đơn chưa thanh toán bằng `sp_cancel_order` để demo hoàn kho đúng một lần.
+10. Mở `v_order_trace`, `v_inventory_movements`, `v_low_stock_alert` để demo truy vết và báo cáo.
 
-- bảng `payments`,
-- cột `orders.paid_amount`,
-- cột `orders.payment_status`,
-- view `v_customer_debt`,
-- API ghi nhận thanh toán: `POST /api/admin/orders/:id/payments`.
+## 6. Test SQL
 
-Khi đơn chuyển sang `completed`, hệ thống tự cộng phần chưa thanh toán vào `customers.current_debt` và kiểm tra `credit_limit`. Khi ghi nhận payment, trigger tự giảm công nợ khách hàng.
+Có file test gợi ý:
 
-## 6. Luồng demo nên trình bày
+```sql
+SOURCE database/tests/business_rule_tests_v2_2.sql;
+```
 
-1. Client tạo đơn từ sản phẩm + màu tương thích base.
-2. Transaction tạo `orders` và `orderdetails`.
-3. Trigger kiểm tra tồn kho sơn gốc, tinh màu và base/màu.
-4. Trigger trừ kho và ghi `inventory_movements`.
-5. Admin phân nhân viên bán hàng, kỹ thuật viên và ca làm.
-6. Admin chuyển đơn sang `completed`; hệ thống kiểm tra phân ca và cập nhật công nợ.
-7. Admin ghi nhận thanh toán; hệ thống giảm công nợ.
-8. Admin hủy một đơn chưa thanh toán để demo trigger hoàn kho.
+Nên đọc file trước khi chạy vì một số test cần chỉnh `variant_id`, `color_id` hoặc bỏ comment tùy dữ liệu demo trên máy.
 
-## 7. Lưu ý khi demo phân ca
+## 7. Tài liệu nghiệp vụ
 
-Nếu khi hoàn tất đơn hoặc gán ca gặp lỗi “nhân viên chưa được phân vào ca làm của ngày tạo đơn”, hãy vào:
+Xem thêm:
 
-- Admin → Phân ca làm việc
+```text
+docs/BUSINESS_RULES_V2_2.md
+```
 
-Sau đó gán nhân viên bán hàng và kỹ thuật viên vào đúng ca, đúng ngày tạo đơn.
+File này liệt kê business rules và nơi cài đặt: constraint, trigger, procedure, view.

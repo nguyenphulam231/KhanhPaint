@@ -39,10 +39,11 @@ router.get("/movements", async (req, res) => {
 router.get("/low-stock", async (req, res) => {
   try {
     const [baseStock] = await db.query(
-      `SELECT variant_id, sku_code, stock_quantity, warehouse_location
-       FROM productvariants
-       WHERE stock_quantity <= 5
-       ORDER BY stock_quantity ASC, sku_code ASC`,
+      `SELECT bi.variant_id, pv.sku_code, bi.stock_quantity, bi.warehouse_location, bi.reorder_level
+       FROM baseinventory bi
+       JOIN productvariants pv ON bi.variant_id = pv.variant_id
+       WHERE bi.stock_quantity <= bi.reorder_level
+       ORDER BY bi.stock_quantity ASC, pv.sku_code ASC`,
     );
 
     const [colorantStock] = await db.query(

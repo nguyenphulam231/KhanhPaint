@@ -17,7 +17,7 @@ router.get("/", async (req, res) => {
     `);
     const [[variantStats]] = await db.query(`
       SELECT COUNT(*) AS total_variants, COALESCE(SUM(stock_quantity), 0) AS base_stock
-      FROM productvariants
+      FROM baseinventory
     `);
     const [[colorantStats]] = await db.query(`
       SELECT COUNT(*) AS total_colorants, COALESCE(SUM(stock_ml), 0) AS colorant_stock_ml
