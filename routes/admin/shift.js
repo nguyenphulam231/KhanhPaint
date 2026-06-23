@@ -201,7 +201,7 @@ router.post("/assign-bulk", async (req, res) => {
   }
 });
 
-// 7. API LẤY DANH SÁCH LỊCH ĐÃ PHÂN ĐỂ XEM
+// 7. API LẤY DANH SÁCH LỊCH ĐÃ PHÂN ĐỂ XEM (Thay thế câu lệnh SQL dùng DATE_FORMAT)
 router.get("/assigned-list", async (req, res) => {
   const { employee_id, start_date, end_date } = req.query;
 
@@ -227,21 +227,21 @@ router.get("/assigned-list", async (req, res) => {
   try {
     const query = `
       SELECT 
-  es.employee_id,
-  es.shift_id,
-  es.working_date,
-  e.full_name,
-  e.job_id,
-  j.job_title,       
-  s.shift_name,
-  s.start_time,
-  s.end_time
-FROM employees_shifts es
-JOIN shifts s ON es.shift_id = s.shift_id
-JOIN employees e ON es.employee_id = e.employee_id
-LEFT JOIN jobs j ON e.job_id = j.job_id   
-${whereClause}
-ORDER BY es.working_date DESC, s.start_time ASC
+        es.employee_id,
+        es.shift_id,
+        DATE_FORMAT(es.working_date, '%Y-%m-%d') AS working_date, -- Giữ nguyên chuỗi ngày gốc
+        e.full_name,
+        e.job_id,
+        j.job_title,       
+        s.shift_name,
+        s.start_time,
+        s.end_time
+      FROM employees_shifts es
+      JOIN shifts s ON es.shift_id = s.shift_id
+      JOIN employees e ON es.employee_id = e.employee_id
+      LEFT JOIN jobs j ON e.job_id = j.job_id   
+      ${whereClause}
+      ORDER BY es.working_date DESC, s.start_time ASC
     `;
     const [rows] = await db.execute(query, params);
     res.json(rows);
@@ -251,13 +251,13 @@ ORDER BY es.working_date DESC, s.start_time ASC
   }
 });
 
-// 8. API LẤY LỊCH LÀM VIỆC CỦA MỘT NHÂN VIÊN CỤ THỂ (MỚI)
+// 8. API LẤY LỊCH LÀM VIỆC CỦA MỘT NHÂN VIÊN CỤ THỂ (Dùng DATE_FORMAT cho đồng bộ)
 router.get("/employee-calendar/:empId", async (req, res) => {
   const { empId } = req.params;
   try {
     const query = `
       SELECT 
-        es.working_date,
+        DATE_FORMAT(es.working_date, '%Y-%m-%d') AS working_date, -- Giữ nguyên chuỗi ngày gốc
         s.shift_name,
         s.start_time,
         s.end_time
@@ -274,7 +274,7 @@ router.get("/employee-calendar/:empId", async (req, res) => {
   }
 });
 
-// 9. XÓA 1 CA ĐÃ PHÂN
+// 9. XÓA 1 CA ĐÃ PHÂN (Bọc thêm parseInt phòng hờ kiểu dữ liệu)
 router.delete("/assigned/single", async (req, res) => {
   const { employee_id, shift_id, working_date } = req.body;
 
@@ -287,7 +287,7 @@ router.delete("/assigned/single", async (req, res) => {
   try {
     const [result] = await db.execute(
       "DELETE FROM employees_shifts WHERE employee_id = ? AND shift_id = ? AND working_date = ?",
-      [employee_id, shift_id, working_date],
+      [parseInt(employee_id), parseInt(shift_id), working_date],
     );
     if (result.affectedRows === 0) {
       return res
@@ -313,16 +313,34 @@ router.delete("/assigned/bulk-delete", async (req, res) => {
   const connection = await db.getConnection();
   try {
     await connection.beginTransaction();
+    let totalDeleted = 0;
+
     for (const item of items) {
-      await connection.execute(
+      const [result] = await connection.execute(
         "DELETE FROM employees_shifts WHERE employee_id = ? AND shift_id = ? AND working_date = ?",
-        [item.employee_id, item.shift_id, item.working_date],
+        [
+          parseInt(item.employee_id),
+          parseInt(item.shift_id),
+          item.working_date,
+        ],
       );
+      totalDeleted += result.affectedRows;
     }
+
+    if (totalDeleted === 0) {
+      await connection.rollback();
+      return res
+        .status(404)
+        .json({
+          success: false,
+          message: "Không có ca làm việc nào thực sự bị xóa khỏi database!",
+        });
+    }
+
     await connection.commit();
     res.json({
       success: true,
-      message: `Đã xóa ${items.length} ca thành công!`,
+      message: `Đã xóa thành công ${totalDeleted} ca làm việc!`,
     });
   } catch (err) {
     await connection.rollback();

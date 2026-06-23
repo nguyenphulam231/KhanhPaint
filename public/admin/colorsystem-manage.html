@@ -95,6 +95,70 @@
         width: 400px;
         max-width: 90%;
       }
+
+      .filter-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: flex-end;
+        margin-bottom: 16px;
+      }
+      .filter-grid > div {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 160px;
+        flex: 1;
+      }
+      .filter-grid label {
+        font-size: 12px;
+        font-weight: bold;
+        color: #555;
+      }
+      .filter-grid input,
+      .filter-grid select {
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 13px;
+        width: 100%;
+        box-sizing: border-box;
+        margin: 0;
+      }
+      .filter-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+      }
+      .btn-filter {
+        background-color: #0d6efd;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: bold;
+      }
+      .btn-reset-filter {
+        background-color: #6c757d;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .btn-delete-selected {
+        background-color: #dc3545;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: bold;
+        display: none;
+      }
     </style>
   </head>
   <body>
@@ -167,11 +231,59 @@
 
         <section class="admin-card">
           <h3>Danh sách Hệ thống màu</h3>
+
+          <!-- Bộ lọc -->
+          <div class="filter-grid">
+            <div>
+              <label>Mã màu</label>
+              <input type="text" id="filterCode" placeholder="VD: AP102..." />
+            </div>
+            <div>
+              <label>Tên màu</label>
+              <input
+                type="text"
+                id="filterName"
+                placeholder="VD: Xanh ngọc..."
+              />
+            </div>
+            <div>
+              <label>Cốt sơn (Base)</label>
+              <select id="filterBase">
+                <option value="">-- Tất cả --</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="filter-actions">
+            <button class="btn-filter" id="applyFilterBtn">Lọc</button>
+            <button class="btn-reset-filter" id="resetFilterBtn">Bỏ lọc</button>
+            <label
+              style="
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                cursor: pointer;
+                margin-left: 8px;
+              "
+            >
+              <input
+                type="checkbox"
+                id="selectAllCheck"
+                style="width: auto; margin: 0; transform: scale(1.2)"
+              />
+              <span style="font-size: 14px">Chọn tất cả</span>
+            </label>
+            <button class="btn-delete-selected" id="deleteSelectedBtn">
+              Xóa đã chọn (<span id="selectedCount">0</span>)
+            </button>
+          </div>
+
           <table
             style="width: 100%; border-collapse: collapse; text-align: left"
           >
             <thead>
               <tr style="border-bottom: 2px solid #ddd; height: 40px">
+                <th style="width: 40px"></th>
                 <th>ID</th>
                 <th>Mã màu</th>
                 <th>Tên màu</th>
@@ -181,7 +293,7 @@
             </thead>
             <tbody id="colorListBody">
               <tr>
-                <td colspan="5" style="text-align: center; padding: 20px">
+                <td colspan="6" style="text-align: center; padding: 20px">
                   Đang tải danh sách hệ màu...
                 </td>
               </tr>
@@ -222,67 +334,79 @@
 
       let availableColorants = [];
       let editingColorId = null;
+      let currentFilterParams = {};
 
-      // 1. Tải danh sách tinh màu phục vụ thẻ Select
+      // ── 1. Tải tinh màu cho select ───────────────────────────────────────────
       async function loadColorantsForSelect() {
         try {
-          const response = await fetch(API_ROUTES.GET_COLORANTS, {
+          const res = await fetch(API_ROUTES.GET_COLORANTS, {
             headers: { Authorization: "Bearer " + getAdminToken() },
           });
-          if (response.ok) availableColorants = await response.json();
-        } catch (error) {
-          console.error("Lỗi lấy danh sách tinh màu:", error);
+          if (res.ok) availableColorants = await res.json();
+        } catch (err) {
+          console.error("Lỗi lấy danh sách tinh màu:", err);
         }
       }
 
-      // 2. Tải danh sách cốt Base sơn
+      // ── 2. Tải BaseTypes (form + filter) ────────────────────────────────────
       async function loadBaseTypes() {
         try {
-          const response = await fetch("/api/admin/base", {
+          const res = await fetch("/api/admin/base", {
             headers: { Authorization: "Bearer " + getAdminToken() },
           });
-          const bases = await response.json();
+          const bases = await res.json();
+
           baseIdSelect.innerHTML =
             '<option value="">-- Chọn Cốt sơn (Base) --</option>';
+          document.getElementById("filterBase").innerHTML =
+            '<option value="">-- Tất cả --</option>';
+
           bases.forEach((b) => {
-            baseIdSelect.innerHTML += `<option value="${b.base_id}">${b.base_name}</option>`;
+            const opt = `<option value="${b.base_id}">${b.base_name}</option>`;
+            baseIdSelect.innerHTML += opt;
+            document.getElementById("filterBase").innerHTML += opt;
           });
         } catch (err) {
-          console.error("Lỗi tải danh sách BaseTypes:", err);
+          console.error("Lỗi tải BaseTypes:", err);
         }
       }
 
-      // 3. Hàm tạo thêm một dòng công thức pha động
+      // ── 3. Thêm dòng công thức pha ───────────────────────────────────────────
       function addFormulaRow(selectedColorantId = "", amountValue = "") {
         const rowDiv = document.createElement("div");
         rowDiv.className = "formula-row";
 
-        let options = availableColorants
+        const options = availableColorants
           .map(
             (c) =>
-              `<option value="${c.colorant_id}" ${selectedColorantId == c.colorant_id ? "selected" : ""}>${c.colorant_name}</option>`,
+              `<option value="${c.colorant_id}"
+        ${selectedColorantId == c.colorant_id ? "selected" : ""}>
+        ${c.colorant_name}
+      </option>`,
           )
           .join("");
 
         rowDiv.innerHTML = `
-          <select class="colorant-select"><option value="">-- Chọn Tinh màu --</option>${options}</select>
-          <input type="number" class="amount-input" placeholder="ml/Lít" min="0" step="0.01" value="${amountValue}">
-          <button type="button" class="btn-remove">✕</button>
-        `;
-
+      <select class="colorant-select">
+        <option value="">-- Chọn Tinh màu --</option>${options}
+      </select>
+      <input type="number" class="amount-input"
+        placeholder="ml/Lít" min="0" step="0.01" value="${amountValue}" />
+      <button type="button" class="btn-remove">✕</button>
+    `;
         rowDiv.querySelector(".btn-remove").addEventListener("click", () => {
           formulaContainer.removeChild(rowDiv);
         });
         formulaContainer.appendChild(rowDiv);
       }
 
-      // 4. Hàm xem nhanh công thức màu (Modal)
+      // ── 4. Xem công thức (Modal) ─────────────────────────────────────────────
       async function viewFormula(colorId, colorCode) {
         try {
-          const response = await fetch(API_ROUTES.GET_FORMULA(colorId), {
+          const res = await fetch(API_ROUTES.GET_FORMULA(colorId), {
             headers: { Authorization: "Bearer " + getAdminToken() },
           });
-          const formula = await response.json();
+          const formula = await res.json();
           document.getElementById("modalTitle").innerText =
             `Công thức: ${colorCode}`;
           document.getElementById("formulaList").innerHTML = formula
@@ -297,34 +421,42 @@
         }
       }
 
-      // 5. Hàm tải toàn bộ danh sách Hệ thống màu lên bảng
-      // 5. Hàm tải toàn bộ danh sách Hệ thống màu lên bảng (Đã sửa lỗi chống crash .map)
-      async function loadColorSystem() {
+      // ── 5. Tải danh sách màu (có filter) ────────────────────────────────────
+      async function loadColorSystem(params = {}) {
+        currentFilterParams = params;
+        const query = new URLSearchParams();
+        if (params.color_code) query.append("color_code", params.color_code);
+        if (params.color_name) query.append("color_name", params.color_name);
+        if (params.base_id) query.append("base_id", params.base_id);
+
+        const url =
+          API_ROUTES.GET_COLORSYSTEM +
+          (query.toString() ? "?" + query.toString() : "");
+
         try {
-          const response = await fetch(API_ROUTES.GET_COLORSYSTEM, {
+          const res = await fetch(url, {
             headers: { Authorization: "Bearer " + getAdminToken() },
           });
-
-          let data = await response.json();
+          let data = await res.json();
           const tbody = document.getElementById("colorListBody");
 
-          // BẢO VỆ FORM: Nếu backend bọc data trong object { success: true, data: [...] }
           if (data && !Array.isArray(data) && Array.isArray(data.data)) {
             data = data.data;
           }
-
-          // Kiểm tra nếu dữ liệu vẫn không phải là mảng (có thể là object lỗi { error: "..." })
           if (!Array.isArray(data)) {
-            console.error(
-              "Dữ liệu trả về không hợp lệ (không phải Array):",
-              data,
-            );
-            tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: red; padding: 20px;">Lỗi: Dữ liệu hệ màu không đúng cấu trúc hoặc lỗi xác thực! (${data?.error || "Unknown Error"})</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:red; padding:20px;">
+          Lỗi dữ liệu: ${data?.error || "Unknown Error"}</td></tr>`;
             return;
           }
 
+          // Reset checkbox
+          document.getElementById("selectAllCheck").checked = false;
+          document.getElementById("deleteSelectedBtn").style.display = "none";
+          document.getElementById("selectedCount").textContent = "0";
+
           if (data.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 20px;">Hệ thống chưa cấu hình mã màu nào.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:20px;">
+          Không có mã màu nào phù hợp.</td></tr>`;
             return;
           }
 
@@ -333,55 +465,140 @@
               const escapedCode = (item.color_code || "").replace(/'/g, "\\'");
               const escapedName = (item.color_name || "").replace(/'/g, "\\'");
               return `
-                <tr style="border-bottom: 1px solid #eee; height: 40px;">
-                  <td>#${item.color_id}</td>
-                  <td><code><strong>${item.color_code}</strong></code></td>
-                  <td><b>${item.color_name}</b></td>
-                  <td><span class="badge">${item.base_name || "N/A"}</span></td>
-                  <td>
-                    <button class="btn-action btn-view" onclick="viewFormula(${item.color_id}, '${escapedCode}')">Xem CT</button>
-                    <button class="btn-action btn-edit" onclick="prepareEdit(${item.color_id}, '${escapedCode}', '${escapedName}', ${item.base_id})">Sửa</button>
-                    <button class="btn-action btn-delete" onclick="deleteColorSystem(${item.color_id}, '${escapedCode}')">Xóa</button>
-                  </td>
-                </tr>
-              `;
+          <tr style="border-bottom: 1px solid #eee; height:40px;">
+            <td style="text-align:center;">
+              <input type="checkbox" class="row-check"
+                data-id="${item.color_id}"
+                data-code="${escapedCode}"
+                style="width:auto; margin:0; transform:scale(1.2); cursor:pointer;" />
+            </td>
+            <td>#${item.color_id}</td>
+            <td><code><strong>${item.color_code}</strong></code></td>
+            <td><b>${item.color_name}</b></td>
+            <td><span class="badge">${item.base_name || "N/A"}</span></td>
+            <td>
+              <button class="btn-action btn-view"
+                onclick="viewFormula(${item.color_id}, '${escapedCode}')">Xem CT</button>
+              <button class="btn-action btn-edit"
+                onclick="prepareEdit(${item.color_id}, '${escapedCode}', '${escapedName}', ${item.base_id})">Sửa</button>
+              <button class="btn-action btn-delete"
+                onclick="deleteColorSystem(${item.color_id}, '${escapedCode}')">Xóa</button>
+            </td>
+          </tr>`;
             })
             .join("");
-        } catch (error) {
-          console.error("Lỗi khi fetch danh sách hệ màu:", error);
+
+          document.querySelectorAll(".row-check").forEach((chk) => {
+            chk.addEventListener("change", updateDeleteSelectedBtn);
+          });
+        } catch (err) {
+          console.error("Lỗi fetch hệ màu:", err);
           document.getElementById("colorListBody").innerHTML =
-            `<tr><td colspan="5" style="text-align: center; color: red; padding: 20px;">Không thể kết nối đến máy chủ!</td></tr>`;
+            `<tr><td colspan="6" style="text-align:center; color:red; padding:20px;">
+          Không thể kết nối đến máy chủ!</td></tr>`;
         }
       }
 
-      // 6. Xử lý chuẩn bị dữ liệu cập nhật công thức (Đẩy ngược lên Form)
+      // ── Cập nhật nút xóa đã chọn ────────────────────────────────────────────
+      function updateDeleteSelectedBtn() {
+        const checked = document.querySelectorAll(".row-check:checked");
+        const all = document.querySelectorAll(".row-check");
+        const btn = document.getElementById("deleteSelectedBtn");
+        document.getElementById("selectedCount").textContent = checked.length;
+        btn.style.display = checked.length > 0 ? "inline-block" : "none";
+        document.getElementById("selectAllCheck").checked =
+          all.length > 0 && checked.length === all.length;
+      }
+
+      // ── Chọn tất cả ─────────────────────────────────────────────────────────
+      document
+        .getElementById("selectAllCheck")
+        .addEventListener("change", function () {
+          document.querySelectorAll(".row-check").forEach((chk) => {
+            chk.checked = this.checked;
+          });
+          updateDeleteSelectedBtn();
+        });
+
+      // ── Nút Lọc ─────────────────────────────────────────────────────────────
+      document
+        .getElementById("applyFilterBtn")
+        .addEventListener("click", () => {
+          loadColorSystem({
+            color_code: document.getElementById("filterCode").value.trim(),
+            color_name: document.getElementById("filterName").value.trim(),
+            base_id: document.getElementById("filterBase").value,
+          });
+        });
+
+      // ── Nút Bỏ lọc ──────────────────────────────────────────────────────────
+      document
+        .getElementById("resetFilterBtn")
+        .addEventListener("click", () => {
+          document.getElementById("filterCode").value = "";
+          document.getElementById("filterName").value = "";
+          document.getElementById("filterBase").value = "";
+          loadColorSystem();
+        });
+
+      // ── Xóa nhiều ───────────────────────────────────────────────────────────
+      document
+        .getElementById("deleteSelectedBtn")
+        .addEventListener("click", async () => {
+          const checked = [...document.querySelectorAll(".row-check:checked")];
+          if (!checked.length) return;
+          if (
+            !confirm(
+              `Xóa ${checked.length} mã màu đã chọn?\nHành động này sẽ xóa vĩnh viễn toàn bộ công thức pha liên kết.`,
+            )
+          )
+            return;
+
+          let successCount = 0;
+          let failCount = 0;
+
+          for (const chk of checked) {
+            try {
+              const res = await fetch(API_ROUTES.DELETE_COLOR(chk.dataset.id), {
+                method: "DELETE",
+                headers: { Authorization: "Bearer " + getAdminToken() },
+              });
+              if (res.ok) successCount++;
+              else failCount++;
+            } catch {
+              failCount++;
+            }
+          }
+
+          alert(
+            `Đã xóa ${successCount} mã màu thành công.${failCount > 0 ? `\n${failCount} thất bại.` : ""}`,
+          );
+          loadColorSystem(currentFilterParams);
+        });
+
+      // ── 6. Chuẩn bị sửa ─────────────────────────────────────────────────────
       async function prepareEdit(colorId, colorCode, colorName, baseId) {
         editingColorId = colorId;
         sectionFormTitle.innerText = `Chỉnh sửa mã màu [ ${colorCode} ]`;
-
         colorCodeInput.value = colorCode;
         colorNameInput.value = colorName;
         baseIdSelect.value = baseId;
-
-        // Xóa trắng cấu trúc công thức cũ trên Form trước khi nạp dữ liệu chi tiết
         formulaContainer.innerHTML = "";
 
         try {
-          // Lấy cấu trúc mảng công thức thành phần từ backend
-          const response = await fetch(API_ROUTES.GET_FORMULA(colorId), {
+          const res = await fetch(API_ROUTES.GET_FORMULA(colorId), {
             headers: { Authorization: "Bearer " + getAdminToken() },
           });
-          const formulaDetails = await response.json();
-
+          const formulaDetails = await res.json();
           if (formulaDetails && formulaDetails.length > 0) {
-            formulaDetails.forEach((item) => {
-              addFormulaRow(item.colorant_id, item.amount_ml);
-            });
+            formulaDetails.forEach((item) =>
+              addFormulaRow(item.colorant_id, item.amount_ml),
+            );
           } else {
             addFormulaRow();
           }
         } catch (err) {
-          console.error("Lỗi nạp chi tiết công thức:", err);
+          console.error("Lỗi nạp công thức:", err);
           addFormulaRow();
         }
 
@@ -390,9 +607,10 @@
         saveColorBtn.style.color = "#000";
         cancelEditBtn.classList.remove("d-none");
         colorCodeInput.focus();
+        window.scrollTo({ top: 0, behavior: "smooth" });
       }
 
-      // Hàm dọn dẹp Form đưa về trạng thái thêm mới ban đầu
+      // ── Reset form ───────────────────────────────────────────────────────────
       function resetForm() {
         editingColorId = null;
         sectionFormTitle.innerText = "Thêm mã màu mới";
@@ -400,8 +618,7 @@
         colorNameInput.value = "";
         baseIdSelect.value = "";
         formulaContainer.innerHTML = "";
-        addFormulaRow(); // Để sẵn một hàng trống mặc định
-
+        addFormulaRow();
         saveColorBtn.innerText = "Lưu mã màu & Công thức";
         saveColorBtn.style.backgroundColor = "#28a745";
         saveColorBtn.style.color = "white";
@@ -410,43 +627,38 @@
 
       cancelEditBtn.addEventListener("click", resetForm);
 
-      // 7. Chức năng xóa mã màu hoàn toàn khỏi hệ thống (Xóa Master-Detail)
+      // ── 7. Xóa 1 mã màu ─────────────────────────────────────────────────────
       async function deleteColorSystem(colorId, colorCode) {
-        const token = getAdminToken();
-        if (!token) return;
-
         if (
           !confirm(
-            `Bạn chắc chắn muốn xóa mã màu [ ${colorCode} ]?\nHành động này sẽ xóa vĩnh viễn toàn bộ công thức pha tinh màu liên kết.`,
+            `Xóa mã màu [ ${colorCode} ]?\nSẽ xóa vĩnh viễn toàn bộ công thức pha liên kết.`,
           )
         )
           return;
-
         try {
-          const response = await fetch(API_ROUTES.DELETE_COLOR(colorId), {
+          const res = await fetch(API_ROUTES.DELETE_COLOR(colorId), {
             method: "DELETE",
-            headers: { Authorization: "Bearer " + token },
+            headers: { Authorization: "Bearer " + getAdminToken() },
           });
-          const result = await response.json().catch(() => null);
-
-          if (response.ok) {
+          const result = await res.json().catch(() => null);
+          if (res.ok) {
             alert("Đã xóa mã màu và công thức liên quan thành công!");
             if (editingColorId === colorId) resetForm();
-            loadColorSystem();
+            loadColorSystem(currentFilterParams);
           } else {
             alert(result?.error || "Lỗi xảy ra khi thực hiện xóa!");
           }
         } catch (err) {
-          console.error("Lỗi kết nối xóa hệ màu:", err);
+          console.error("Lỗi xóa:", err);
         }
       }
 
-      // 8. Kích hoạt thêm dòng tinh màu khi click nút
+      // ── 8. Thêm dòng tinh màu ───────────────────────────────────────────────
       document
         .getElementById("addFormulaRowBtn")
         .addEventListener("click", () => addFormulaRow());
 
-      // 9. Xử lý nút Lưu (Thêm mới POST hoặc Cập nhật PUT tùy theo flag editingColorId)
+      // ── 9. Lưu (thêm / cập nhật) ────────────────────────────────────────────
       saveColorBtn.addEventListener("click", async () => {
         const codeValue = colorCodeInput.value.trim();
         const nameValue = colorNameInput.value.trim();
@@ -457,7 +669,6 @@
           return;
         }
 
-        // Đóng gói mảng dữ liệu công thức từ các hàng giao diện
         const formula = Array.from(document.querySelectorAll(".formula-row"))
           .map((row) => ({
             colorant_id: parseInt(row.querySelector(".colorant-select").value),
@@ -474,49 +685,44 @@
           formula,
         };
 
-        const token = getAdminToken();
         const url = editingColorId
           ? API_ROUTES.UPDATE_COLOR(editingColorId)
           : API_ROUTES.ADD_COLORSYSTEM;
         const method = editingColorId ? "PUT" : "POST";
 
         try {
-          const response = await fetch(url, {
-            method: method,
+          const res = await fetch(url, {
+            method,
             headers: {
               "Content-Type": "application/json",
-              Authorization: "Bearer " + token,
+              Authorization: "Bearer " + getAdminToken(),
             },
             body: JSON.stringify(payload),
           });
-
-          const result = await response.json().catch(() => null);
-
-          if (response.ok) {
+          const result = await res.json().catch(() => null);
+          if (res.ok) {
             alert(
               editingColorId
                 ? "Cập nhật mã màu thành công!"
                 : "Thêm mã màu & công thức thành công!",
             );
             resetForm();
-            loadColorSystem();
+            loadColorSystem(currentFilterParams);
           } else {
-            alert(
-              result?.error || "Có lỗi phát sinh khi xử lý dữ liệu hệ màu!",
-            );
+            alert(result?.error || "Có lỗi phát sinh khi xử lý dữ liệu!");
           }
         } catch (err) {
           console.error("Lỗi:", err);
-          alert("Lỗi kết nối dữ liệu đến server!");
+          alert("Lỗi kết nối đến server!");
         }
       });
 
-      // 10. Khởi chạy khi tải trang hoàn tất
+      // ── 10. Khởi động ───────────────────────────────────────────────────────
       window.addEventListener("DOMContentLoaded", async () => {
         await loadColorantsForSelect();
         await loadBaseTypes();
         await loadColorSystem();
-        addFormulaRow(); // Khởi tạo sẵn một hàng công thức ban đầu
+        addFormulaRow();
       });
     </script>
   </body>

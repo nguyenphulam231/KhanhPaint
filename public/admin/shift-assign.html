@@ -547,32 +547,31 @@
 
         tbody.innerHTML = data
           .map((item, idx) => {
-            const dateStr = new Date(item.working_date)
-              .toISOString()
-              .split("T")[0];
+            // Lấy trực tiếp chuỗi sạch từ DATE_FORMAT bên Backend trả về
+            const dateStr = item.working_date;
             const empName = item.full_name || `Nhân viên ${item.employee_id}`;
 
             return `
-      <tr>
-        <td>
-          <input type="checkbox" class="row-check"
-            data-emp-id="${item.employee_id}"
-            data-shift-id="${item.shift_id}"
-            data-date="${dateStr}"
-            style="width:auto; margin:0; transform:scale(1.2);" />
-        </td>
-        <td>${dateStr}</td>
-        <td>[NV-${item.employee_id}] ${empName}</td>
-        <td>${item.shift_name}</td>
-        <td>${item.start_time.substring(0, 5)} - ${item.end_time.substring(0, 5)}</td>
-        <td>
-          <button type="button"
-            onclick="deleteSingleShift(${item.employee_id}, ${item.shift_id}, '${dateStr}')"
-            style="width:auto; padding:6px 12px; background:#dc3545; font-size:13px; margin:0;">
-            Xóa
-          </button>
-        </td>
-      </tr>`;
+        <tr>
+          <td>
+            <input type="checkbox" class="row-check"
+              data-emp-id="${item.employee_id}"
+              data-shift-id="${item.shift_id}"
+              data-date="${dateStr}"
+              style="width:auto; margin:0; transform:scale(1.2);" />
+          </td>
+          <td>${dateStr}</td>
+          <td>[NV-${item.employee_id}] ${empName}</td>
+          <td>${item.shift_name}</td>
+          <td>${item.start_time.substring(0, 5)} - ${item.end_time.substring(0, 5)}</td>
+          <td>
+            <button type="button"
+              onclick="deleteSingleShift(${item.employee_id}, ${item.shift_id}, '${dateStr}')"
+              style="width:auto; padding:6px 12px; background:#dc3545; font-size:13px; margin:0;">
+              Xóa
+            </button>
+          </td>
+        </tr>`;
           })
           .join("");
 

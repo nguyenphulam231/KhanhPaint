@@ -2,23 +2,45 @@ const express = require("express");
 const router = express.Router();
 const db = require("../../db");
 
-// 1. Lấy danh sách mã màu (Đã có - Giữ nguyên)
+// 1. Lấy danh sách mã màu (hỗ trợ lọc qua query params: color_code, color_name, base_id)
 router.get("/", async (req, res) => {
+  const { color_code, color_name, base_id } = req.query;
+
+  let conditions = [];
+  let params = [];
+
+  if (color_code) {
+    conditions.push("c.color_code LIKE ?");
+    params.push(`%${color_code}%`);
+  }
+  if (color_name) {
+    conditions.push("c.color_name LIKE ?");
+    params.push(`%${color_name}%`);
+  }
+  if (base_id) {
+    conditions.push("c.base_id = ?");
+    params.push(base_id);
+  }
+
+  const whereClause =
+    conditions.length > 0 ? "WHERE " + conditions.join(" AND ") : "";
+
   try {
     const query = `
       SELECT c.*, b.base_name 
       FROM colorsystem c
       JOIN basetypes b ON c.base_id = b.base_id
+      ${whereClause}
       ORDER BY c.color_id DESC
     `;
-    const [rows] = await db.execute(query);
+    const [rows] = await db.execute(query, params);
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// 2. Thêm mã màu và công thức pha (Đã có - Giữ nguyên)
+// 2. Thêm mã màu và công thức pha
 router.post("/add", async (req, res) => {
   const { color_code, color_name, base_id, formula } = req.body;
   const connection = await db.getConnection();
@@ -50,23 +72,25 @@ router.post("/add", async (req, res) => {
   }
 });
 
-// 3. Lấy công thức chi tiết của một mã màu (Đã có - Bổ sung thêm colorant_id để front-end dễ mapping form sửa)
+// 3. Lấy công thức chi tiết của một mã màu (theo color_id)
 router.get("/formula/:colorId", async (req, res) => {
+  const { colorId } = req.params;
   try {
     const query = `
-      SELECT f.colorant_id, c.colorant_name, f.amount_ml 
-      FROM colorsystem_colorants f
-      JOIN colorants c ON f.colorant_id = c.colorant_id
-      WHERE f.color_id = ?
+      SELECT cc.colorant_id, cc.amount_ml, co.colorant_name
+      FROM colorsystem_colorants cc
+      JOIN colorants co ON cc.colorant_id = co.colorant_id
+      WHERE cc.color_id = ?
+      ORDER BY co.colorant_name ASC
     `;
-    const [rows] = await db.execute(query, [req.params.colorId]);
+    const [rows] = await db.execute(query, [colorId]);
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// 4. CẬP NHẬT MÃ MÀU VÀ CÔNG THỨC PHA (MỚI)
+// 4. Cập nhật mã màu và công thức pha
 router.put("/update/:colorId", async (req, res) => {
   const { colorId } = req.params;
   const { color_code, color_name, base_id, formula } = req.body;
@@ -110,7 +134,7 @@ router.put("/update/:colorId", async (req, res) => {
   }
 });
 
-// 5. XÓA MÃ MÀU VÀ CÔNG THỨC PHA (MỚI)
+// 5. Xóa mã màu và công thức pha liên kết
 router.delete("/delete/:colorId", async (req, res) => {
   const { colorId } = req.params;
 
