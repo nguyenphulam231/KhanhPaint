@@ -5,15 +5,57 @@ const db = require("../../db");
 
 // 1. Lấy danh sách product variants
 router.get("/", async (req, res) => {
+  const { brand_id, line_id, base_id, volume, sku_code, price_min, price_max } =
+    req.query;
+
+  let conditions = [];
+  let params = [];
+
+  if (brand_id) {
+    conditions.push("br.brand_id = ?");
+    params.push(brand_id);
+  }
+  if (line_id) {
+    conditions.push("pv.line_id = ?");
+    params.push(line_id);
+  }
+  if (base_id) {
+    conditions.push("pv.base_id = ?");
+    params.push(base_id);
+  }
+  if (volume) {
+    conditions.push("pv.volume = ?");
+    params.push(volume);
+  }
+  if (sku_code) {
+    conditions.push("pv.sku_code LIKE ?");
+    params.push(`%${sku_code}%`);
+  }
+  if (price_min) {
+    conditions.push("pv.unit_price >= ?");
+    params.push(parseFloat(price_min));
+  }
+  if (price_max) {
+    conditions.push("pv.unit_price <= ?");
+    params.push(parseFloat(price_max));
+  }
+
+  const whereClause =
+    conditions.length > 0 ? "WHERE " + conditions.join(" AND ") : "";
+
   try {
-    const [rows] = await db.execute(`
-      SELECT pv.*, pl.name AS line_name, b.base_name, br.name AS brand_name
+    const [rows] = await db.execute(
+      `
+      SELECT pv.*, pl.name AS line_name, b.base_name, br.name AS brand_name, br.brand_id
       FROM productvariants pv
       JOIN productlines pl ON pv.line_id = pl.line_id
       JOIN basetypes b ON pv.base_id = b.base_id
       JOIN brands br ON pl.brand_id = br.brand_id
+      ${whereClause}
       ORDER BY pv.variant_id DESC
-    `);
+    `,
+      params,
+    );
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
