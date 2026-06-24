@@ -1,0 +1,548 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Giỏ Hàng - KhanhPaint</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../style.css" />
+    <style>
+      .cart-item-row {
+        border-bottom: 1px solid #eee;
+        padding: 16px 0;
+      }
+      .cart-item-row:last-child {
+        border-bottom: none;
+      }
+      .qty-input-cart {
+        width: 80px;
+        text-align: center;
+      }
+      .color-swatch-sm {
+        width: 22px;
+        height: 22px;
+        border-radius: 4px;
+        display: inline-block;
+        border: 1px solid #ccc;
+        vertical-align: middle;
+        margin-right: 6px;
+      }
+      .empty-cart-box {
+        text-align: center;
+        padding: 60px 20px;
+        color: #888;
+      }
+    </style>
+  </head>
+  <body class="bg-light">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+      <div class="container">
+        <a class="navbar-brand fw-bold" href="./index.html">🎨 KHANH PAINT</a>
+        <div class="d-flex align-items-center">
+          <a href="./index.html" class="btn btn-outline-light btn-sm me-3">
+            ← Tiếp tục mua sắm
+          </a>
+          <a href="./profile.html" class="btn btn-outline-light btn-sm me-3">
+            👤 Tài khoản
+          </a>
+          <span id="user-info" class="text-white me-3"></span>
+          <a
+            href="./login.html"
+            id="btn-login"
+            class="btn btn-outline-light btn-sm"
+            >Đăng nhập</a
+          >
+          <button
+            id="btn-logout"
+            class="btn btn-danger btn-sm d-none"
+            onclick="logout()"
+          >
+            Đăng xuất
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container" style="max-width: 1100px">
+      <h2 class="mb-4 fw-bold text-secondary">🛒 Giỏ Hàng Của Bạn</h2>
+
+      <div class="row g-4">
+        <!-- Cột trái: danh sách sản phẩm trong giỏ -->
+        <div class="col-lg-7">
+          <div class="bg-white rounded shadow-sm p-3">
+            <div id="cart-items-container">
+              <div class="text-center py-5">Đang tải giỏ hàng...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cột phải: địa chỉ giao hàng + tổng tiền + đặt hàng -->
+        <div class="col-lg-5">
+          <div class="bg-white rounded shadow-sm p-3 mb-3">
+            <h5 class="fw-bold mb-3">📍 Địa Chỉ Giao Hàng</h5>
+
+            <div id="loginRequiredNotice" class="alert alert-warning d-none">
+              Bạn cần
+              <a href="./login.html" class="fw-bold">đăng nhập</a> để có thể đặt
+              hàng.
+            </div>
+
+            <div id="addressFormBlock">
+              <div class="mb-2">
+                <label class="small fw-bold text-muted">Tỉnh / Thành phố</label>
+                <select id="provinceSelect" class="form-select">
+                  <option value="">-- Chọn tỉnh/thành --</option>
+                </select>
+              </div>
+              <div class="mb-2">
+                <label class="small fw-bold text-muted">Phường / Xã</label>
+                <select id="wardSelect" class="form-select" disabled>
+                  <option value="">-- Chọn tỉnh/thành trước --</option>
+                </select>
+              </div>
+              <div class="mb-2">
+                <label class="small fw-bold text-muted">Địa chỉ cụ thể</label>
+                <input
+                  type="text"
+                  id="streetAddressInput"
+                  class="form-control"
+                  placeholder="Số nhà, tên đường..."
+                />
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white rounded shadow-sm p-3">
+            <h5 class="fw-bold mb-3">💰 Tổng Cộng</h5>
+            <div class="d-flex justify-content-between mb-2">
+              <span class="text-muted">Tổng số sản phẩm:</span>
+              <span id="totalItemsText" class="fw-bold">0</span>
+            </div>
+            <div class="d-flex justify-content-between mb-3 fs-5">
+              <span class="fw-bold">Tổng tiền:</span>
+              <span id="totalPriceText" class="fw-bold text-danger">0 đ</span>
+            </div>
+            <button
+              id="btnSubmitOrder"
+              class="btn btn-success w-100 py-2 fw-bold"
+              onclick="submitOrder()"
+            >
+              Đặt Hàng Ngay
+            </button>
+            <div id="orderMessage" class="small mt-2"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      const PRODUCTS_API = "/api/client/products";
+      const AUTH_API = "/api/auth/public";
+      const ORDER_API = "/api/client/orders"; // điều chỉnh nếu route thực tế khác
+
+      let cart = []; // [{ variant_id, color_id, quantity }]
+      let variantDetailsMap = {}; // variant_id -> chi tiết từ API
+      let colorDetailsMap = {}; // color_id -> chi tiết màu
+      let currentCustomerId = null;
+      let colorantCostMap = {};
+      document.addEventListener("DOMContentLoaded", async () => {
+        checkLoginStatus();
+        loadProvinces();
+        await loadCart();
+      });
+
+      // ================= AUTH / JWT =================
+
+      // Decode phần payload của JWT (base64url) để lấy customer_id, KHÔNG
+      // verify chữ ký (việc verify thực sự do backend xử lý khi gọi API đặt
+      // hàng). Mục đích ở đây chỉ là biết người dùng đã đăng nhập hay chưa
+      // và lấy id để hiển thị/gửi lên server.
+      function decodeJwtPayload(token) {
+        try {
+          const payloadPart = token.split(".")[1];
+          const base64 = payloadPart.replace(/-/g, "+").replace(/_/g, "/");
+          const json = decodeURIComponent(
+            atob(base64)
+              .split("")
+              .map((c) => "%" + c.charCodeAt(0).toString(16).padStart(2, "0"))
+              .join(""),
+          );
+          return JSON.parse(json);
+        } catch (e) {
+          return null;
+        }
+      }
+
+      function checkLoginStatus() {
+        const token =
+          localStorage.getItem("client_token") || localStorage.getItem("token");
+        const notice = document.getElementById("loginRequiredNotice");
+        const submitBtn = document.getElementById("btnSubmitOrder");
+
+        if (token) {
+          const payload = decodeJwtPayload(token);
+          if (payload && payload.id) {
+            currentCustomerId = payload.id;
+            document.getElementById("btn-login").classList.add("d-none");
+            document.getElementById("btn-logout").classList.remove("d-none");
+            document.getElementById("user-info").innerText =
+              "Xin chào, Khách hàng!";
+            notice.classList.add("d-none");
+            submitBtn.disabled = false;
+            return;
+          }
+        }
+
+        // Chưa đăng nhập hoặc token không hợp lệ: vẫn cho xem giỏ hàng,
+        // nhưng chặn đặt hàng vì /add cần customer_id.
+        currentCustomerId = null;
+        notice.classList.remove("d-none");
+        submitBtn.disabled = true;
+      }
+
+      function logout() {
+        localStorage.removeItem("token");
+        localStorage.removeItem("client_token");
+        window.location.reload();
+      }
+
+      // ================= GIỎ HÀNG =================
+
+      async function loadCart() {
+        cart = JSON.parse(localStorage.getItem("khanhpaint_cart")) || [];
+        const container = document.getElementById("cart-items-container");
+
+        if (cart.length === 0) {
+          container.innerHTML = `
+            <div class="empty-cart-box">
+              <div class="fs-1 mb-2">🛒</div>
+              <p>Giỏ hàng của bạn đang trống.</p>
+              <a href="./index.html" class="btn btn-primary btn-sm">Chọn sản phẩm ngay</a>
+            </div>`;
+          renderTotals();
+          return;
+        }
+
+        container.innerHTML = `<div class="text-center py-4">Đang tải thông tin sản phẩm...</div>`;
+
+        try {
+          // Lấy chi tiết các variant đang có trong giỏ
+          const variantIds = [...new Set(cart.map((i) => i.variant_id))];
+          const res = await fetch(
+            `${PRODUCTS_API}/variants-by-ids?ids=${variantIds.join(",")}`,
+          );
+          const variants = await res.json();
+          variantDetailsMap = {};
+          variants.forEach((v) => (variantDetailsMap[v.variant_id] = v));
+
+          // Lấy toàn bộ bảng màu để biết tên/mã màu hiển thị
+          const colorRes = await fetch(`${PRODUCTS_API}/colors`);
+          const colors = await colorRes.json();
+          colorDetailsMap = {};
+          colors.forEach((c) => (colorDetailsMap[c.color_id] = c));
+
+          await renderCartItems();
+        } catch (err) {
+          container.innerHTML = `<div class="text-center text-danger py-4">Không thể tải thông tin sản phẩm trong giỏ hàng.</div>`;
+        }
+      }
+
+      // ─── THAY THẾ TOÀN BỘ 2 HÀM NÀY TRONG cart.html ───────────────────────────
+      // Thêm vào biến toàn cục (cùng chỗ với variantDetailsMap, colorDetailsMap):
+      //   let colorantCostMap = {}; // key: "variant_id_color_id" -> colorant_cost / thùng
+
+      async function fetchColorantCosts() {
+        // Gọi API lấy chi phí tinh màu cho từng cặp (variant, color) trong giỏ
+        // Gộp thành 1 lượt Promise.all để không gọi tuần tự từng cái
+        const promises = cart.map(async (item) => {
+          const key = `${item.variant_id}_${item.color_id}`;
+          if (colorantCostMap[key] !== undefined) return; // đã có rồi, bỏ qua
+
+          const v = variantDetailsMap[item.variant_id];
+          if (!v) return;
+
+          try {
+            const res = await fetch(
+              `${PRODUCTS_API}/colorant-cost?color_id=${item.color_id}&volume=${v.volume}`,
+            );
+            const data = await res.json();
+            colorantCostMap[key] = parseFloat(data.colorant_cost) || 0;
+          } catch {
+            colorantCostMap[key] = 0; // fallback nếu lỗi mạng
+          }
+        });
+
+        await Promise.all(promises);
+      }
+
+      // Giá 1 thùng hiển thị cho khách = unit_price (sơn nền) + colorant_cost (tinh màu)
+      function getUnitPriceWithColorant(item) {
+        const v = variantDetailsMap[item.variant_id];
+        if (!v) return 0;
+        const key = `${item.variant_id}_${item.color_id}`;
+        const colorantCost = colorantCostMap[key] || 0;
+        return Number(v.unit_price) + colorantCost;
+      }
+
+      async function renderCartItems() {
+        // Lấy chi phí tinh màu trước khi render
+        await fetchColorantCosts();
+
+        const container = document.getElementById("cart-items-container");
+        container.innerHTML = "";
+
+        cart.forEach((item, index) => {
+          const v = variantDetailsMap[item.variant_id];
+          const c = colorDetailsMap[item.color_id];
+
+          if (!v) {
+            container.innerHTML += `
+        <div class="cart-item-row d-flex justify-content-between align-items-center">
+          <div class="text-danger small">
+            Sản phẩm (ID: ${item.variant_id}) không còn tồn tại trong hệ thống.
+          </div>
+          <button class="btn btn-outline-danger btn-sm" onclick="removeCartItem(${index})">Xóa</button>
+        </div>`;
+            return;
+          }
+
+          const unitPrice = getUnitPriceWithColorant(item); // sơn nền + tinh màu
+          const lineTotal = unitPrice * item.quantity;
+
+          const colorSwatch = c
+            ? `<span class="color-swatch-sm" style="background-color:${
+                c.color_code && c.color_code.startsWith("#")
+                  ? c.color_code
+                  : "#17a2b8"
+              };"></span>${c.color_name} (${c.color_code})`
+            : `<span class="text-muted">Mã màu không xác định (ID: ${item.color_id})</span>`;
+
+          // Tách giá tinh màu ra hiển thị rõ để khách biết cấu thành giá
+          const key = `${item.variant_id}_${item.color_id}`;
+          const colorantCost = colorantCostMap[key] || 0;
+          const colorantLine =
+            colorantCost > 0
+              ? `<div class="text-muted small">
+           Sơn nền: ${Number(v.unit_price).toLocaleString("vi-VN")} đ
+           + Tinh màu: ${colorantCost.toLocaleString("vi-VN")} đ
+         </div>`
+              : "";
+
+          container.innerHTML += `
+      <div class="cart-item-row">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+          <div>
+            <div class="fw-bold text-dark">${v.brand_name} - ${v.line_name}</div>
+            <div class="text-muted small mb-1">
+              <span class="badge ${v.is_interior ? "bg-success" : "bg-primary"}">
+                ${v.is_interior ? "Nội Thất" : "Ngoại Thất"}
+              </span>
+              Dung tích: ${v.volume} Lít
+            </div>
+            <div class="small">${colorSwatch}</div>
+            ${colorantLine}
+            ${
+              v.stock_quantity < item.quantity
+                ? `<div class="text-danger small mt-1">⚠️ Kho chỉ còn ${v.stock_quantity}, vượt số lượng bạn chọn!</div>`
+                : ""
+            }
+          </div>
+          <div class="text-end">
+            <div class="fw-bold text-danger fs-6 mb-1">${lineTotal.toLocaleString("vi-VN")} đ</div>
+            <div class="text-muted small">${unitPrice.toLocaleString("vi-VN")} đ / thùng</div>
+          </div>
+        </div>
+        <div class="d-flex justify-content-between align-items-center mt-2">
+          <div class="d-flex align-items-center gap-2">
+            <label class="small text-muted mb-0">Số lượng:</label>
+            <input
+              type="number" min="1" step="1" value="${item.quantity}"
+              class="form-control form-control-sm qty-input-cart"
+              onchange="updateCartQuantity(${index}, this.value)"
+            />
+          </div>
+          <button class="btn btn-outline-danger btn-sm" onclick="removeCartItem(${index})">
+            🗑️ Xóa
+          </button>
+        </div>
+      </div>`;
+        });
+
+        renderTotals();
+      }
+
+      function renderTotals() {
+        let totalItems = 0;
+        let totalPrice = 0;
+
+        cart.forEach((item) => {
+          totalItems += item.quantity;
+          totalPrice += getUnitPriceWithColorant(item) * item.quantity;
+        });
+
+        document.getElementById("totalItemsText").innerText = totalItems;
+        document.getElementById("totalPriceText").innerText =
+          totalPrice.toLocaleString("vi-VN") + " đ";
+      }
+
+      function persistCart() {
+        localStorage.setItem("khanhpaint_cart", JSON.stringify(cart));
+      }
+
+      function updateCartQuantity(index, value) {
+        const qty = parseInt(value, 10);
+        if (!qty || qty < 1) {
+          alert("Số lượng phải lớn hơn hoặc bằng 1!");
+          renderCartItems(); // reset lại input về giá trị cũ
+          return;
+        }
+        cart[index].quantity = qty;
+        persistCart();
+        renderCartItems();
+        renderTotals();
+      }
+
+      function removeCartItem(index) {
+        if (!confirm("Bạn có chắc muốn xóa sản phẩm này khỏi giỏ hàng?")) {
+          return;
+        }
+        cart.splice(index, 1);
+        persistCart();
+        if (cart.length === 0) {
+          loadCart();
+        } else {
+          renderCartItems();
+          renderTotals();
+        }
+      }
+
+      // ================= ĐỊA CHỈ GIAO HÀNG =================
+
+      async function loadProvinces() {
+        try {
+          const res = await fetch(`${AUTH_API}/provinces`);
+          const provinces = await res.json();
+          const select = document.getElementById("provinceSelect");
+          select.innerHTML = `<option value="">-- Chọn tỉnh/thành --</option>`;
+          provinces.forEach((p) => {
+            select.innerHTML += `<option value="${p.province_id}">${p.province_name}</option>`;
+          });
+          select.addEventListener("change", onProvinceChange);
+        } catch (err) {
+          console.error("Lỗi tải tỉnh/thành:", err);
+        }
+      }
+
+      async function onProvinceChange() {
+        const provinceId = document.getElementById("provinceSelect").value;
+        const wardSelect = document.getElementById("wardSelect");
+
+        if (!provinceId) {
+          wardSelect.innerHTML = `<option value="">-- Chọn tỉnh/thành trước --</option>`;
+          wardSelect.disabled = true;
+          return;
+        }
+
+        wardSelect.innerHTML = `<option value="">Đang tải...</option>`;
+        wardSelect.disabled = true;
+
+        try {
+          const res = await fetch(`${AUTH_API}/wards/${provinceId}`);
+          const wards = await res.json();
+          wardSelect.innerHTML = `<option value="">-- Chọn phường/xã --</option>`;
+          wards.forEach((w) => {
+            wardSelect.innerHTML += `<option value="${w.ward_id}">${w.ward_name}</option>`;
+          });
+          wardSelect.disabled = false;
+        } catch (err) {
+          wardSelect.innerHTML = `<option value="">Lỗi tải phường/xã</option>`;
+        }
+      }
+
+      // ================= ĐẶT HÀNG =================
+
+      async function submitOrder() {
+        const messageBox = document.getElementById("orderMessage");
+        messageBox.innerText = "";
+        messageBox.className = "small mt-2";
+
+        if (!currentCustomerId) {
+          messageBox.classList.add("text-danger");
+          messageBox.innerText = "Bạn cần đăng nhập để đặt hàng!";
+          return;
+        }
+
+        if (cart.length === 0) {
+          messageBox.classList.add("text-danger");
+          messageBox.innerText = "Giỏ hàng của bạn đang trống!";
+          return;
+        }
+
+        const wardId = document.getElementById("wardSelect").value;
+        const streetAddress = document
+          .getElementById("streetAddressInput")
+          .value.trim();
+
+        if (!wardId || !streetAddress) {
+          messageBox.classList.add("text-danger");
+          messageBox.innerText =
+            "Vui lòng chọn đầy đủ địa chỉ giao hàng (tỉnh/thành, phường/xã, địa chỉ cụ thể)!";
+          return;
+        }
+
+        const items = cart.map((item) => ({
+          variant_id: item.variant_id,
+          color_id: item.color_id,
+          quantity: item.quantity,
+        }));
+
+        const btn = document.getElementById("btnSubmitOrder");
+        btn.disabled = true;
+        btn.innerText = "Đang xử lý...";
+
+        try {
+          const res = await fetch(`${ORDER_API}/add`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${localStorage.getItem("client_token") || localStorage.getItem("token")}`,
+            },
+            body: JSON.stringify({
+              customer_id: currentCustomerId,
+              ward_id: wardId,
+              street_address: streetAddress,
+              items: items,
+            }),
+          });
+
+          const data = await res.json();
+
+          if (res.ok && data.success) {
+            messageBox.classList.add("text-success");
+            messageBox.innerText = `Đặt hàng thành công! Mã đơn hàng #${data.order_id}.`;
+            localStorage.removeItem("khanhpaint_cart");
+            cart = [];
+            setTimeout(() => {
+              window.location.href = "./index.html";
+            }, 1800);
+          } else {
+            messageBox.classList.add("text-danger");
+            messageBox.innerText =
+              data.error || "Có lỗi xảy ra khi đặt hàng, vui lòng thử lại!";
+            btn.disabled = false;
+            btn.innerText = "Đặt Hàng Ngay";
+          }
+        } catch (err) {
+          messageBox.classList.add("text-danger");
+          messageBox.innerText = "Không thể kết nối đến máy chủ!";
+          btn.disabled = false;
+          btn.innerText = "Đặt Hàng Ngay";
+        }
+      }
+    </script>
+  </body>
+</html>

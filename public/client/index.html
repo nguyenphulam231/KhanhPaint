@@ -3,35 +3,570 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PaintSystem - Trang chủ</title>
-    <link rel="stylesheet" href="/style.css" />
+    <title>KhanhPaint - Hệ Thống Bán Sơn Chính Hãng</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../style.css" />
+    <style>
+      .brand-card {
+        cursor: pointer;
+        transition:
+          transform 0.2s,
+          box-shadow 0.2s;
+        border: 2px solid #eaeaea;
+      }
+      .brand-card:hover {
+        transform: translateY(-5px);
+        border-color: #0d6efd;
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08) !important;
+      }
+      .color-box {
+        width: 30px;
+        height: 30px;
+        border-radius: 4px;
+        cursor: pointer;
+        border: 1px solid #ddd;
+        display: inline-block;
+        margin: 2px;
+      }
+      .color-box.active {
+        border: 2px solid #000;
+        box-shadow: 0 0 4px rgba(0, 0, 0, 0.6);
+      }
+      /* QUAN TRỌNG: style.css có định nghĩa chung cho ".modal-content"
+         (dùng cho các modal "tự chế" khác trong hệ thống) với
+         width: 400px cố định. Vì Bootstrap modal cũng dùng đúng class
+         ".modal-content", nó bị đè width 400px theo class đó.
+         Phải override bằng ID selector + !important để thắng. */
+      #brandProductsModal.modal {
+        z-index: 1055;
+      }
+      #brandProductsModal .modal-dialog {
+        max-width: 98vw !important;
+        width: 98vw !important;
+        margin: 1vh auto !important;
+      }
+      #brandProductsModal .modal-content {
+        width: 100% !important;
+        max-width: none !important;
+        margin: 0 !important;
+        max-height: 96vh;
+      }
+      #brandProductsModal .modal-body {
+        max-height: calc(96vh - 70px);
+        overflow-y: auto;
+      }
+      .qty-box {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .qty-box input {
+        width: 70px;
+        text-align: center;
+      }
+
+      /* ── BANNER DỰ TOÁN SƠN ── */
+      .estimator-promo {
+        background: linear-gradient(
+          135deg,
+          #1a1a2e 0%,
+          #16213e 60%,
+          #0f3460 100%
+        );
+        border-radius: 14px;
+        color: #fff;
+        padding: 28px 32px;
+        margin-bottom: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        flex-wrap: wrap;
+      }
+      .estimator-promo .ep-text h4 {
+        font-weight: 800;
+        margin-bottom: 4px;
+      }
+      .estimator-promo .ep-text p {
+        color: #a8bbd4;
+        font-size: 0.9rem;
+        margin-bottom: 0;
+      }
+      .estimator-promo .btn-ep {
+        background: #0d6efd;
+        color: #fff;
+        font-weight: 700;
+        padding: 10px 22px;
+        border-radius: 10px;
+        white-space: nowrap;
+        border: none;
+        transition: background 0.15s;
+      }
+      .estimator-promo .btn-ep:hover {
+        background: #0b5ed7;
+        color: #fff;
+      }
+    </style>
   </head>
-  <body>
-    <header>
-      <h1>KhanhPaint</h1>
-      <nav id="navbar">
-        <a href="/client/">Trang chủ</a>
-        <span id="auth-actions">
-          <a href="/client/login">Đăng nhập</a> |
-          <a href="/client/register">Đăng ký</a>
-        </span>
-      </nav>
-    </header>
+  <body class="bg-light">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+      <div class="container">
+        <a class="navbar-brand fw-bold" href="#">🎨 KHANH PAINT</a>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <a href="./paint-estimator.html" class="btn btn-outline-light btn-sm">
+            🧮 Dự toán sơn
+          </a>
+          <a href="./profile.html" class="btn btn-outline-light btn-sm">
+            👤 Tài khoản
+          </a>
+          <a
+            href="./cart.html"
+            class="btn btn-outline-light btn-sm position-relative"
+          >
+            🛒 Giỏ hàng
+            <span
+              id="cart-count-badge"
+              class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none"
+            >
+              0
+            </span>
+          </a>
+          <span id="user-info" class="text-white"></span>
+          <a
+            href="./login.html"
+            id="btn-login"
+            class="btn btn-outline-light btn-sm"
+            >Đăng nhập</a
+          >
+          <button
+            id="btn-logout"
+            class="btn btn-danger btn-sm d-none"
+            onclick="logout()"
+          >
+            Đăng xuất
+          </button>
+        </div>
+      </div>
+    </nav>
 
-    <main>
-      <p>Đây là trang mua sắm dành cho khách hàng.</p>
-    </main>
+    <div class="container">
+      <!-- BANNER DẪN TỚI CÔNG CỤ DỰ TOÁN -->
+      <div class="estimator-promo">
+        <div class="ep-text">
+          <h4>🧮 Chưa biết mua bao nhiêu sơn?</h4>
+          <p>
+            Dùng công cụ dự toán: nhập diện tích, chọn màu — hệ thống tự tính
+            lượng sơn cần mua và gợi ý sản phẩm còn hàng trong kho.
+          </p>
+        </div>
+        <a href="./paint-estimator.html" class="btn btn-ep"> Dự toán ngay → </a>
+      </div>
 
+      <h2 class="mb-4 text-center fw-bold text-uppercase text-secondary">
+        Chọn Thương Hiệu Sơn
+      </h2>
+
+      <div id="brand-list" class="row g-4 justify-content-center">
+        <div class="text-center py-5">Đang tải danh sách thương hiệu...</div>
+      </div>
+    </div>
+
+    <div
+      class="modal fade"
+      id="brandProductsModal"
+      tabindex="-1"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header bg-dark text-white">
+            <h5 class="modal-title fw-bold" id="brandModalTitle">
+              Danh Sách Sản Phẩm Hãng
+            </h5>
+            <button
+              type="button"
+              class="btn-close btn-close-white"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body bg-light">
+            <div class="row g-2 mb-3 p-3 bg-white rounded shadow-sm">
+              <div class="col-md-3">
+                <label class="small fw-bold text-muted"
+                  >Lọc theo Dòng Sơn</label
+                >
+                <select
+                  id="modalFilterLine"
+                  class="form-select"
+                  onchange="loadBrandVariants()"
+                ></select>
+              </div>
+              <div class="col-md-3">
+                <label class="small fw-bold text-muted">Loại không gian</label>
+                <select
+                  id="modalFilterInterior"
+                  class="form-select"
+                  onchange="loadBrandVariants()"
+                >
+                  <option value="">Tất cả vị trí</option>
+                  <option value="1">Trong nhà (Nội thất)</option>
+                  <option value="0">Ngoài trời (Ngoại thất)</option>
+                </select>
+              </div>
+              <div class="col-md-2">
+                <label class="small fw-bold text-muted">Thể tích</label>
+                <select
+                  id="modalFilterVolume"
+                  class="form-select"
+                  onchange="loadBrandVariants()"
+                >
+                  <option value="">Tất cả</option>
+                  <option value="1">1 Lít</option>
+                  <option value="5">5 Lít</option>
+                  <option value="20">20 Lít</option>
+                </select>
+              </div>
+              <div class="col-md-3">
+                <label class="small fw-bold text-muted">
+                  Mã màu <span class="text-danger">*</span>
+                </label>
+                <select
+                  id="modalFilterColor"
+                  class="form-select"
+                  onchange="onFilterColorChange()"
+                >
+                  <option value="">-- Chọn mã màu --</option>
+                </select>
+              </div>
+              <div class="col-md-1 d-flex align-items-end">
+                <button
+                  class="btn btn-secondary w-100"
+                  onclick="resetModalFilters()"
+                  title="Xóa bộ lọc"
+                >
+                  Xóa
+                </button>
+              </div>
+              <div class="col-12">
+                <div id="colorRequiredHint" class="text-danger small mt-1">
+                  ⚠️ Vui lòng chọn 1 mã màu ở bộ lọc trên để có thể thêm sản
+                  phẩm vào giỏ hàng.
+                </div>
+              </div>
+            </div>
+
+            <div class="table-responsive bg-white rounded shadow-sm">
+              <table class="table table-hover align-middle mb-0">
+                <thead
+                  class="table-secondary text-secondary small text-uppercase"
+                >
+                  <tr>
+                    <th style="width: 30%">Dòng sơn / Thông số</th>
+                    <th style="width: 15%">Dung tích</th>
+                    <th style="width: 20%">Đơn giá</th>
+                    <th style="width: 35%" class="text-end">Hành động</th>
+                  </tr>
+                </thead>
+                <tbody id="variant-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-      const token = localStorage.getItem("token");
-      if (token) {
-        document.getElementById("auth-actions").innerHTML =
-          `<button onclick="logout()">Đăng xuất</button>`;
+      const API_BASE = "/api/client/products";
+
+      let currentBrandId = null;
+      let currentColorSystem = [];
+      let selectedFilterColor = null;
+      let openQtyRows = {};
+
+      document.addEventListener("DOMContentLoaded", () => {
+        checkLoginStatus();
+        loadBrands();
+        loadColorSystem();
+        updateCartBadge();
+      });
+
+      async function loadBrands() {
+        const container = document.getElementById("brand-list");
+        try {
+          const res = await fetch(`${API_BASE}/brands`);
+          const brands = await res.json();
+          container.innerHTML = "";
+
+          if (!brands || brands.length === 0) {
+            container.innerHTML = `<div class="text-center text-muted">Chưa có hãng sơn nào được kích hoạt.</div>`;
+            return;
+          }
+
+          brands.forEach((b) => {
+            container.innerHTML += `
+              <div class="col-md-4 col-sm-6">
+                <div class="card h-100 text-center p-4 brand-card" onclick="openBrandModal(${b.brand_id}, '${b.name}')">
+                  <div class="fs-1 mb-2">🏭</div>
+                  <h4 class="fw-bold text-dark mb-1">${b.name}</h4>
+                  <p class="text-muted small mb-0">Nhấp để xem bảng giá và phối màu</p>
+                </div>
+              </div>`;
+          });
+        } catch (err) {
+          container.innerHTML = `<div class="text-center text-danger">Không thể kết nối đến máy chủ.</div>`;
+        }
+      }
+
+      async function openBrandModal(brandId, brandName) {
+        currentBrandId = brandId;
+        document.getElementById("brandModalTitle").innerText =
+          `Hãng Sơn ${brandName.toUpperCase()} - Bảng Sản Phẩm`;
+
+        document.getElementById("modalFilterInterior").value = "";
+        document.getElementById("modalFilterVolume").value = "";
+        document.getElementById("modalFilterLine").value = "";
+        selectedFilterColor = null;
+        openQtyRows = {};
+        renderColorFilterOptions();
+        updateColorRequiredHint();
+
+        try {
+          const res = await fetch(`${API_BASE}/brands/${brandId}/lines`);
+          const lines = await res.json();
+          const selectLine = document.getElementById("modalFilterLine");
+          selectLine.innerHTML = `<option value="">-- Tất cả các dòng sơn --</option>`;
+          lines.forEach((l) => {
+            selectLine.innerHTML += `<option value="${l.line_id}">${l.name}</option>`;
+          });
+        } catch (e) {
+          console.error(e);
+        }
+
+        await loadBrandVariants();
+
+        new bootstrap.Modal(
+          document.getElementById("brandProductsModal"),
+        ).show();
+      }
+
+      function renderColorFilterOptions() {
+        const select = document.getElementById("modalFilterColor");
+        select.innerHTML = `<option value="">-- Chọn mã màu --</option>`;
+        currentColorSystem.forEach((c) => {
+          select.innerHTML += `<option value="${c.color_id}">${c.color_name} (${c.color_code})</option>`;
+        });
+        select.value = "";
+      }
+
+      function onFilterColorChange() {
+        const select = document.getElementById("modalFilterColor");
+        const colorId = select.value;
+
+        if (!colorId) {
+          selectedFilterColor = null;
+        } else {
+          const c = currentColorSystem.find(
+            (x) => String(x.color_id) === String(colorId),
+          );
+          selectedFilterColor = c
+            ? {
+                id: c.color_id,
+                name: c.color_name,
+                code: c.color_code,
+                base_id: c.base_id,
+              }
+            : null;
+        }
+
+        openQtyRows = {};
+        updateColorRequiredHint();
+        loadBrandVariants();
+      }
+
+      function updateColorRequiredHint() {
+        const hint = document.getElementById("colorRequiredHint");
+        hint.style.display = selectedFilterColor ? "none" : "block";
+      }
+
+      async function loadBrandVariants() {
+        const lineId = document.getElementById("modalFilterLine").value;
+        const isInterior = document.getElementById("modalFilterInterior").value;
+        const volume = document.getElementById("modalFilterVolume").value;
+        const tbody = document.getElementById("variant-table-body");
+        tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4">Đang tra cứu dữ liệu bảng...</td></tr>`;
+
+        try {
+          let url = `${API_BASE}/brands/${currentBrandId}/variants?1=1`;
+          if (lineId) url += `&line_id=${lineId}`;
+          if (isInterior !== "") url += `&is_interior=${isInterior}`;
+          if (volume) url += `&volume=${volume}`;
+          if (selectedFilterColor) url += `&color_id=${selectedFilterColor.id}`;
+
+          const res = await fetch(url);
+          const variants = await res.json();
+          tbody.innerHTML = "";
+
+          if (!variants || variants.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-4">Không tìm thấy sản phẩm hoặc dung tích nào phù hợp với bộ lọc hiện tại.</td></tr>`;
+            return;
+          }
+
+          variants.forEach((v) => {
+            const isOut = v.stock_quantity <= 0;
+            const showingQtyInput = !!openQtyRows[v.variant_id];
+
+            let actionHtml = "";
+            if (isOut) {
+              actionHtml = `<button class="btn btn-secondary btn-sm px-3" disabled>Hết hàng</button>`;
+            } else if (!selectedFilterColor) {
+              actionHtml = `<button class="btn btn-success btn-sm px-3" disabled title="Vui lòng chọn mã màu ở bộ lọc trước">🛒 Thêm</button>`;
+            } else if (showingQtyInput) {
+              actionHtml = `
+                <div class="qty-box justify-content-end">
+                  <input type="number" min="1" step="1" value="1"
+                         id="qty-input-${v.variant_id}"
+                         class="form-control form-control-sm" />
+                  <button class="btn btn-success btn-sm px-3" onclick="confirmAddToCart(${v.variant_id})">
+                    ✅ Xác nhận
+                  </button>
+                  <button class="btn btn-outline-secondary btn-sm" onclick="cancelQtyInput(${v.variant_id})">
+                    ✕
+                  </button>
+                </div>`;
+            } else {
+              actionHtml = `
+                <button class="btn btn-success btn-sm px-3" onclick="openQtyInput(${v.variant_id})">
+                  🛒 Thêm
+                </button>`;
+            }
+
+            tbody.innerHTML += `
+              <tr>
+                <td>
+                  <span class="badge ${v.is_interior ? "bg-success" : "bg-primary"} mb-1">${v.is_interior ? "Nội Thất" : "Ngoại Thất"}</span>
+                  <div class="fw-bold text-dark">${v.line_name}</div>
+                  <div class="text-muted" style="font-size:11px;">Khô: ${v.drying_time || "Đang cập nhật"} | Đề nghị: ${v.recommended_layers || 2} lớp</div>
+                </td>
+                <td><span class="badge bg-light text-dark border fw-medium p-2 fs-6">${v.volume} Lít</span></td>
+                <td class="fw-bold text-danger fs-6">${Number(v.unit_price).toLocaleString("vi-VN")} đ</td>
+                <td class="text-end">${actionHtml}</td>
+              </tr>`;
+          });
+        } catch (err) {
+          tbody.innerHTML = `<tr><td colspan="4" class="text-center text-danger">Có lỗi xảy ra khi nạp cấu trúc bảng.</td></tr>`;
+        }
+      }
+
+      function openQtyInput(variantId) {
+        if (!selectedFilterColor) {
+          alert("Vui lòng chọn 1 mã màu ở bộ lọc trước khi thêm sản phẩm!");
+          return;
+        }
+        openQtyRows = { [variantId]: true };
+        loadBrandVariants();
+      }
+
+      function cancelQtyInput(variantId) {
+        delete openQtyRows[variantId];
+        loadBrandVariants();
+      }
+
+      function confirmAddToCart(variantId) {
+        if (!selectedFilterColor) {
+          alert("Vui lòng chọn 1 mã màu ở bộ lọc trước khi thêm sản phẩm!");
+          return;
+        }
+
+        const qtyInput = document.getElementById(`qty-input-${variantId}`);
+        const quantity = parseInt(qtyInput.value, 10);
+
+        if (!quantity || quantity < 1) {
+          alert("Số lượng không hợp lệ. Vui lòng nhập số lượng từ 1 trở lên!");
+          return;
+        }
+
+        const cartItem = {
+          variant_id: variantId,
+          color_id: selectedFilterColor.id,
+          quantity: quantity,
+        };
+        let cart = JSON.parse(localStorage.getItem("khanhpaint_cart")) || [];
+
+        const existIndex = cart.findIndex(
+          (item) =>
+            item.variant_id === cartItem.variant_id &&
+            item.color_id === cartItem.color_id,
+        );
+        if (existIndex > -1) cart[existIndex].quantity += quantity;
+        else cart.push(cartItem);
+
+        localStorage.setItem("khanhpaint_cart", JSON.stringify(cart));
+
+        delete openQtyRows[variantId];
+        loadBrandVariants();
+        updateCartBadge();
+
+        alert(
+          `Đã thêm thành công ${quantity} sản phẩm phối màu (${selectedFilterColor.name}) vào giỏ hàng!`,
+        );
+      }
+
+      function resetModalFilters() {
+        document.getElementById("modalFilterLine").value = "";
+        document.getElementById("modalFilterInterior").value = "";
+        document.getElementById("modalFilterVolume").value = "";
+        document.getElementById("modalFilterColor").value = "";
+        selectedFilterColor = null;
+        openQtyRows = {};
+        updateColorRequiredHint();
+        loadBrandVariants();
+      }
+
+      async function loadColorSystem() {
+        try {
+          const res = await fetch(`${API_BASE}/colors`);
+          currentColorSystem = await res.json();
+          renderColorFilterOptions();
+        } catch (err) {
+          console.error("Lỗi tải bảng màu:", err);
+        }
+      }
+
+      function checkLoginStatus() {
+        const token =
+          localStorage.getItem("client_token") || localStorage.getItem("token");
+        if (token) {
+          document.getElementById("btn-login").classList.add("d-none");
+          document.getElementById("btn-logout").classList.remove("d-none");
+          document.getElementById("user-info").innerText =
+            "Xin chào, Khách hàng!";
+        }
       }
 
       function logout() {
         localStorage.removeItem("token");
+        localStorage.removeItem("client_token");
         window.location.reload();
+      }
+
+      function updateCartBadge() {
+        const cart = JSON.parse(localStorage.getItem("khanhpaint_cart")) || [];
+        const totalQty = cart.reduce(
+          (sum, item) => sum + (parseInt(item.quantity) || 0),
+          0,
+        );
+        const badge = document.getElementById("cart-count-badge");
+        if (totalQty > 0) {
+          badge.innerText = totalQty;
+          badge.classList.remove("d-none");
+        } else {
+          badge.classList.add("d-none");
+        }
       }
     </script>
   </body>

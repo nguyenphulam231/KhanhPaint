@@ -1,0 +1,549 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tài khoản khách hàng - KhanhPaint</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../style.css" />
+    <style>
+      body {
+        background:
+          radial-gradient(
+            circle at top left,
+            rgba(13, 110, 253, 0.08),
+            transparent 30%
+          ),
+          linear-gradient(180deg, #f7f9fc 0%, #eef3f8 100%);
+      }
+
+      .profile-hero {
+        background: linear-gradient(
+          135deg,
+          #111827 0%,
+          #1f2937 50%,
+          #0f172a 100%
+        );
+        color: #fff;
+        border-radius: 24px;
+        padding: 28px;
+        box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18);
+      }
+
+      .profile-hero p {
+        color: #cbd5e1;
+        margin-bottom: 0;
+      }
+
+      .profile-card,
+      .history-card {
+        border: none;
+        border-radius: 20px;
+        box-shadow: 0 14px 30px rgba(15, 23, 42, 0.08);
+      }
+
+      .history-item {
+        border: 1px solid #e5e7eb;
+        border-radius: 16px;
+        padding: 16px;
+        background: #fff;
+      }
+
+      .meta-label {
+        font-size: 0.78rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #64748b;
+      }
+
+      .order-items {
+        background: #f8fafc;
+        border-radius: 14px;
+        padding: 12px 14px;
+      }
+
+      .empty-state {
+        border: 1px dashed #cbd5e1;
+        border-radius: 16px;
+        padding: 28px;
+        text-align: center;
+        color: #64748b;
+        background: rgba(255, 255, 255, 0.65);
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+      <div class="container">
+        <a class="navbar-brand fw-bold" href="./index.html">🎨 KHANH PAINT</a>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <a href="./index.html" class="btn btn-outline-light btn-sm"
+            >Trang chủ</a
+          >
+          <a href="./paint-estimator.html" class="btn btn-outline-light btn-sm"
+            >Dự toán sơn</a
+          >
+          <a href="./cart.html" class="btn btn-outline-light btn-sm"
+            >Giỏ hàng</a
+          >
+          <span id="user-info" class="text-white"></span>
+          <a
+            href="./login.html"
+            id="btn-login"
+            class="btn btn-outline-light btn-sm"
+            >Đăng nhập</a
+          >
+          <button
+            id="btn-logout"
+            class="btn btn-danger btn-sm d-none"
+            onclick="logout()"
+          >
+            Đăng xuất
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <main class="container py-4 py-lg-5" style="max-width: 1180px">
+      <div class="profile-hero mb-4">
+        <div
+          class="d-flex flex-wrap justify-content-between align-items-end gap-3"
+        >
+          <div>
+            <div class="meta-label mb-2">Tài khoản khách hàng</div>
+            <h1 class="fw-bold mb-2">Hồ sơ và lịch sử đơn hàng</h1>
+            <p>
+              Khách có thể xem thông tin cá nhân, chỉnh sửa địa chỉ, và theo dõi
+              toàn bộ đơn đã đặt ở một nơi.
+            </p>
+          </div>
+          <div class="text-end">
+            <div class="small text-uppercase text-secondary-emphasis">
+              Trạng thái
+            </div>
+            <div id="profileStatus" class="fw-semibold">Đang tải...</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="loginNotice" class="alert alert-warning d-none">
+        Bạn cần <a href="./login.html" class="fw-bold">đăng nhập</a> để xem và
+        chỉnh sửa hồ sơ.
+      </div>
+
+      <div class="row g-4">
+        <div class="col-lg-5">
+          <div class="card profile-card h-100">
+            <div class="card-body p-4">
+              <div
+                class="d-flex justify-content-between align-items-center mb-3"
+              >
+                <h4 class="fw-bold mb-0">Thông tin cá nhân</h4>
+                <span class="badge bg-primary-subtle text-primary-emphasis"
+                  >Cập nhật được</span
+                >
+              </div>
+
+              <form id="profileForm">
+                <div class="mb-3">
+                  <label class="form-label fw-semibold">Họ và tên</label>
+                  <input type="text" id="name" class="form-control" required />
+                </div>
+                <div class="mb-3">
+                  <label class="form-label fw-semibold">Số điện thoại</label>
+                  <input type="text" id="phone" class="form-control" />
+                </div>
+                <div class="mb-3">
+                  <label class="form-label fw-semibold">Email</label>
+                  <input
+                    type="email"
+                    id="email"
+                    class="form-control"
+                    required
+                  />
+                </div>
+                <div class="mb-3">
+                  <label class="form-label fw-semibold">Tỉnh / Thành phố</label>
+                  <select id="province" class="form-select">
+                    <option value="">-- Chọn Tỉnh / Thành phố --</option>
+                  </select>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label fw-semibold">Phường / Xã</label>
+                  <select id="ward" class="form-select" disabled>
+                    <option value="">-- Chọn Phường / Xã --</option>
+                  </select>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label fw-semibold">Địa chỉ cụ thể</label>
+                  <input
+                    type="text"
+                    id="street_address"
+                    class="form-control"
+                    placeholder="Số nhà, tên đường..."
+                  />
+                </div>
+                <div class="mb-3">
+                  <label class="form-label fw-semibold">Mật khẩu mới</label>
+                  <input
+                    type="password"
+                    id="password"
+                    class="form-control"
+                    placeholder="Để trống nếu không đổi"
+                  />
+                </div>
+
+                <div class="row g-3 mb-3">
+                  <div class="col-md-6">
+                    <label class="form-label fw-semibold"
+                      >Hạn mức công nợ</label
+                    >
+                    <input
+                      type="text"
+                      id="credit_limit"
+                      class="form-control"
+                      readonly
+                    />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label fw-semibold"
+                      >Công nợ hiện tại</label
+                    >
+                    <input
+                      type="text"
+                      id="current_debt"
+                      class="form-control"
+                      readonly
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  class="btn btn-dark w-100 py-2 fw-semibold"
+                >
+                  Lưu thay đổi
+                </button>
+                <div id="profileMessage" class="small mt-3"></div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-7">
+          <div class="card history-card h-100">
+            <div class="card-body p-4">
+              <div
+                class="d-flex justify-content-between align-items-center mb-3"
+              >
+                <h4 class="fw-bold mb-0">Lịch sử đơn đặt hàng</h4>
+                <button
+                  class="btn btn-outline-secondary btn-sm"
+                  onclick="loadOrders()"
+                >
+                  Tải lại
+                </button>
+              </div>
+              <div id="ordersContainer">
+                <div class="empty-state">Đang tải lịch sử đơn hàng...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script src="/js/client-api.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      let currentProfile = null;
+
+      document.addEventListener("DOMContentLoaded", async () => {
+        await initPage();
+      });
+
+      function getClientToken() {
+        return (
+          localStorage.getItem("client_token") || localStorage.getItem("token")
+        );
+      }
+
+      function logout() {
+        localStorage.removeItem("token");
+        localStorage.removeItem("client_token");
+        window.location.reload();
+      }
+
+      function decodeJwtPayload(token) {
+        try {
+          const payloadPart = token.split(".")[1];
+          const base64 = payloadPart.replace(/-/g, "+").replace(/_/g, "/");
+          const json = decodeURIComponent(
+            atob(base64)
+              .split("")
+              .map((c) => "%" + c.charCodeAt(0).toString(16).padStart(2, "0"))
+              .join(""),
+          );
+          return JSON.parse(json);
+        } catch (error) {
+          return null;
+        }
+      }
+
+      function setLoggedInUI(isLoggedIn) {
+        document
+          .getElementById("btn-login")
+          .classList.toggle("d-none", isLoggedIn);
+        document
+          .getElementById("btn-logout")
+          .classList.toggle("d-none", !isLoggedIn);
+        document.getElementById("user-info").textContent = isLoggedIn
+          ? "Xin chào, Khách hàng!"
+          : "";
+      }
+
+      async function initPage() {
+        const token = getClientToken();
+        const loginNotice = document.getElementById("loginNotice");
+        const profileForm = document.getElementById("profileForm");
+
+        if (!token) {
+          loginNotice.classList.remove("d-none");
+          document.getElementById("profileStatus").textContent =
+            "Chưa đăng nhập";
+          profileForm
+            .querySelectorAll("input, select, button")
+            .forEach((el) => (el.disabled = true));
+          setLoggedInUI(false);
+          document.getElementById("ordersContainer").innerHTML =
+            `<div class="empty-state">Vui lòng đăng nhập để xem lịch sử đơn hàng.</div>`;
+          return;
+        }
+
+        setLoggedInUI(true);
+        const payload = decodeJwtPayload(token);
+        document.getElementById("profileStatus").textContent =
+          payload && payload.email ? payload.email : "Đã đăng nhập";
+
+        await loadProvinces();
+        await loadProfile();
+
+        profileForm.addEventListener("submit", saveProfile);
+      }
+
+      async function loadProvinces() {
+        const provinceSelect = document.getElementById("province");
+        try {
+          const response = await fetch(CLIENT_API_ROUTES.GET_PROVINCES);
+          const provinces = await response.json();
+          provinceSelect.innerHTML =
+            '<option value="">-- Chọn Tỉnh / Thành phố --</option>';
+          provinces.forEach((province) => {
+            const option = document.createElement("option");
+            option.value = province.province_id;
+            option.textContent = province.province_name;
+            provinceSelect.appendChild(option);
+          });
+          provinceSelect.addEventListener("change", onProvinceChange);
+        } catch (error) {
+          console.error("Không thể tải danh sách tỉnh/thành:", error);
+        }
+      }
+
+      async function onProvinceChange() {
+        const provinceId = document.getElementById("province").value;
+        const wardSelect = document.getElementById("ward");
+        wardSelect.innerHTML =
+          '<option value="">-- Chọn Phường / Xã --</option>';
+        wardSelect.disabled = true;
+
+        if (!provinceId) return;
+
+        try {
+          const response = await fetch(
+            CLIENT_API_ROUTES.GET_WARDS_BY_PROVINCE(provinceId),
+          );
+          const wards = await response.json();
+          wards.forEach((ward) => {
+            const option = document.createElement("option");
+            option.value = ward.ward_id;
+            option.textContent = ward.ward_name;
+            wardSelect.appendChild(option);
+          });
+          wardSelect.disabled = false;
+        } catch (error) {
+          console.error("Không thể tải phường/xã:", error);
+        }
+      }
+
+      async function loadProfile() {
+        const message = document.getElementById("profileMessage");
+        try {
+          const response = await fetchWithAuth(CLIENT_API_ROUTES.GET_PROFILE);
+          const data = await response.json();
+
+          if (!response.ok || !data.success) {
+            throw new Error(data.error || "Không thể tải hồ sơ khách hàng.");
+          }
+
+          currentProfile = data.customer;
+          document.getElementById("name").value = currentProfile.name || "";
+          document.getElementById("phone").value = currentProfile.phone || "";
+          document.getElementById("email").value = currentProfile.email || "";
+          document.getElementById("street_address").value =
+            currentProfile.street_address || "";
+          document.getElementById("credit_limit").value =
+            Number(currentProfile.credit_limit || 0).toLocaleString("vi-VN") +
+            " đ";
+          document.getElementById("current_debt").value =
+            Number(currentProfile.current_debt || 0).toLocaleString("vi-VN") +
+            " đ";
+
+          if (currentProfile.province_id) {
+            document.getElementById("province").value =
+              currentProfile.province_id;
+            await onProvinceChange();
+            if (currentProfile.ward_id) {
+              document.getElementById("ward").value = currentProfile.ward_id;
+            }
+          }
+
+          message.textContent = "";
+          await loadOrders();
+        } catch (error) {
+          message.className = "small mt-3 text-danger";
+          message.textContent = error.message;
+        }
+      }
+
+      function renderOrderItems(items) {
+        if (!items || items.length === 0) {
+          return '<div class="text-muted small">Không có chi tiết sản phẩm.</div>';
+        }
+
+        return `
+          <div class="order-items mt-3">
+            ${items
+              .map(
+                (item) => `
+              <div class="d-flex justify-content-between gap-3 py-2 border-bottom">
+                <div>
+                  <div class="fw-semibold">${item.brand_name} - ${item.line_name}</div>
+                  <div class="small text-muted">${item.color_name} (${item.color_code}) | Base ${item.base_name} | ${item.volume} L | SKU ${item.sku_code}</div>
+                </div>
+                <div class="text-end small">
+                  <div>x${item.quantity}</div>
+                  <div class="fw-semibold">${Number(item.price_at_sale * item.quantity).toLocaleString("vi-VN")} đ</div>
+                </div>
+              </div>
+            `,
+              )
+              .join("")}
+          </div>
+        `;
+      }
+
+      async function loadOrders() {
+        const container = document.getElementById("ordersContainer");
+        try {
+          const response = await fetchWithAuth(
+            CLIENT_API_ROUTES.GET_ORDER_HISTORY,
+          );
+          const data = await response.json();
+          const orders = Array.isArray(data.orders) ? data.orders : [];
+
+          if (!response.ok || !data.success) {
+            throw new Error(data.error || "Không thể tải lịch sử đơn hàng.");
+          }
+
+          if (orders.length === 0) {
+            container.innerHTML = `<div class="empty-state">Bạn chưa có đơn hàng nào.</div>`;
+            return;
+          }
+
+          container.innerHTML = orders
+            .map((order) => {
+              const statusClass =
+                order.status === "đã duyệt"
+                  ? "bg-success"
+                  : order.status === "hủy"
+                    ? "bg-danger"
+                    : "bg-warning text-dark";
+              const createdAt = order.created_at
+                ? new Date(order.created_at).toLocaleString("vi-VN")
+                : "";
+              const addressParts = [
+                order.street_address,
+                order.ward_name,
+                order.province_name,
+              ]
+                .filter(Boolean)
+                .join(", ");
+
+              return `
+              <div class="history-item mb-3">
+                <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+                  <div>
+                    <div class="meta-label mb-1">Đơn hàng #${order.order_id}</div>
+                    <h5 class="fw-bold mb-1">${Number(order.total_amount || 0).toLocaleString("vi-VN")} đ</h5>
+                    <div class="text-muted small">${createdAt}</div>
+                  </div>
+                  <span class="badge ${statusClass}">${order.status || "Đang xử lý"}</span>
+                </div>
+                <div class="mt-3 small text-muted">${addressParts}</div>
+                <div class="mt-2 small text-muted">Nhân viên bán hàng: ${order.sales_rep_name || "Đang phân công"} | Kỹ thuật: ${order.tech_name || "Đang phân công"} | Ca làm: ${order.shift_name || "Đang phân công"}</div>
+                ${renderOrderItems(order.items)}
+              </div>
+            `;
+            })
+            .join("");
+        } catch (error) {
+          container.innerHTML = `<div class="empty-state text-danger">${error.message}</div>`;
+        }
+      }
+
+      async function saveProfile(event) {
+        event.preventDefault();
+        const message = document.getElementById("profileMessage");
+        message.className = "small mt-3 text-muted";
+        message.textContent = "Đang lưu thay đổi...";
+
+        const payload = {
+          name: document.getElementById("name").value,
+          phone: document.getElementById("phone").value,
+          email: document.getElementById("email").value,
+          street_address: document.getElementById("street_address").value,
+          ward_id: document.getElementById("ward").value,
+          password: document.getElementById("password").value,
+        };
+
+        try {
+          const response = await fetchWithAuth(
+            CLIENT_API_ROUTES.UPDATE_PROFILE,
+            {
+              method: "PUT",
+              body: JSON.stringify(payload),
+            },
+          );
+          const data = await response.json();
+
+          if (!response.ok || !data.success) {
+            throw new Error(data.error || "Không thể cập nhật hồ sơ.");
+          }
+
+          message.className = "small mt-3 text-success";
+          message.textContent = data.message || "Đã cập nhật hồ sơ thành công.";
+          document.getElementById("password").value = "";
+          currentProfile = data.customer;
+          await loadProfile();
+        } catch (error) {
+          message.className = "small mt-3 text-danger";
+          message.textContent = error.message;
+        }
+      }
+    </script>
+  </body>
+</html>

@@ -21,6 +21,10 @@ app.use("/api/admin/colorsystem", colorsystemRoutes);
 // --- KẾT THÚC CẬP NHẬT ---
 app.use("/api/auth", require("./routes/client/auth"));
 
+app.use("/api/client/products", require("./routes/client/product"));
+app.use("/api/client/orders", require("./routes/client/order"));
+app.use("/api/client/profile", require("./routes/client/profile"));
+
 app.get("/", (req, res) => {
   res.redirect("/client/index.html");
 });
@@ -35,6 +39,14 @@ app.get("/client/login", (req, res) => {
 
 app.get("/client/register", (req, res) => {
   res.redirect("/client/register.html");
+});
+
+app.get("/client/profile", (req, res) => {
+  res.redirect("/client/profile.html");
+});
+
+app.get("/client/history", (req, res) => {
+  res.redirect("/client/profile.html");
 });
 
 app.get("/admin", (req, res) => {

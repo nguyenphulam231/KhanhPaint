@@ -1,0 +1,1547 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>KhanhPaint - Dự Toán Lượng Sơn</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../style.css" />
+    <style>
+      /* ── LAYOUT ── */
+      .estimator-hero {
+        background: linear-gradient(
+          135deg,
+          #1a1a2e 0%,
+          #16213e 60%,
+          #0f3460 100%
+        );
+        color: #fff;
+        padding: 48px 0 36px;
+        margin-bottom: 0;
+      }
+      .estimator-hero h1 {
+        font-size: 2rem;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+      }
+      .estimator-hero p {
+        color: #a8bbd4;
+        font-size: 0.97rem;
+      }
+
+      .step-label {
+        display: inline-block;
+        background: #0d6efd;
+        color: #fff;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        padding: 2px 10px;
+        border-radius: 20px;
+        margin-bottom: 8px;
+      }
+
+      .card-section {
+        border: none;
+        border-radius: 14px;
+        box-shadow: 0 2px 16px rgba(0, 0, 0, 0.07);
+      }
+      .card-section .card-body {
+        padding: 28px;
+      }
+
+      /* ── HOUSE TYPE SELECTOR ── */
+      .house-type-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      .house-type-opt {
+        display: none;
+      }
+      .house-type-opt + label {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 18px 10px;
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.18s;
+        text-align: center;
+        font-size: 0.88rem;
+        font-weight: 600;
+        color: #475569;
+        background: #f8fafc;
+      }
+      .house-type-opt + label .ht-icon {
+        font-size: 2rem;
+        line-height: 1;
+      }
+      .house-type-opt:checked + label {
+        border-color: #0d6efd;
+        background: #eff6ff;
+        color: #1d4ed8;
+        box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.13);
+      }
+      .house-type-opt + label small {
+        font-weight: 400;
+        color: #94a3b8;
+        font-size: 0.75rem;
+      }
+
+      /* ── COLOR PANEL ── */
+      .color-panel {
+        border: 1.5px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 18px;
+        background: #f8fafc;
+      }
+      .color-panel.interior {
+        border-color: #bfdbfe;
+        background: #eff6ff;
+      }
+      .color-panel.exterior {
+        border-color: #bbf7d0;
+        background: #f0fdf4;
+      }
+      .color-panel h6 {
+        font-weight: 700;
+        font-size: 0.85rem;
+        margin-bottom: 12px;
+      }
+      .color-panel.interior h6 {
+        color: #1d4ed8;
+      }
+      .color-panel.exterior h6 {
+        color: #15803d;
+      }
+
+      .color-add-row {
+        display: flex;
+        gap: 8px;
+        align-items: stretch;
+      }
+      .color-add-row select {
+        flex: 1;
+        min-width: 0;
+      }
+      .color-add-row input[type="number"] {
+        width: 72px;
+        flex-shrink: 0;
+      }
+
+      .color-tag-list {
+        list-style: none;
+        padding: 0;
+        margin: 10px 0 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .color-tag-list li {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: #fff;
+        border: 1px solid #cbd5e1;
+        border-radius: 20px;
+        padding: 3px 10px 3px 8px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: #334155;
+      }
+      .color-tag-list li .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        flex-shrink: 0;
+      }
+      .color-tag-list li button {
+        background: none;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+        color: #94a3b8;
+        font-size: 1rem;
+        line-height: 1;
+      }
+      .color-tag-list li button:hover {
+        color: #ef4444;
+      }
+
+      /* ── RESULT BLOCK ── */
+      #resultBlock {
+        display: none;
+      }
+      #resultBlock.is-visible {
+        display: block;
+      }
+
+      .result-summary {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-bottom: 24px;
+      }
+      .result-summary-card {
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+      }
+      .result-summary-card.int {
+        background: #eff6ff;
+        border: 1.5px solid #bfdbfe;
+      }
+      .result-summary-card.ext {
+        background: #f0fdf4;
+        border: 1.5px solid #bbf7d0;
+      }
+      .result-summary-card .big-num {
+        font-size: 2.2rem;
+        font-weight: 800;
+        line-height: 1;
+      }
+      .result-summary-card.int .big-num {
+        color: #1d4ed8;
+      }
+      .result-summary-card.ext .big-num {
+        color: #15803d;
+      }
+      .result-summary-card .unit-label {
+        font-size: 0.8rem;
+        color: #64748b;
+        margin-top: 4px;
+      }
+
+      .result-tabs {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+      }
+      .result-tab-btn {
+        padding: 6px 18px;
+        border-radius: 20px;
+        border: 2px solid #e2e8f0;
+        background: #fff;
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: #64748b;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .result-tab-btn.active-int {
+        border-color: #3b82f6;
+        background: #eff6ff;
+        color: #1d4ed8;
+      }
+      .result-tab-btn.active-ext {
+        border-color: #22c55e;
+        background: #f0fdf4;
+        color: #15803d;
+      }
+
+      .breakdown-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 12px;
+      }
+
+      .breakdown-card {
+        background: #fff;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 14px 16px;
+        position: relative;
+        overflow: hidden;
+      }
+      .breakdown-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: #e2e8f0;
+      }
+      .breakdown-card.int::before {
+        background: #3b82f6;
+      }
+      .breakdown-card.ext::before {
+        background: #22c55e;
+      }
+      .breakdown-card.base-paint {
+        background: #fafaf8;
+      }
+      .breakdown-card .bc-title {
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 2px;
+      }
+      .breakdown-card .bc-liters {
+        font-size: 1.4rem;
+        font-weight: 800;
+        color: #0d6efd;
+      }
+      .breakdown-card.ext .bc-liters {
+        color: #16a34a;
+      }
+      .breakdown-card .bc-packs {
+        display: flex;
+        gap: 8px;
+        margin-top: 8px;
+        flex-wrap: wrap;
+      }
+      .pack-chip {
+        background: #f1f5f9;
+        border-radius: 8px;
+        padding: 3px 10px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #475569;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .pack-chip .pack-vol {
+        color: #94a3b8;
+      }
+
+      /* ── ADD TO CART from result ── */
+      .brand-filter-row {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-bottom: 16px;
+      }
+      .brand-filter-row select {
+        max-width: 220px;
+      }
+
+      .line-result-card {
+        border: 1.5px solid #e2e8f0;
+        border-radius: 12px;
+        margin-bottom: 12px;
+        overflow: hidden;
+      }
+      .line-result-card .lrc-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        background: #f8fafc;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .line-result-card .lrc-title {
+        font-weight: 700;
+        font-size: 0.9rem;
+        color: #1e293b;
+      }
+      .line-result-card .lrc-head .lrc-right {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .lrc-badge-opt {
+        background: #dcfce7;
+        color: #15803d;
+        border-radius: 20px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        padding: 2px 10px;
+      }
+      .lrc-badge-sub {
+        background: #fef9c3;
+        color: #92400e;
+        border-radius: 20px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        padding: 2px 10px;
+      }
+      .lrc-price {
+        font-weight: 800;
+        color: #0d6efd;
+        font-size: 0.95rem;
+      }
+      .lrc-body {
+        padding: 14px 16px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .variant-chip-group {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 160px;
+      }
+      .variant-chip-group .vc-color {
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #64748b;
+        margin-bottom: 2px;
+      }
+      .vc-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #f1f5f9;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 4px 10px;
+        font-size: 0.75rem;
+        color: #334155;
+      }
+      .vc-chip.ok {
+        border-color: #86efac;
+        background: #f0fdf4;
+      }
+      .vc-chip.warn {
+        border-color: #fca5a5;
+        background: #fff1f2;
+      }
+      .vc-chip .vc-vol {
+        font-weight: 700;
+      }
+      .vc-chip .vc-stock {
+        color: #94a3b8;
+      }
+
+      .btn-add-combo {
+        white-space: nowrap;
+        font-size: 0.82rem;
+        font-weight: 700;
+        padding: 7px 16px;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        transition: background 0.15s;
+      }
+      .btn-add-combo-opt {
+        background: #16a34a;
+        color: #fff;
+      }
+      .btn-add-combo-opt:hover {
+        background: #15803d;
+      }
+      .btn-add-combo-sub {
+        background: #d97706;
+        color: #fff;
+      }
+      .btn-add-combo-sub:hover {
+        background: #b45309;
+      }
+      .btn-add-combo-dis {
+        background: #e2e8f0;
+        color: #94a3b8;
+        cursor: not-allowed;
+      }
+
+      .section-sep {
+        border: none;
+        border-top: 2px solid #f1f5f9;
+        margin: 6px 0 14px;
+      }
+      .sub-section-label {
+        font-size: 0.76rem;
+        font-weight: 700;
+        color: #92400e;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        margin-bottom: 10px;
+      }
+
+      .no-result-box {
+        text-align: center;
+        padding: 32px 16px;
+        color: #94a3b8;
+        font-size: 0.9rem;
+      }
+      .no-result-box.is-error {
+        color: #dc2626;
+      }
+
+      /* ── RESPONSIVE ── */
+      @media (max-width: 576px) {
+        .result-summary {
+          grid-template-columns: 1fr;
+        }
+        .house-type-grid {
+          grid-template-columns: 1fr 1fr;
+        }
+        .color-add-row {
+          flex-wrap: wrap;
+        }
+        .color-add-row select {
+          flex: 100%;
+        }
+        .color-add-row input[type="number"] {
+          width: 80px;
+        }
+        .breakdown-grid {
+          grid-template-columns: 1fr;
+        }
+        .estimator-hero h1 {
+          font-size: 1.5rem;
+        }
+      }
+    </style>
+  </head>
+  <body class="bg-light">
+    <!-- NAVBAR -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+      <div class="container">
+        <a class="navbar-brand fw-bold" href="#">🎨 KHANH PAINT</a>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <a href="./index.html" class="btn btn-outline-light btn-sm"
+            >🏠 Trang chủ</a
+          >
+          <a href="./profile.html" class="btn btn-outline-light btn-sm"
+            >👤 Tài khoản</a
+          >
+          <a
+            href="./cart.html"
+            class="btn btn-outline-light btn-sm position-relative"
+          >
+            🛒 Giỏ hàng
+            <span
+              id="cart-count-badge"
+              class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none"
+              >0</span
+            >
+          </a>
+          <span id="user-info" class="text-white small"></span>
+          <a
+            href="./login.html"
+            id="btn-login"
+            class="btn btn-outline-light btn-sm"
+            >Đăng nhập</a
+          >
+          <button
+            id="btn-logout"
+            class="btn btn-danger btn-sm d-none"
+            onclick="logout()"
+          >
+            Đăng xuất
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <!-- HERO -->
+    <div class="estimator-hero">
+      <div class="container">
+        <h1>🧮 Công cụ Dự toán Lượng Sơn</h1>
+        <p class="mb-0">
+          Nhập thông tin công trình → Chọn màu sắc → Xem lượng sơn cần mua và
+          tìm sản phẩm phù hợp trong kho ngay lập tức.
+        </p>
+      </div>
+    </div>
+
+    <div class="container py-4">
+      <div class="row g-4">
+        <!-- CỘT TRÁI: NHẬP LIỆU -->
+        <div class="col-lg-5">
+          <!-- BƯỚC 1: Thông tin công trình -->
+          <div class="card card-section mb-4">
+            <div class="card-body">
+              <span class="step-label">Bước 1</span>
+              <h5 class="fw-bold mb-3">Thông tin công trình</h5>
+
+              <div class="mb-3">
+                <label class="form-label fw-semibold small text-muted"
+                  >Loại nhà / công trình</label
+                >
+                <div class="house-type-grid">
+                  <div>
+                    <input
+                      class="house-type-opt"
+                      type="radio"
+                      name="houseType"
+                      id="ht-nhapho"
+                      value="nhapho"
+                      checked
+                    />
+                    <label for="ht-nhapho">
+                      <span class="ht-icon">🏙️</span>
+                      Nhà phố
+                      <small>Nội x3.5 | Ngoại x1.0</small>
+                    </label>
+                  </div>
+                  <div>
+                    <input
+                      class="house-type-opt"
+                      type="radio"
+                      name="houseType"
+                      id="ht-bietthu"
+                      value="bietthu"
+                    />
+                    <label for="ht-bietthu">
+                      <span class="ht-icon">🏡</span>
+                      Biệt thự / Nhà vườn
+                      <small>Nội x4.0 | Ngoại x1.8</small>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div class="row g-3">
+                <div class="col-7">
+                  <label
+                    class="form-label fw-semibold small text-muted"
+                    for="floorArea"
+                    >Diện tích sàn tầng 1 (m²)</label
+                  >
+                  <input
+                    type="number"
+                    class="form-control"
+                    id="floorArea"
+                    placeholder="Ví dụ: 80"
+                    min="1"
+                  />
+                </div>
+                <div class="col-5">
+                  <label
+                    class="form-label fw-semibold small text-muted"
+                    for="floors"
+                    >Số tầng</label
+                  >
+                  <input
+                    type="number"
+                    class="form-control"
+                    id="floors"
+                    value="1"
+                    min="1"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- BƯỚC 2: Chọn màu -->
+          <div class="card card-section mb-4">
+            <div class="card-body">
+              <span class="step-label">Bước 2</span>
+              <h5 class="fw-bold mb-1">Phối màu sơn</h5>
+              <p class="text-muted small mb-3">
+                Thêm một hoặc nhiều mã màu và tỉ lệ (%). Phần còn lại sẽ được
+                tính là sơn gốc.
+              </p>
+
+              <!-- NỘI THẤT -->
+              <div class="color-panel interior mb-3">
+                <h6>🏠 Sơn Nội Thất</h6>
+                <div class="mb-2">
+                  <input
+                    type="text"
+                    class="form-control form-control-sm mb-1"
+                    id="intColorSearch"
+                    placeholder="Tìm mã màu..."
+                    autocomplete="off"
+                  />
+                </div>
+                <div class="color-add-row">
+                  <select
+                    class="form-select form-select-sm"
+                    id="intColorSelect"
+                  ></select>
+                  <input
+                    type="number"
+                    class="form-control form-control-sm"
+                    id="intColorPct"
+                    placeholder="%"
+                    min="1"
+                    max="100"
+                  />
+                  <button
+                    class="btn btn-sm btn-primary px-3"
+                    onclick="addColor('int')"
+                  >
+                    +
+                  </button>
+                </div>
+                <ul class="color-tag-list" id="intColorTags"></ul>
+              </div>
+
+              <!-- NGOẠI THẤT -->
+              <div class="color-panel exterior">
+                <h6>🌿 Sơn Ngoại Thất</h6>
+                <div class="mb-2">
+                  <input
+                    type="text"
+                    class="form-control form-control-sm mb-1"
+                    id="extColorSearch"
+                    placeholder="Tìm mã màu..."
+                    autocomplete="off"
+                  />
+                </div>
+                <div class="color-add-row">
+                  <select
+                    class="form-select form-select-sm"
+                    id="extColorSelect"
+                  ></select>
+                  <input
+                    type="number"
+                    class="form-control form-control-sm"
+                    id="extColorPct"
+                    placeholder="%"
+                    min="1"
+                    max="100"
+                  />
+                  <button
+                    class="btn btn-sm btn-success px-3"
+                    onclick="addColor('ext')"
+                  >
+                    +
+                  </button>
+                </div>
+                <ul class="color-tag-list" id="extColorTags"></ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- NÚT TÍNH -->
+          <button
+            class="btn btn-dark btn-lg w-100 fw-bold py-3"
+            onclick="runCalculation()"
+          >
+            🧮 Tính toán lượng sơn
+          </button>
+        </div>
+
+        <!-- CỘT PHẢI: KẾT QUẢ -->
+        <div class="col-lg-7">
+          <!-- Placeholder khi chưa tính -->
+          <div id="emptyState" class="card card-section h-100">
+            <div
+              class="card-body d-flex flex-column align-items-center justify-content-center text-center py-5"
+              style="min-height: 320px"
+            >
+              <div
+                style="font-size: 3.5rem; opacity: 0.25; margin-bottom: 16px"
+              >
+                📐
+              </div>
+              <p class="fw-semibold text-muted mb-1">Chưa có kết quả</p>
+              <p class="text-muted small mb-0">
+                Điền thông tin công trình và nhấn <strong>Tính toán</strong> để
+                xem dự toán lượng sơn.
+              </p>
+            </div>
+          </div>
+
+          <!-- KẾT QUẢ -->
+          <div id="resultBlock">
+            <!-- Tóm tắt tổng lít -->
+            <div class="result-summary mb-3">
+              <div class="result-summary-card int">
+                <div class="big-num" id="lblTotalInt">0</div>
+                <div class="unit-label">Lít Sơn Nội Thất</div>
+              </div>
+              <div class="result-summary-card ext">
+                <div class="big-num" id="lblTotalExt">0</div>
+                <div class="unit-label">Lít Sơn Ngoại Thất</div>
+              </div>
+            </div>
+
+            <!-- Tabs: chi tiết màu -->
+            <div class="card card-section mb-4">
+              <div class="card-body">
+                <div
+                  class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3"
+                >
+                  <h6 class="fw-bold mb-0">Chi tiết phân rã theo mã màu</h6>
+                  <div class="result-tabs" id="breakdownTabs">
+                    <button
+                      class="result-tab-btn active-int"
+                      onclick="switchTab('int')"
+                      id="tab-int"
+                    >
+                      🏠 Nội Thất
+                    </button>
+                    <button
+                      class="result-tab-btn"
+                      onclick="switchTab('ext')"
+                      id="tab-ext"
+                    >
+                      🌿 Ngoại Thất
+                    </button>
+                  </div>
+                </div>
+                <div id="breakdownContent" class="breakdown-grid"></div>
+              </div>
+            </div>
+
+            <!-- Tìm sản phẩm theo dự toán -->
+            <div class="card card-section">
+              <div class="card-body">
+                <h6 class="fw-bold mb-1">🛒 Tìm sản phẩm phù hợp trong kho</h6>
+                <p class="text-muted small mb-3">
+                  Hệ thống tự động đề xuất dòng sơn và số lượng đóng gói tối ưu
+                  theo dự toán của bạn.
+                </p>
+
+                <div class="brand-filter-row">
+                  <div class="result-tabs" id="searchTypeTabs">
+                    <button
+                      class="result-tab-btn active-int"
+                      onclick="switchSearchType('int')"
+                      id="stab-int"
+                    >
+                      🏠 Nội Thất
+                    </button>
+                    <button
+                      class="result-tab-btn"
+                      onclick="switchSearchType('ext')"
+                      id="stab-ext"
+                    >
+                      🌿 Ngoại Thất
+                    </button>
+                  </div>
+                  <select
+                    class="form-select form-select-sm"
+                    id="brandFilterSelect"
+                    style="max-width: 200px"
+                    onchange="renderProductResults()"
+                  >
+                    <option value="">-- Tất cả hãng --</option>
+                  </select>
+                </div>
+
+                <div id="productResultsContainer">
+                  <div class="no-result-box">
+                    Nhấn "Tính toán" rồi chọn loại sơn để xem đề xuất sản phẩm.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- /resultBlock -->
+        </div>
+      </div>
+      <!-- /row -->
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      // ============================================================
+      // CONFIG
+      // ============================================================
+      const API_BASE = "/api/client/products";
+
+      // ============================================================
+      // STATE
+      // ============================================================
+      let allColors = []; // màu từ server
+      let allVariants = []; // variants từ server (qua client products API)
+      let lineMap = {}; // line_id → { line_name, brand_id, brand_name, is_interior }
+      let variantMap = {}; // variant_id → variant
+
+      let selectedIntColors = []; // [{ color_id, color_name, color_code, base_id, pct }]
+      let selectedExtColors = [];
+
+      let lastCalc = null; // { intBreakdown, extBreakdown, totalInt, totalExt }
+      let activeTab = "int"; // tab chi tiết màu
+      let activeSearchType = "int"; // tab tìm sản phẩm
+
+      let _lineComboCache = []; // cache combo để addComboToCart dùng
+
+      // Trạng thái tải kho hàng — dùng để hiển thị thông báo lỗi rõ ràng
+      // thay vì để mục "Tìm sản phẩm" treo loading vô thời hạn.
+      let variantsLoadState = "loading"; // "loading" | "ready" | "error"
+
+      // ============================================================
+      // INIT
+      // ============================================================
+      document.addEventListener("DOMContentLoaded", () => {
+        checkLoginStatus();
+        updateCartBadge();
+        loadColorsAndVariants();
+      });
+
+      async function loadColorsAndVariants() {
+        variantsLoadState = "loading";
+
+        // Tải màu và variants độc lập (Promise.allSettled) để nếu 1 trong 2
+        // API lỗi, cái còn lại vẫn hoạt động bình thường — không bị "chết"
+        // toàn bộ trang chỉ vì 1 endpoint gặp vấn đề.
+        const [resC, resV] = await Promise.allSettled([
+          fetch(`${API_BASE}/colors`),
+          fetch(`${API_BASE}/variants-all`),
+        ]);
+
+        // ── MÀU SẮC ──
+        if (resC.status === "fulfilled" && resC.value.ok) {
+          try {
+            allColors = await resC.value.json();
+            populateColorSelects();
+          } catch (e) {
+            console.error("Lỗi parse dữ liệu màu:", e);
+          }
+        } else {
+          console.error("Không tải được danh sách màu (/colors).");
+        }
+
+        // ── VARIANTS (KHO HÀNG) ──
+        if (resV.status === "fulfilled" && resV.value.ok) {
+          try {
+            const variants = await resV.value.json();
+            if (Array.isArray(variants)) {
+              allVariants = variants;
+              variants.forEach((v) => {
+                variantMap[v.variant_id] = v;
+                if (v.line_id && !lineMap[v.line_id]) {
+                  lineMap[v.line_id] = {
+                    line_id: v.line_id,
+                    line_name: v.line_name,
+                    brand_id: v.brand_id,
+                    brand_name: v.brand_name,
+                    is_interior: v.is_interior,
+                  };
+                }
+              });
+              populateBrandFilter();
+              variantsLoadState = "ready";
+            } else {
+              variantsLoadState = "error";
+            }
+          } catch (e) {
+            console.error("Lỗi parse dữ liệu kho hàng:", e);
+            variantsLoadState = "error";
+          }
+        } else {
+          // Endpoint /variants-all chưa tồn tại hoặc trả lỗi (404/500...)
+          console.error(
+            "Không tải được danh sách sản phẩm (/variants-all). " +
+              "Kiểm tra backend đã có endpoint này chưa.",
+          );
+          variantsLoadState = "error";
+        }
+
+        // Nếu người dùng đã bấm "Tính toán" trước khi tải xong (hiếm khi xảy ra
+        // vì init chạy trước), refresh lại khối kết quả sản phẩm theo state mới.
+        if (lastCalc) renderProductResults();
+      }
+
+      // ============================================================
+      // COLOR SELECTS
+      // ============================================================
+      function populateColorSelects() {
+        const opts = allColors
+          .map(
+            (c) =>
+              `<option value="${c.color_id}" data-code="${c.color_code}" data-name="${c.color_name || ""}" data-base="${c.base_id || ""}">${c.color_code}${c.color_name ? " — " + c.color_name : ""}</option>`,
+          )
+          .join("");
+        const placeholder = '<option value="">-- Chọn mã màu --</option>';
+        document.getElementById("intColorSelect").innerHTML =
+          placeholder + opts;
+        document.getElementById("extColorSelect").innerHTML =
+          placeholder + opts;
+
+        initColorSearch("intColorSearch", "intColorSelect");
+        initColorSearch("extColorSearch", "extColorSelect");
+      }
+
+      function initColorSearch(inputId, selectId) {
+        const input = document.getElementById(inputId);
+        const select = document.getElementById(selectId);
+        input.addEventListener("input", () => {
+          const kw = stripTone(input.value.trim());
+          let first = null;
+          Array.from(select.options).forEach((opt) => {
+            if (!opt.value) {
+              opt.hidden = false;
+              return;
+            }
+            const match = !kw || stripTone(opt.textContent).includes(kw);
+            opt.hidden = !match;
+            if (match && !first) first = opt;
+          });
+          // Nếu đang chọn option bị ẩn → reset
+          const cur = select.options[select.selectedIndex];
+          if (cur && cur.hidden) select.value = "";
+        });
+      }
+
+      function stripTone(str) {
+        return String(str || "")
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/[đĐ]/g, (d) => (d === "đ" ? "d" : "D"))
+          .toLowerCase();
+      }
+
+      function populateBrandFilter() {
+        const sel = document.getElementById("brandFilterSelect");
+        const brands = {};
+        allVariants.forEach((v) => {
+          if (v.brand_id) brands[v.brand_id] = v.brand_name;
+        });
+        sel.innerHTML =
+          '<option value="">-- Tất cả hãng --</option>' +
+          Object.entries(brands)
+            .map(([id, name]) => `<option value="${id}">${name}</option>`)
+            .join("");
+      }
+
+      // ============================================================
+      // ADD / REMOVE COLORS
+      // ============================================================
+      function addColor(type) {
+        const selectId = type === "int" ? "intColorSelect" : "extColorSelect";
+        const pctId = type === "int" ? "intColorPct" : "extColorPct";
+        const list = type === "int" ? selectedIntColors : selectedExtColors;
+
+        const sel = document.getElementById(selectId);
+        const colorId = sel.value;
+        const pct = parseInt(document.getElementById(pctId).value);
+
+        if (!colorId) return alert("Vui lòng chọn một mã màu!");
+        if (!pct || pct < 1 || pct > 100)
+          return alert("Tỉ lệ phải từ 1 đến 100!");
+        if (list.some((i) => String(i.color_id) === String(colorId)))
+          return alert("Mã màu này đã được thêm!");
+
+        const totalPct = list.reduce((s, i) => s + i.pct, 0);
+        if (totalPct + pct > 100)
+          return alert(`Tổng tỉ lệ vượt 100% (Hiện tại: ${totalPct}%)`);
+
+        const opt = sel.options[sel.selectedIndex];
+        list.push({
+          color_id: colorId,
+          color_code: opt.dataset.code,
+          color_name: opt.dataset.name,
+          base_id: opt.dataset.base || null,
+          pct,
+        });
+        renderColorTags(type);
+        document.getElementById(pctId).value = "";
+        sel.value = "";
+      }
+
+      function removeColor(type, colorId) {
+        if (type === "int")
+          selectedIntColors = selectedIntColors.filter(
+            (i) => i.color_id !== colorId,
+          );
+        else
+          selectedExtColors = selectedExtColors.filter(
+            (i) => i.color_id !== colorId,
+          );
+        renderColorTags(type);
+      }
+
+      function renderColorTags(type) {
+        const list = type === "int" ? selectedIntColors : selectedExtColors;
+        const ulId = type === "int" ? "intColorTags" : "extColorTags";
+        document.getElementById(ulId).innerHTML = list
+          .map(
+            (i) => `
+          <li>
+            <span class="dot" style="background:hsl(${(hashCode(i.color_code) * 137) % 360},60%,55%)"></span>
+            <span>${i.color_code}${i.color_name ? " " + i.color_name : ""} (${i.pct}%)</span>
+            <button onclick="removeColor('${type}','${i.color_id}')" title="Xóa">×</button>
+          </li>`,
+          )
+          .join("");
+      }
+
+      function hashCode(str) {
+        let h = 0;
+        for (let i = 0; i < str.length; i++)
+          h = (Math.imul(31, h) + str.charCodeAt(i)) | 0;
+        return Math.abs(h);
+      }
+
+      // ============================================================
+      // TÍNH TOÁN
+      // ============================================================
+      function runCalculation() {
+        const houseType = document.querySelector(
+          'input[name="houseType"]:checked',
+        ).value;
+        const floorArea = parseFloat(
+          document.getElementById("floorArea").value,
+        );
+        const floors = parseInt(document.getElementById("floors").value);
+
+        if (!floorArea || floorArea <= 0 || !floors || floors <= 0) {
+          return alert("Vui lòng nhập diện tích sàn và số tầng hợp lệ!");
+        }
+
+        const intFactor = houseType === "nhapho" ? 3.5 : 4.0;
+        const extFactor = houseType === "nhapho" ? 1.0 : 1.8;
+        const coverage = 5; // lít/m²/2 lớp
+
+        const totalFloor = floorArea * floors;
+        const totalInt = Math.ceil((totalFloor * intFactor) / coverage);
+        const totalExt = Math.ceil((totalFloor * extFactor) / coverage);
+
+        const intBreakdown = buildBreakdown(totalInt, selectedIntColors);
+        const extBreakdown = buildBreakdown(totalExt, selectedExtColors);
+
+        lastCalc = { intBreakdown, extBreakdown, totalInt, totalExt };
+
+        document.getElementById("lblTotalInt").textContent =
+          totalInt.toLocaleString("vi-VN");
+        document.getElementById("lblTotalExt").textContent =
+          totalExt.toLocaleString("vi-VN");
+
+        document.getElementById("emptyState").style.display = "none";
+        document.getElementById("resultBlock").classList.add("is-visible");
+
+        switchTab(activeTab);
+        renderProductResults();
+      }
+
+      // ============================================================
+      // BREAKDOWN
+      // ============================================================
+      function buildBreakdown(totalLiters, selectedColors) {
+        const breakdown = [];
+        let usedPct = 0;
+        selectedColors.forEach((c) => {
+          usedPct += c.pct;
+          const liters = Math.ceil((totalLiters * c.pct) / 100);
+          breakdown.push({ ...c, liters, decomp: decomposePackaging(liters) });
+        });
+        if (usedPct < 100) {
+          const remPct = 100 - usedPct;
+          const liters = Math.ceil((totalLiters * remPct) / 100);
+          breakdown.push({
+            color_id: null,
+            color_code: "Sơn gốc",
+            color_name: `Không pha màu`,
+            base_id: null,
+            pct: remPct,
+            liters,
+            decomp: decomposePackaging(liters),
+          });
+        }
+        return breakdown;
+      }
+
+      function decomposePackaging(liters) {
+        let r = liters;
+        const p20 = Math.floor(r / 20);
+        r %= 20;
+        const p5 = Math.floor(r / 5);
+        r %= 5;
+        const p1 = Math.ceil(r);
+        return { p20, p5, p1 };
+      }
+
+      function getAllDecompositions(liters) {
+        const results = [];
+        const max20 = Math.floor(liters / 20);
+        for (let n20 = max20; n20 >= 0; n20--) {
+          const rem20 = liters - n20 * 20;
+          const max5 = Math.floor(rem20 / 5);
+          for (let n5 = max5; n5 >= 0; n5--) {
+            const rem5 = rem20 - n5 * 5;
+            const n1 = Math.ceil(rem5);
+            const total = n20 * 20 + n5 * 5 + n1;
+            results.push({
+              p20: n20,
+              p5: n5,
+              p1: n1,
+              totalBought: total,
+              surplus: total - liters,
+            });
+          }
+        }
+        const seen = new Set();
+        return results
+          .filter((r) => {
+            const k = `${r.p20}-${r.p5}-${r.p1}`;
+            if (seen.has(k)) return false;
+            seen.add(k);
+            return true;
+          })
+          .sort((a, b) => a.surplus - b.surplus || a.p20 - b.p20);
+      }
+
+      // ============================================================
+      // TABS
+      // ============================================================
+      function switchTab(type) {
+        activeTab = type;
+        ["int", "ext"].forEach((t) => {
+          const btn = document.getElementById(`tab-${t}`);
+          btn.className = "result-tab-btn";
+          if (t === type)
+            btn.classList.add(type === "int" ? "active-int" : "active-ext");
+        });
+        if (!lastCalc) return;
+        const breakdown =
+          type === "int" ? lastCalc.intBreakdown : lastCalc.extBreakdown;
+        renderBreakdownCards(breakdown, type);
+      }
+
+      function renderBreakdownCards(breakdown, type) {
+        const container = document.getElementById("breakdownContent");
+        if (!breakdown || breakdown.length === 0) {
+          container.innerHTML =
+            '<p class="text-muted small">Chưa có dữ liệu phân rã.</p>';
+          return;
+        }
+        container.innerHTML = breakdown
+          .map((item) => {
+            const isBase = !item.color_id;
+            const d = item.decomp;
+            const packs = [
+              d.p20
+                ? `<div class="pack-chip"><span class="pack-vol">20L</span> × ${d.p20}</div>`
+                : "",
+              d.p5
+                ? `<div class="pack-chip"><span class="pack-vol">5L</span> × ${d.p5}</div>`
+                : "",
+              d.p1
+                ? `<div class="pack-chip"><span class="pack-vol">1L</span> × ${d.p1}</div>`
+                : "",
+            ].join("");
+            return `
+            <div class="breakdown-card ${type} ${isBase ? "base-paint" : ""}">
+              <div class="bc-title">${item.color_code}${item.color_name && item.color_name !== item.color_code ? " — " + item.color_name : ""} <span class="text-muted" style="font-weight:400">(${item.pct}%)</span></div>
+              <div class="bc-liters">${item.liters} lít</div>
+              <div class="bc-packs">${packs || '<span class="text-muted small">Không cần mua</span>'}</div>
+            </div>`;
+          })
+          .join("");
+      }
+
+      // ============================================================
+      // PRODUCT RESULTS (Tìm sản phẩm theo dự toán)
+      // ============================================================
+      function switchSearchType(type) {
+        activeSearchType = type;
+        ["int", "ext"].forEach((t) => {
+          const btn = document.getElementById(`stab-${t}`);
+          btn.className = "result-tab-btn";
+          if (t === type)
+            btn.classList.add(type === "int" ? "active-int" : "active-ext");
+        });
+        renderProductResults();
+      }
+
+      function renderProductResults() {
+        const container = document.getElementById("productResultsContainer");
+        if (!lastCalc) {
+          container.innerHTML =
+            '<div class="no-result-box">Nhấn "Tính toán" trước để xem đề xuất sản phẩm.</div>';
+          return;
+        }
+
+        // Báo lỗi rõ ràng nếu API kho hàng chưa sẵn sàng, thay vì để khách
+        // chờ vô thời hạn ở dòng "Đang tải dữ liệu kho hàng...".
+        if (variantsLoadState === "error") {
+          container.innerHTML = `
+            <div class="no-result-box is-error">
+              ⚠️ Không thể tải dữ liệu kho hàng lúc này.<br>
+              Vui lòng thử tải lại trang, hoặc liên hệ chúng tôi để được hỗ trợ tra cứu sản phẩm phù hợp.
+            </div>`;
+          return;
+        }
+        if (variantsLoadState === "loading" || !allVariants.length) {
+          container.innerHTML =
+            '<div class="no-result-box">Đang tải dữ liệu kho hàng...</div>';
+          return;
+        }
+
+        const isInterior = activeSearchType === "int";
+        const breakdown = isInterior
+          ? lastCalc.intBreakdown
+          : lastCalc.extBreakdown;
+        const brandFilter = document.getElementById("brandFilterSelect").value;
+
+        // Lọc variants theo loại + hãng
+        const filtered = allVariants.filter((v) => {
+          const li = lineMap[v.line_id];
+          if (!li) return false;
+          const typeOk = isInterior ? !!li.is_interior : !li.is_interior;
+          const brandOk =
+            !brandFilter || String(v.brand_id) === String(brandFilter);
+          return typeOk && brandOk;
+        });
+
+        // Nhóm theo line_id
+        const byLine = {};
+        filtered.forEach((v) => {
+          if (!byLine[v.line_id]) byLine[v.line_id] = [];
+          byLine[v.line_id].push(v);
+        });
+
+        // Đánh giá từng dòng sơn
+        _lineComboCache = [];
+        const optimalLines = [];
+        const suboptimalLines = [];
+
+        Object.keys(byLine).forEach((lineId) => {
+          const lvs = byLine[lineId];
+          const li = lineMap[lineId];
+          let isOpt = true;
+          let totalSurplus = 0;
+          const colorChecks = [];
+
+          breakdown.forEach((bItem) => {
+            const reqBase = bItem.base_id;
+            const needed = bItem.decomp;
+
+            const findV = (vol) =>
+              lvs.find(
+                (v) =>
+                  String(v.volume) === String(vol) &&
+                  (!reqBase || String(v.base_id) === String(reqBase)),
+              );
+            const v20 = findV(20),
+              v5 = findV(5),
+              v1 = findV(1);
+            const has20 = v20 && v20.stock_quantity >= needed.p20;
+            const has5 = v5 && v5.stock_quantity >= needed.p5;
+            const has1 = v1 && v1.stock_quantity >= needed.p1;
+            const isColorOpt = has20 && has5 && has1;
+            if (!isColorOpt) isOpt = false;
+
+            let subDecomp = null,
+              surplus = 0;
+            if (!isColorOpt) {
+              const avail = {
+                20: v20 ? v20.stock_quantity : 0,
+                5: v5 ? v5.stock_quantity : 0,
+                1: v1 ? v1.stock_quantity : 0,
+              };
+              const feasible = getAllDecompositions(bItem.liters).find(
+                (d) =>
+                  d.p20 <= avail[20] && d.p5 <= avail[5] && d.p1 <= avail[1],
+              );
+              subDecomp = feasible || null;
+              surplus = feasible ? feasible.surplus : Infinity;
+              totalSurplus += surplus === Infinity ? 9999 : surplus;
+            }
+            colorChecks.push({
+              bItem,
+              v20,
+              v5,
+              v1,
+              has20,
+              has5,
+              has1,
+              isColorOpt,
+              subDecomp,
+              needed,
+            });
+          });
+
+          const result = {
+            lineId,
+            lineInfo: li,
+            colorChecks,
+            isOpt,
+            totalSurplus,
+          };
+
+          // Build combo for cart
+          const comboItems = [];
+          let comboTotal = 0,
+            comboFeasible = true;
+          colorChecks.forEach((ck) => {
+            const useD = ck.isColorOpt ? ck.needed : ck.subDecomp || null;
+            if (!useD) {
+              comboFeasible = false;
+              return;
+            }
+            const colorId = ck.bItem.color_id
+              ? parseInt(ck.bItem.color_id)
+              : null;
+            [
+              [20, ck.v20, useD.p20],
+              [5, ck.v5, useD.p5],
+              [1, ck.v1, useD.p1],
+            ].forEach(([vol, v, qty]) => {
+              if (qty > 0 && v) {
+                comboTotal += v.unit_price * qty;
+                comboItems.push({
+                  variant_id: v.variant_id,
+                  color_id: colorId,
+                  quantity: qty,
+                  price: v.unit_price,
+                });
+              }
+            });
+          });
+          _lineComboCache.push({
+            comboItems,
+            comboFeasible,
+            lineInfo: li,
+            comboTotal,
+          });
+
+          if (isOpt)
+            optimalLines.push({
+              ...result,
+              comboIndex: _lineComboCache.length - 1,
+            });
+          else if (totalSurplus < 9999 * breakdown.length)
+            suboptimalLines.push({
+              ...result,
+              comboIndex: _lineComboCache.length - 1,
+            });
+        });
+
+        suboptimalLines.sort((a, b) => a.totalSurplus - b.totalSurplus);
+
+        if (!optimalLines.length && !suboptimalLines.length) {
+          container.innerHTML = `<div class="no-result-box">Không tìm thấy dòng sơn nào phù hợp.<br>Hãy thử đổi hãng hoặc kiểm tra tồn kho.</div>`;
+          return;
+        }
+
+        let html = "";
+
+        const buildCard = (result, isSub) => {
+          const { lineInfo, colorChecks, comboIndex, totalSurplus } = result;
+          const combo = _lineComboCache[comboIndex];
+          const badgeHtml = isSub
+            ? `<span class="lrc-badge-sub">⚠️ Kém tối ưu – dư ${totalSurplus.toLocaleString("vi-VN")}L</span>`
+            : `<span class="lrc-badge-opt">✅ Tối ưu</span>`;
+          const priceHtml = combo.comboFeasible
+            ? `<span class="lrc-price">${combo.comboTotal.toLocaleString("vi-VN")} đ</span>`
+            : `<span class="lrc-price" style="color:#94a3b8">Không đủ kho</span>`;
+          const addBtnHtml = combo.comboFeasible
+            ? `<button class="btn-add-combo ${isSub ? "btn-add-combo-sub" : "btn-add-combo-opt"}" onclick="addComboToCart(${comboIndex})">🛒 Thêm vào giỏ</button>`
+            : `<button class="btn-add-combo btn-add-combo-dis" disabled>❌ Không đủ kho</button>`;
+
+          let chipsHtml = "";
+          colorChecks.forEach((ck) => {
+            const useD = ck.isColorOpt ? ck.needed : ck.subDecomp || ck.needed;
+            const colorLabel = ck.bItem.color_id
+              ? `${ck.bItem.color_code}${ck.bItem.color_name ? " — " + ck.bItem.color_name : ""} (${ck.bItem.liters}L)`
+              : `Sơn gốc (${ck.bItem.liters}L)`;
+
+            const chip = (vol, v, qty, hasStock) => {
+              if (!qty) return "";
+              const cls = !v ? "warn" : hasStock ? "ok" : "warn";
+              const stock = v ? `tồn: ${v.stock_quantity}` : "không có";
+              return `<div class="vc-chip ${cls}"><span class="vc-vol">${vol}L × ${qty}</span><span class="vc-stock">(${stock})</span></div>`;
+            };
+
+            chipsHtml += `
+              <div class="variant-chip-group">
+                <div class="vc-color">${colorLabel}</div>
+                ${chip(20, ck.v20, useD.p20, ck.has20)}
+                ${chip(5, ck.v5, useD.p5, ck.has5)}
+                ${chip(1, ck.v1, useD.p1, ck.has1)}
+              </div>`;
+          });
+
+          return `
+            <div class="line-result-card">
+              <div class="lrc-head">
+                <span class="lrc-title">[${lineInfo ? lineInfo.brand_name : ""}] ${lineInfo ? lineInfo.line_name : `Dòng #${result.lineId}`}</span>
+                <div class="lrc-right">${badgeHtml} ${priceHtml} ${addBtnHtml}</div>
+              </div>
+              <div class="lrc-body">${chipsHtml}</div>
+            </div>`;
+        };
+
+        optimalLines.forEach((r) => {
+          html += buildCard(r, false);
+        });
+
+        if (suboptimalLines.length) {
+          if (optimalLines.length)
+            html += `<hr class="section-sep"><div class="sub-section-label">Phương án thay thế (sắp xếp theo lượng dư tăng dần)</div>`;
+          else
+            html += `<div class="sub-section-label">Không có dòng tối ưu. Các phương án thay thế:</div>`;
+          suboptimalLines.forEach((r) => {
+            html += buildCard(r, true);
+          });
+        }
+
+        container.innerHTML = html;
+      }
+
+      // ============================================================
+      // THÊM VÀO GIỎ
+      // ============================================================
+      function addComboToCart(comboIndex) {
+        const combo = _lineComboCache[comboIndex];
+        if (!combo || !combo.comboFeasible) return;
+
+        let cart = JSON.parse(localStorage.getItem("khanhpaint_cart")) || [];
+        let addedCount = 0;
+
+        combo.comboItems.forEach((item) => {
+          const existing = cart.find(
+            (i) =>
+              i.variant_id === item.variant_id &&
+              String(i.color_id) === String(item.color_id),
+          );
+          if (existing) existing.quantity += item.quantity;
+          else {
+            cart.push({
+              variant_id: item.variant_id,
+              color_id: item.color_id,
+              quantity: item.quantity,
+            });
+            addedCount++;
+          }
+        });
+
+        localStorage.setItem("khanhpaint_cart", JSON.stringify(cart));
+        updateCartBadge();
+
+        const lineName = combo.lineInfo
+          ? `[${combo.lineInfo.brand_name}] ${combo.lineInfo.line_name}`
+          : "dòng sơn";
+        alert(
+          `✅ Đã thêm ${combo.comboItems.length} loại sản phẩm của ${lineName} vào giỏ hàng!`,
+        );
+      }
+
+      // ============================================================
+      // CART BADGE & AUTH
+      // ============================================================
+      function updateCartBadge() {
+        const cart = JSON.parse(localStorage.getItem("khanhpaint_cart")) || [];
+        const total = cart.reduce((s, i) => s + (parseInt(i.quantity) || 0), 0);
+        const badge = document.getElementById("cart-count-badge");
+        if (total > 0) {
+          badge.textContent = total;
+          badge.classList.remove("d-none");
+        } else badge.classList.add("d-none");
+      }
+
+      function checkLoginStatus() {
+        const token =
+          localStorage.getItem("client_token") || localStorage.getItem("token");
+        if (token) {
+          document.getElementById("btn-login").classList.add("d-none");
+          document.getElementById("btn-logout").classList.remove("d-none");
+          document.getElementById("user-info").textContent =
+            "Xin chào, Khách hàng!";
+        }
+      }
+
+      function logout() {
+        localStorage.removeItem("token");
+        localStorage.removeItem("client_token");
+        window.location.reload();
+      }
+    </script>
+  </body>
+</html>
