@@ -80,10 +80,14 @@ router.post("/add", async (req, res) => {
       ward_id ? parseInt(ward_id) : null,
     ];
 
-    await db.query(query, params);
+    const [insertResult] = await db.query(query, params);
     res
       .status(201)
-      .json({ success: true, message: "Thêm khách hàng thành công!" });
+      .json({
+        success: true,
+        customer_id: insertResult.insertId,
+        message: "Thêm khách hàng thành công!",
+      });
   } catch (err) {
     res.status(500).json({ success: false, error: "Lỗi: " + err.message });
   }

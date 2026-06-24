@@ -46,14 +46,20 @@ router.get("/", async (req, res) => {
   try {
     const [rows] = await db.execute(
       `
-      SELECT pv.*, pl.name AS line_name, b.base_name, br.name AS brand_name, br.brand_id
-      FROM productvariants pv
-      JOIN productlines pl ON pv.line_id = pl.line_id
-      JOIN basetypes b ON pv.base_id = b.base_id
-      JOIN brands br ON pl.brand_id = br.brand_id
-      ${whereClause}
-      ORDER BY pv.variant_id DESC
-    `,
+    SELECT 
+      pv.*, 
+      pl.name AS line_name, 
+      pl.is_interior,          -- <--- THÊM DÒNG NÀY VÀO ĐÂY
+      b.base_name, 
+      br.name AS brand_name, 
+      br.brand_id
+    FROM productvariants pv
+    JOIN productlines pl ON pv.line_id = pl.line_id
+    JOIN basetypes b ON pv.base_id = b.base_id
+    JOIN brands br ON pl.brand_id = br.brand_id
+    ${whereClause}
+    ORDER BY pv.variant_id DESC
+  `,
       params,
     );
     res.json(rows);

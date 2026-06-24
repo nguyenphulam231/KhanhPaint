@@ -32,42 +32,359 @@
                 </button>
               </div>
 
-              <div class="form-group">
-                <label>Khách hàng mua hàng *</label>
-                <select id="orderCustomerSelect">
-                  <option value="">-- Chọn khách hàng đối tác --</option>
-                </select>
+              <!-- === TÌM KIẾM KHÁCH HÀNG REALTIME === -->
+              <div class="form-group cust-search-wrapper">
+                <label
+                  >Tìm khách hàng
+                  <span style="font-weight: 400; color: #94a3b8"
+                    >(gõ tên hoặc SĐT)</span
+                  ></label
+                >
+                <div class="cust-search-input-row">
+                  <input
+                    type="text"
+                    id="custSearchInput"
+                    class="cust-search-input"
+                    placeholder="Ví dụ: Nguyễn Văn A hoặc 0912..."
+                    autocomplete="off"
+                  />
+                  <button
+                    type="button"
+                    id="btnClearCustSearch"
+                    class="btn-clear-cust"
+                    title="Xóa lựa chọn"
+                    style="display: none"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <!-- Dropdown gợi ý -->
+                <div
+                  id="custSearchDropdown"
+                  class="cust-search-dropdown"
+                  style="display: none"
+                ></div>
+                <!-- Thẻ KH đã chọn -->
+                <div
+                  id="selectedCustChip"
+                  class="selected-cust-chip"
+                  style="display: none"
+                ></div>
+                <!-- Thông báo không tìm thấy + nút tạo mới -->
+                <div
+                  id="custNotFoundRow"
+                  class="cust-not-found-row"
+                  style="display: none"
+                >
+                  <span>Không tìm thấy khách hàng.</span>
+                  <button
+                    type="button"
+                    id="btnShowCreateCust"
+                    class="btn-show-create-cust"
+                  >
+                    + Tạo khách hàng mới
+                  </button>
+                </div>
               </div>
 
-              <div class="form-grid-2col">
-                <div class="form-group">
-                  <label>Tỉnh/Thành phố *</label>
-                  <select id="orderProvinceSelect">
-                    <option value="">-- Chọn Tỉnh/Thành --</option>
-                  </select>
+              <!-- === FORM TẠO KHÁCH HÀNG MỚI (ẩn mặc định) === -->
+              <div id="createCustForm" class="create-cust-form">
+                <div class="create-cust-form-header">
+                  <span>📋 Tạo khách hàng mới</span>
+                </div>
+                <div class="form-grid-2col">
+                  <div class="form-group">
+                    <label>Họ và tên *</label>
+                    <input
+                      type="text"
+                      id="newCustName"
+                      placeholder="Nguyễn Văn A"
+                    />
+                  </div>
+                  <div class="form-group">
+                    <label>Số điện thoại</label>
+                    <input
+                      type="text"
+                      id="newCustPhone"
+                      placeholder="0912 345 678"
+                    />
+                  </div>
+                  <div class="form-group">
+                    <label>Email *</label>
+                    <input
+                      type="email"
+                      id="newCustEmail"
+                      placeholder="example@email.com"
+                    />
+                  </div>
+                  <div class="form-group">
+                    <label>Mật khẩu *</label>
+                    <input
+                      type="password"
+                      id="newCustPassword"
+                      placeholder="Mật khẩu đăng nhập"
+                    />
+                  </div>
+                </div>
+                <div class="form-grid-2col" style="margin-top: 8px">
+                  <div class="form-group">
+                    <label>Tỉnh/Thành phố</label>
+                    <select id="newCustProvince">
+                      <option value="">-- Chọn Tỉnh/Thành --</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label>Phường/Xã</label>
+                    <select id="newCustWard">
+                      <option value="">-- Chọn Phường/Xã --</option>
+                    </select>
+                  </div>
                 </div>
                 <div class="form-group">
-                  <label>Phường/Xã *</label>
-                  <select id="orderWardSelect">
-                    <option value="">-- Chọn Phường/Xã --</option>
-                  </select>
+                  <label>Số nhà, tên đường</label>
+                  <input
+                    type="text"
+                    id="newCustAddress"
+                    placeholder="Ví dụ: 123 Đường Lê Lợi..."
+                  />
+                </div>
+                <button
+                  type="button"
+                  id="btnSaveNewCust"
+                  class="btn-add-item btn-green"
+                  style="margin-top: 4px"
+                >
+                  💾 Lưu & chọn khách hàng này
+                </button>
+              </div>
+
+              <!-- === ĐỊA CHỈ GIAO HÀNG === -->
+              <div id="addressBlock" class="address-block">
+                <div class="form-grid-2col">
+                  <div class="form-group">
+                    <label>Tỉnh/Thành phố *</label>
+                    <select id="orderProvinceSelect">
+                      <option value="">-- Chọn Tỉnh/Thành --</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label>Phường/Xã *</label>
+                    <select id="orderWardSelect">
+                      <option value="">-- Chọn Phường/Xã --</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Số nhà, tên đường, thôn xóm *</label>
+                  <input
+                    type="text"
+                    id="orderSpecificAddress"
+                    placeholder="Ví dụ: 123 Đường Lê Lợi..."
+                  />
                 </div>
               </div>
 
-              <div class="form-group">
-                <label>Số nhà, tên đường, thôn xóm *</label>
-                <input
-                  type="text"
-                  id="orderSpecificAddress"
-                  placeholder="Ví dụ: 123 Đường Lê Lợi..."
-                />
-              </div>
+              <!-- Hidden field giữ customer_id đang chọn -->
+              <input type="hidden" id="orderCustomerSelect" value="" />
             </section>
 
             <section class="admin-card">
-              <h2>2. Bộ lọc tìm kiếm sản phẩm sơn nhanh</h2>
+              <h2>1b. Công cụ dự toán & Phân rã phối màu sơn</h2>
 
               <div class="form-grid-2col">
+                <div class="form-group">
+                  <label>Loại nhà công trình *</label>
+                  <select id="calcHouseType">
+                    <option value="nhapho">
+                      Nhà phố (Hệ số tường: Trong x3.5 | Ngoài x1.0)
+                    </option>
+                    <option value="bietthu">
+                      Nhà vườn / Biệt thự (Hệ số tường: Trong x4.0 | Ngoài x1.8)
+                    </option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Diện tích sàn tầng 1 (m²) *</label>
+                  <input
+                    type="number"
+                    id="calcFloorArea"
+                    placeholder="Ví dụ: 80, 100..."
+                    min="1"
+                  />
+                </div>
+                <div class="form-group">
+                  <label>Số tầng *</label>
+                  <input type="number" id="calcFloors" value="1" min="1" />
+                </div>
+              </div>
+
+              <div class="paint-calc-color-grid">
+                <div
+                  class="paint-calc-color-box paint-calc-color-box--interior"
+                >
+                  <h4>🎨 Phối màu Sơn Nội Thất</h4>
+                  <div class="paint-calc-color-filter-row">
+                    <input
+                      type="text"
+                      id="calcIntColorFilterInput"
+                      class="paint-calc-color-filter-input"
+                      placeholder="Tìm kiếm theo mã hoặc tên màu..."
+                      autocomplete="off"
+                    />
+                    <button
+                      type="button"
+                      id="btnFilterIntColor"
+                      class="paint-calc-filter-btn"
+                    >
+                      Lọc
+                    </button>
+                  </div>
+                  <div class="paint-calc-color-input-row">
+                    <select
+                      id="calcIntColorSelect"
+                      class="paint-calc-color-select"
+                    ></select>
+                    <input
+                      type="number"
+                      id="calcIntColorPct"
+                      placeholder="%"
+                      min="1"
+                      max="100"
+                      class="paint-calc-color-pct-input"
+                    />
+                    <button
+                      type="button"
+                      id="btnAddIntColor"
+                      class="paint-calc-add-btn paint-calc-add-btn--interior"
+                    >
+                      +
+                    </button>
+                  </div>
+                  <ul
+                    id="listSelectedIntColors"
+                    class="paint-calc-color-list"
+                  ></ul>
+                </div>
+
+                <div
+                  class="paint-calc-color-box paint-calc-color-box--exterior"
+                >
+                  <h4>🎨 Phối màu Sơn Ngoại Thất</h4>
+                  <div class="paint-calc-color-filter-row">
+                    <input
+                      type="text"
+                      id="calcExtColorFilterInput"
+                      class="paint-calc-color-filter-input"
+                      placeholder="Tìm kiếm theo mã hoặc tên màu..."
+                      autocomplete="off"
+                    />
+                    <button
+                      type="button"
+                      id="btnFilterExtColor"
+                      class="paint-calc-filter-btn"
+                    >
+                      Lọc
+                    </button>
+                  </div>
+                  <div class="paint-calc-color-input-row">
+                    <select
+                      id="calcExtColorSelect"
+                      class="paint-calc-color-select"
+                    ></select>
+                    <input
+                      type="number"
+                      id="calcExtColorPct"
+                      placeholder="%"
+                      min="1"
+                      max="100"
+                      class="paint-calc-color-pct-input"
+                    />
+                    <button
+                      type="button"
+                      id="btnAddExtColor"
+                      class="paint-calc-add-btn paint-calc-add-btn--exterior"
+                    >
+                      +
+                    </button>
+                  </div>
+                  <ul
+                    id="listSelectedExtColors"
+                    class="paint-calc-color-list"
+                  ></ul>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                id="btnCalculatePaint"
+                class="btn-add-item btn-calculate-paint"
+              >
+                🧮 Tính toán lượng sơn & Phân rã theo màu cụ thể
+              </button>
+
+              <div id="paintCalcResultBlock" class="paint-calc-result-block">
+                <h3>📊 Kết quả ước tính phân rã theo mã màu (2 lớp phủ)</h3>
+                <div class="paint-calc-result-grid">
+                  <div>
+                    <h4 class="paint-calc-result-grid-title--interior">
+                      🏠 Tổng Sơn Nội Thất:
+                      <span id="lblTotalInterior">0</span> Lít
+                    </h4>
+                    <div
+                      id="divInteriorColorResults"
+                      class="paint-calc-color-results-col"
+                    ></div>
+                  </div>
+                  <div>
+                    <h4 class="paint-calc-result-grid-title--exterior">
+                      🌿 Tổng Sơn Ngoại Thất:
+                      <span id="lblTotalExterior">0</span> Lít
+                    </h4>
+                    <div
+                      id="divExteriorColorResults"
+                      class="paint-calc-color-results-col"
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- =============================================
+                 SECTION 2: BỘ LỌC TÌM KIẾM SẢN PHẨM
+                 ============================================= -->
+            <section class="admin-card">
+              <h2>2. Bộ lọc tìm kiếm sản phẩm sơn nhanh</h2>
+
+              <!-- Chế độ lọc: 3 radio button -->
+              <div class="search-mode-group">
+                <label class="search-mode-label">Chế độ tìm kiếm:</label>
+                <div class="search-mode-options">
+                  <label class="search-mode-option">
+                    <input
+                      type="radio"
+                      name="searchMode"
+                      value="normal"
+                      checked
+                    />
+                    <span>🔍 Tìm kiếm thông thường</span>
+                  </label>
+                  <label
+                    class="search-mode-option search-mode-option--interior"
+                  >
+                    <input type="radio" name="searchMode" value="interior" />
+                    <span>🏠 Lọc theo dự toán Nội thất</span>
+                  </label>
+                  <label
+                    class="search-mode-option search-mode-option--exterior"
+                  >
+                    <input type="radio" name="searchMode" value="exterior" />
+                    <span>🌿 Lọc theo dự toán Ngoại thất</span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Bộ lọc thường (bị mờ khi chọn chế độ dự toán) -->
+              <div id="normalFilterBlock" class="form-grid-2col">
                 <div class="form-group">
                   <label>Mã SKU / Từ khóa</label>
                   <input
@@ -82,8 +399,21 @@
                     <option value="">-- Tất cả dung tích --</option>
                     <option value="1">1L</option>
                     <option value="5">5L</option>
-                    <option value="15">15L</option>
                     <option value="20">20L</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Hệ thống Base Type</label>
+                  <select id="searchBase">
+                    <option value="">-- Tất cả Base --</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Loại sơn</label>
+                  <select id="searchInterior">
+                    <option value="">-- Tất cả loại --</option>
+                    <option value="1">🏠 Nội thất</option>
+                    <option value="0">🌿 Ngoại thất</option>
                   </select>
                 </div>
                 <div class="form-group">
@@ -93,11 +423,29 @@
                   </select>
                 </div>
                 <div class="form-group">
-                  <label>Hệ thống Base Type</label>
-                  <select id="searchBase">
-                    <option value="">-- Tất cả Base --</option>
+                  <label>Dòng sơn</label>
+                  <select id="searchLine">
+                    <option value="">-- Tất cả dòng sơn --</option>
                   </select>
                 </div>
+              </div>
+
+              <!-- Bộ lọc hãng cho chế độ dự toán — chỉ hiện khi chọn chế độ dự toán -->
+              <div
+                id="estimateFilterBlock"
+                class="form-group"
+                style="display: none"
+              >
+                <label
+                  >Thương hiệu
+                  <span
+                    style="font-weight: 400; color: #94a3b8; font-size: 0.85rem"
+                    >(lọc kết quả dự toán)</span
+                  ></label
+                >
+                <select id="searchBrandEstimate">
+                  <option value="">-- Tất cả thương hiệu --</option>
+                </select>
               </div>
 
               <button
@@ -108,16 +456,21 @@
                 🔍 Lọc tìm kiếm sản phẩm
               </button>
 
-              <label class="form-group form-label-bold"
-                >Danh sách biến thể sơn khớp điều kiện:</label
-              >
+              <!-- Nhãn kết quả động -->
+              <label class="form-group form-label-bold" id="searchResultLabel">
+                Danh sách biến thể sơn khớp điều kiện:
+              </label>
 
               <div class="variant-search-container">
                 <table class="variant-search-table">
                   <thead class="variant-search-thead">
                     <tr>
-                      <th class="variant-search-th-left">Chi tiết sản phẩm</th>
-                      <th class="variant-search-th-right">Giá niêm yết</th>
+                      <th class="variant-search-th-left" id="thProductDetail">
+                        Chi tiết sản phẩm
+                      </th>
+                      <th class="variant-search-th-right" id="thPrice">
+                        Giá niêm yết
+                      </th>
                       <th class="variant-search-th-center">Hành động</th>
                     </tr>
                   </thead>
@@ -223,10 +576,20 @@
         "🚀 [Hệ thống] File order-create.html đã nạp Script thành công!",
       );
 
+      // ==========================================
+      // BIẾN TRẠNG THÁI TOÀN CỤC
+      // ==========================================
       let currentOrderItems = [];
       let customerMap = {};
-      let variantMap = {};
-      let colorMap = {};
+      let variantMap = {}; // variant_id → variant object
+      let lineMap = {}; // line_id → line object (name, is_interior, brand_name)
+      let colorMap = {}; // color_id → color object (color_code, color_name, base_id)
+      let allVariants = []; // Toàn bộ variants để dùng khi lọc
+      let selectedIntColors = [];
+      let selectedExtColors = [];
+
+      // Kết quả dự toán gần nhất (được set sau khi nhấn "Tính toán")
+      let lastCalcResult = null; // { interiorBreakdown, exteriorBreakdown }
 
       try {
         if (typeof mountAdminSidebar === "function")
@@ -236,13 +599,15 @@
         console.error("❌ Lỗi dựng giao diện khung:", themeError);
       }
 
+      // ==========================================
+      // KHỞI TẠO FORM
+      // ==========================================
       async function initOrderForm() {
         let token = "";
         try {
           if (typeof getAdminToken === "function") token = getAdminToken();
         } catch (e) {}
 
-        // A. TẢI DANH SÁCH TỈNH THÀNH
         try {
           if (typeof loadProvincesIntoSelect === "function") {
             await loadProvincesIntoSelect("orderProvinceSelect");
@@ -250,8 +615,13 @@
         } catch (err) {
           console.error("❌ Lỗi nạp Tỉnh:", err);
         }
-
-        // B. TẢI DANH SÁCH KHÁCH HÀNG ĐỐI TÁC
+        try {
+          if (typeof loadProvincesIntoSelect === "function") {
+            await loadProvincesIntoSelect("newCustProvince");
+          }
+        } catch (err) {
+          console.error("❌ Lỗi nạp Tỉnh (form tạo KH):", err);
+        }
         try {
           const resCust = await fetch(API_ROUTES.GET_CUSTOMERS, {
             headers: { Authorization: "Bearer " + token },
@@ -272,7 +642,6 @@
           console.error("❌ Lỗi nạp Khách hàng:", err);
         }
 
-        // C. TẢI TOÀN BỘ BIẾN THỂ SƠN
         try {
           const resVar = await fetch(API_ROUTES.GET_VARIANTS, {
             headers: { Authorization: "Bearer " + token },
@@ -280,8 +649,19 @@
           if (resVar.ok) {
             const variants = await resVar.json();
             if (Array.isArray(variants)) {
+              allVariants = variants;
               variants.forEach((v) => {
                 variantMap[v.variant_id] = v;
+                // Xây lineMap từ dữ liệu variant
+                if (v.line_id && !lineMap[v.line_id]) {
+                  lineMap[v.line_id] = {
+                    line_id: v.line_id,
+                    line_name: v.line_name,
+                    brand_id: v.brand_id,
+                    brand_name: v.brand_name,
+                    is_interior: v.is_interior, // 0 hoặc 1
+                  };
+                }
               });
               generateDynamicFilterOptions(variants);
               renderVariantSearchResults(variants);
@@ -291,7 +671,6 @@
           console.error("❌ Lỗi nạp Biến thể sơn:", err);
         }
 
-        // D. TẢI DANH SÁCH MÃ MÀU PHA HỆ THỐNG
         try {
           const resCol = await fetch(API_ROUTES.GET_COLORS, {
             headers: { Authorization: "Bearer " + token },
@@ -299,13 +678,26 @@
           if (resCol.ok) {
             const colors = await resCol.json();
             const colSelect = document.getElementById("orderColorSelect");
-            if (colSelect && Array.isArray(colors)) {
-              colSelect.innerHTML =
-                '<option value="">-- Sơn gốc / Không pha màu --</option>';
+            const calcIntSel = document.getElementById("calcIntColorSelect");
+            const calcExtSel = document.getElementById("calcExtColorSelect");
+
+            if (Array.isArray(colors)) {
+              let colorOptions =
+                '<option value="">-- Chọn mã màu pha --</option>';
               colors.forEach((c) => {
                 colorMap[c.color_id] = c;
-                colSelect.innerHTML += `<option value="${c.color_id}">${c.color_code} ${c.color_name ? "- " + c.color_name : ""}</option>`;
+                colorOptions += `<option value="${c.color_id}">${c.color_code}${c.color_name ? " - " + c.color_name : ""}</option>`;
               });
+
+              if (colSelect)
+                colSelect.innerHTML =
+                  '<option value="">-- Sơn gốc / Không pha màu --</option>' +
+                  colorOptions.replace(
+                    '<option value="">-- Chọn mã màu pha --</option>',
+                    "",
+                  );
+              if (calcIntSel) calcIntSel.innerHTML = colorOptions;
+              if (calcExtSel) calcExtSel.innerHTML = colorOptions;
             }
           }
         } catch (err) {
@@ -313,30 +705,640 @@
         }
       }
 
+      // ==========================================
+      // XỬ LÝ CHẾ ĐỘ TÌM KIẾM (3 radio)
+      // ==========================================
+      const normalFilterBlock = document.getElementById("normalFilterBlock");
+      const searchResultLabel = document.getElementById("searchResultLabel");
+      const thProductDetail = document.getElementById("thProductDetail");
+      const thPrice = document.getElementById("thPrice");
+
+      document.querySelectorAll('input[name="searchMode"]').forEach((radio) => {
+        radio.addEventListener("change", () => {
+          const mode = document.querySelector(
+            'input[name="searchMode"]:checked',
+          ).value;
+          const estimateBlock = document.getElementById("estimateFilterBlock");
+          if (mode === "normal") {
+            normalFilterBlock.classList.remove("filter-disabled");
+            estimateBlock.style.display = "none";
+            searchResultLabel.textContent =
+              "Danh sách biến thể sơn khớp điều kiện:";
+            thProductDetail.textContent = "Chi tiết sản phẩm";
+            thPrice.textContent = "Giá niêm yết";
+          } else {
+            normalFilterBlock.classList.add("filter-disabled");
+            estimateBlock.style.display = "block";
+            const label = mode === "interior" ? "Nội thất" : "Ngoại thất";
+            searchResultLabel.textContent = `Danh sách dòng sơn ${label} đáp ứng dự toán:`;
+            thProductDetail.textContent = "Dòng sơn & phân rã theo màu";
+            thPrice.textContent = "Tình trạng kho";
+          }
+        });
+      });
+
+      // ==========================================
+      // LỌC MÃ MÀU TRONG SELECT
+      // ==========================================
+      function stripVietnameseTone(str) {
+        return String(str || "")
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/đ/g, "d")
+          .replace(/Đ/g, "D")
+          .toLowerCase();
+      }
+
+      function applyColorSelectFilter(selectId, keyword) {
+        const select = document.getElementById(selectId);
+        if (!select) return;
+        const kw = stripVietnameseTone(keyword.trim());
+        let firstVisibleOption = null;
+        Array.from(select.options).forEach((opt) => {
+          if (opt.value === "") {
+            opt.hidden = false;
+            return;
+          }
+          const text = stripVietnameseTone(opt.textContent);
+          const match = kw === "" || text.includes(kw);
+          opt.hidden = !match;
+          if (match && !firstVisibleOption) firstVisibleOption = opt;
+        });
+        const currentOpt = select.options[select.selectedIndex];
+        if (currentOpt && currentOpt.hidden) select.value = "";
+      }
+
+      function initColorSelectFilterButton({
+        filterInputId,
+        filterButtonId,
+        selectId,
+      }) {
+        const input = document.getElementById(filterInputId);
+        const button = document.getElementById(filterButtonId);
+        if (!input || !button) return;
+        button.addEventListener("click", () =>
+          applyColorSelectFilter(selectId, input.value),
+        );
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            applyColorSelectFilter(selectId, input.value);
+          }
+        });
+      }
+
+      initColorSelectFilterButton({
+        filterInputId: "calcIntColorFilterInput",
+        filterButtonId: "btnFilterIntColor",
+        selectId: "calcIntColorSelect",
+      });
+      initColorSelectFilterButton({
+        filterInputId: "calcExtColorFilterInput",
+        filterButtonId: "btnFilterExtColor",
+        selectId: "calcExtColorSelect",
+      });
+
+      // ==========================================
+      // GENERATE OPTIONS CHO FILTER
+      // ==========================================
       function generateDynamicFilterOptions(variants) {
         const brandSelect = document.getElementById("searchBrand");
+        const brandEstimateSelect = document.getElementById(
+          "searchBrandEstimate",
+        );
         const baseSelect = document.getElementById("searchBase");
         const uniqueBrands = {};
         const uniqueBases = {};
-
         variants.forEach((v) => {
           if (v.brand_id && v.brand_name)
             uniqueBrands[v.brand_id] = v.brand_name;
           if (v.base_id && v.base_name) uniqueBases[v.base_id] = v.base_name;
         });
 
+        const brandOptions = Object.keys(uniqueBrands)
+          .map((id) => `<option value="${id}">${uniqueBrands[id]}</option>`)
+          .join("");
+
         brandSelect.innerHTML =
-          '<option value="">-- Tất cả thương hiệu --</option>';
-        Object.keys(uniqueBrands).forEach((id) => {
-          brandSelect.innerHTML += `<option value="${id}">${uniqueBrands[id]}</option>`;
-        });
+          '<option value="">-- Tất cả thương hiệu --</option>' + brandOptions;
+        brandEstimateSelect.innerHTML =
+          '<option value="">-- Tất cả thương hiệu --</option>' + brandOptions;
 
         baseSelect.innerHTML = '<option value="">-- Tất cả Base --</option>';
         Object.keys(uniqueBases).forEach((id) => {
-          baseSelect.innerHTML += `<option value="${id}"> ${uniqueBases[id]}</option>`;
+          baseSelect.innerHTML += `<option value="${id}">${uniqueBases[id]}</option>`;
         });
       }
 
+      // Cập nhật dropdown dòng sơn khi đổi hãng hoặc loại sơn
+      function updateLineDropdown() {
+        const brandId = document.getElementById("searchBrand").value;
+        const interior = document.getElementById("searchInterior").value;
+        const lineSelect = document.getElementById("searchLine");
+
+        lineSelect.innerHTML =
+          '<option value="">-- Tất cả dòng sơn --</option>';
+
+        const seen = new Set();
+        allVariants.forEach((v) => {
+          if (seen.has(v.line_id)) return;
+          const brandMatch = !brandId || String(v.brand_id) === String(brandId);
+          const interiorMatch =
+            interior === "" || String(v.is_interior) === String(interior);
+          if (brandMatch && interiorMatch && v.line_id && v.line_name) {
+            seen.add(v.line_id);
+            lineSelect.innerHTML += `<option value="${v.line_id}">${v.line_name}</option>`;
+          }
+        });
+      }
+
+      document
+        .getElementById("searchBrand")
+        .addEventListener("change", updateLineDropdown);
+      document
+        .getElementById("searchInterior")
+        .addEventListener("change", updateLineDropdown);
+
+      // ==========================================
+      // THÊM / XÓA MÀU DỰ TOÁN
+      // ==========================================
+      document
+        .getElementById("btnAddIntColor")
+        .addEventListener("click", () => {
+          const colorId = document.getElementById("calcIntColorSelect").value;
+          const pct = parseInt(
+            document.getElementById("calcIntColorPct").value,
+          );
+          if (!colorId || isNaN(pct) || pct <= 0 || pct > 100)
+            return alert("Vui lòng chọn màu và nhập % hợp lệ (1-100)!");
+          const totalCurrentPct = selectedIntColors.reduce(
+            (sum, i) => sum + i.pct,
+            0,
+          );
+          if (totalCurrentPct + pct > 100)
+            return alert(
+              `Tổng tỉ lệ vượt quá 100% (Hiện tại: ${totalCurrentPct}%)`,
+            );
+          if (selectedIntColors.some((i) => i.color_id === colorId))
+            return alert("Mã màu này đã được thêm!");
+          selectedIntColors.push({
+            color_id: colorId,
+            color_info: colorMap[colorId],
+            pct,
+          });
+          renderSelectedColorsList("interior");
+          document.getElementById("calcIntColorPct").value = "";
+        });
+
+      document
+        .getElementById("btnAddExtColor")
+        .addEventListener("click", () => {
+          const colorId = document.getElementById("calcExtColorSelect").value;
+          const pct = parseInt(
+            document.getElementById("calcExtColorPct").value,
+          );
+          if (!colorId || isNaN(pct) || pct <= 0 || pct > 100)
+            return alert("Vui lòng chọn màu và nhập % hợp lệ (1-100)!");
+          const totalCurrentPct = selectedExtColors.reduce(
+            (sum, i) => sum + i.pct,
+            0,
+          );
+          if (totalCurrentPct + pct > 100)
+            return alert(
+              `Tổng tỉ lệ vượt quá 100% (Hiện tại: ${totalCurrentPct}%)`,
+            );
+          if (selectedExtColors.some((i) => i.color_id === colorId))
+            return alert("Mã màu này đã được thêm!");
+          selectedExtColors.push({
+            color_id: colorId,
+            color_info: colorMap[colorId],
+            pct,
+          });
+          renderSelectedColorsList("exterior");
+          document.getElementById("calcExtColorPct").value = "";
+        });
+
+      function renderSelectedColorsList(type) {
+        const items =
+          type === "interior" ? selectedIntColors : selectedExtColors;
+        const listId =
+          type === "interior"
+            ? "listSelectedIntColors"
+            : "listSelectedExtColors";
+        document.getElementById(listId).innerHTML = items
+          .map(
+            (item, idx) => `
+          <li>
+            <strong>${item.color_info.color_code}</strong> - Tỷ lệ: ${item.pct}%
+            <a href="javascript:void(0)" onclick="removeCalcColor('${type}', ${idx})" class="paint-calc-remove-link">[Xóa]</a>
+          </li>
+        `,
+          )
+          .join("");
+      }
+
+      function removeCalcColor(type, index) {
+        if (type === "interior") selectedIntColors.splice(index, 1);
+        else selectedExtColors.splice(index, 1);
+        renderSelectedColorsList(type);
+      }
+
+      // ==========================================
+      // PHÂN RÃ BAO BÌ
+      // ==========================================
+      function decomposePackaging(liters) {
+        let remaining = liters;
+        const p20 = Math.floor(remaining / 20);
+        remaining %= 20;
+        const p5 = Math.floor(remaining / 5);
+        remaining %= 5;
+        const p1 = Math.ceil(remaining);
+        return { p20, p5, p1 };
+      }
+
+      /**
+       * Tính tất cả các phương án phân rã (tối ưu + kém tối ưu)
+       * cho một lượng lít cho trước, trả về mảng sắp xếp tăng dần theo lượng dư.
+       *
+       * Phân rã tối ưu: 20L → 5L → 1L (dư ít nhất)
+       * Phân rã kém tối ưu: không dùng thùng 20L, hoặc không dùng thùng 5L, v.v.
+       *
+       * Ở đây ta sinh ra các phương án bằng cách thử các số thùng 20L từ 0..max,
+       * với mỗi số thùng 20L thử số thùng 5L từ 0..max, tính lon 1L còn lại.
+       * Loại trùng lặp và sắp xếp theo lượng dư tăng dần.
+       */
+      function getAllDecompositions(liters) {
+        const results = [];
+        const max20 = Math.floor(liters / 20);
+
+        for (let n20 = max20; n20 >= 0; n20--) {
+          const remaining20 = liters - n20 * 20;
+          const max5 = Math.floor(remaining20 / 5);
+
+          for (let n5 = max5; n5 >= 0; n5--) {
+            const remaining5 = remaining20 - n5 * 5;
+            const n1 = Math.ceil(remaining5); // lon 1L làm tròn lên
+            const totalBought = n20 * 20 + n5 * 5 + n1 * 1;
+            const surplus = totalBought - liters;
+
+            results.push({ p20: n20, p5: n5, p1: n1, totalBought, surplus });
+          }
+        }
+
+        // Loại phương án trùng (cùng p20, p5, p1)
+        const seen = new Set();
+        const unique = results.filter((r) => {
+          const key = `${r.p20}-${r.p5}-${r.p1}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+
+        // Sắp xếp tăng dần theo lượng dư, sau đó theo ít thùng lớn nhất
+        unique.sort((a, b) => a.surplus - b.surplus || a.p20 - b.p20);
+        return unique;
+      }
+
+      /**
+       * Tính breakdown đầy đủ cho một danh sách màu và tổng lít
+       * Trả về mảng { color_id, color_info, liters, base_id, decomposition: {p20,p5,p1} }
+       */
+      function calcColorBreakdown(totalLiters, selectedColors) {
+        const breakdown = [];
+        let allocatedPct = 0;
+
+        selectedColors.forEach((item) => {
+          allocatedPct += item.pct;
+          const colorLiters = Math.ceil(totalLiters * (item.pct / 100));
+          breakdown.push({
+            color_id: item.color_id,
+            color_info: item.color_info,
+            liters: colorLiters,
+            base_id: item.color_info ? item.color_info.base_id : null,
+            decomposition: decomposePackaging(colorLiters),
+          });
+        });
+
+        // Phần sơn gốc / không pha
+        if (allocatedPct < 100) {
+          const remainingPct = 100 - allocatedPct;
+          const remainingLiters = Math.ceil(totalLiters * (remainingPct / 100));
+          breakdown.push({
+            color_id: null,
+            color_info: {
+              color_code: "Sơn gốc",
+              color_name: `Không pha màu (${remainingPct}%)`,
+              base_id: null,
+            },
+            liters: remainingLiters,
+            base_id: null, // sơn gốc không cần base cụ thể
+            decomposition: decomposePackaging(remainingLiters),
+          });
+        }
+
+        return breakdown;
+      }
+
+      // ==========================================
+      // TÍNH TOÁN DỰ TOÁN
+      // ==========================================
+      document
+        .getElementById("btnCalculatePaint")
+        .addEventListener("click", () => {
+          const houseType = document.getElementById("calcHouseType").value;
+          const floorArea = parseFloat(
+            document.getElementById("calcFloorArea").value,
+          );
+          const floors = parseInt(document.getElementById("calcFloors").value);
+
+          if (
+            isNaN(floorArea) ||
+            floorArea <= 0 ||
+            isNaN(floors) ||
+            floors <= 0
+          ) {
+            return alert(
+              "Vui lòng điền diện tích sàn và số tầng hợp lệ để tính toán!",
+            );
+          }
+
+          const interiorFactor = houseType === "nhapho" ? 3.5 : 4.0;
+          const exteriorFactor = houseType === "nhapho" ? 1.0 : 1.8;
+          const coveragePerLiter = 5;
+
+          const totalFloorArea = floorArea * floors;
+          const totalInteriorLiters = Math.ceil(
+            (totalFloorArea * interiorFactor) / coveragePerLiter,
+          );
+          const totalExteriorLiters = Math.ceil(
+            (totalFloorArea * exteriorFactor) / coveragePerLiter,
+          );
+
+          document.getElementById("lblTotalInterior").innerText =
+            totalInteriorLiters.toLocaleString("vi-VN");
+          document.getElementById("lblTotalExterior").innerText =
+            totalExteriorLiters.toLocaleString("vi-VN");
+
+          const interiorBreakdown = calcColorBreakdown(
+            totalInteriorLiters,
+            selectedIntColors,
+          );
+          const exteriorBreakdown = calcColorBreakdown(
+            totalExteriorLiters,
+            selectedExtColors,
+          );
+
+          // Lưu lại để dùng khi lọc theo dự toán
+          lastCalcResult = {
+            interiorBreakdown,
+            exteriorBreakdown,
+            totalInteriorLiters,
+            totalExteriorLiters,
+          };
+
+          // Render kết quả dự toán (giữ nguyên giao diện cũ)
+          function buildColorResultHtml(breakdown) {
+            return breakdown
+              .map((item) => {
+                const p = item.decomposition;
+                return `
+              <div class="paint-calc-color-result-card ${item.color_id === null ? "paint-calc-color-result-card--base" : ""}">
+                <span class="paint-calc-color-result-card__title">Màu: ${item.color_info.color_code}${item.color_info.color_name && item.color_info.color_name !== item.color_info.color_code ? " (" + item.pct + "%)" : ""}</span> ➡️ <span class="paint-calc-color-result-card__liters">${item.liters}L</span>
+                <ul class="paint-calc-color-result-card__packlist">
+                  <li>Thùng lớn 20L: <strong>${p.p20}</strong> thùng</li>
+                  <li>Thùng vừa 5L: <strong>${p.p5}</strong> thùng</li>
+                  <li>Lon nhỏ 1L: <strong>${p.p1}</strong> lon</li>
+                </ul>
+              </div>
+            `;
+              })
+              .join("");
+          }
+
+          document.getElementById("divInteriorColorResults").innerHTML =
+            buildColorResultHtml(interiorBreakdown);
+          document.getElementById("divExteriorColorResults").innerHTML =
+            buildColorResultHtml(exteriorBreakdown);
+          document
+            .getElementById("paintCalcResultBlock")
+            .classList.add("is-visible");
+        });
+
+      // ==========================================
+      // NÚT LỌC TÌM KIẾM
+      // ==========================================
+      document
+        .getElementById("btnSearchVariants")
+        .addEventListener("click", async () => {
+          const mode = document.querySelector(
+            'input[name="searchMode"]:checked',
+          ).value;
+
+          if (mode === "normal") {
+            await doNormalSearch();
+          } else {
+            await doEstimateSearch(mode);
+          }
+        });
+
+      // --- TÌM KIẾM THÔNG THƯỜNG ---
+      async function doNormalSearch() {
+        let token = "";
+        try {
+          if (typeof getAdminToken === "function") token = getAdminToken();
+        } catch (e) {}
+
+        const sku = document.getElementById("searchSku").value.trim();
+        const volume = document.getElementById("searchVolume").value;
+        const brandId = document.getElementById("searchBrand").value;
+        const baseId = document.getElementById("searchBase").value;
+        const interior = document.getElementById("searchInterior").value;
+        const lineId = document.getElementById("searchLine").value;
+
+        const query = new URLSearchParams();
+        if (sku) query.append("sku_code", sku);
+        if (volume) query.append("volume", volume);
+        if (brandId) query.append("brand_id", brandId);
+        if (baseId) query.append("base_id", baseId);
+        if (interior !== "") query.append("is_interior", interior);
+        if (lineId) query.append("line_id", lineId);
+
+        document.getElementById("variantSearchResultsBody").innerHTML =
+          `<tr><td colspan="3" class="table-placeholder">Đang tìm kiếm...</td></tr>`;
+
+        try {
+          const res = await fetch(
+            `${API_ROUTES.GET_VARIANTS}?${query.toString()}`,
+            {
+              headers: {
+                Authorization:
+                  "Bearer " +
+                  (typeof getAdminToken === "function" ? getAdminToken() : ""),
+              },
+            },
+          );
+          if (res.ok) {
+            const variants = await res.json();
+            if (Array.isArray(variants)) {
+              variants.forEach((v) => {
+                variantMap[v.variant_id] = v;
+              });
+              renderVariantSearchResults(variants);
+            }
+          }
+        } catch (err) {
+          console.error("❌ Lỗi tìm kiếm biến thể sản phẩm:", err);
+        }
+      }
+
+      // --- TÌM KIẾM THEO DỰ TOÁN ---
+      async function doEstimateSearch(mode) {
+        if (!lastCalcResult) {
+          return alert(
+            "Vui lòng nhấn 'Tính toán lượng sơn' trước khi sử dụng chế độ lọc theo dự toán!",
+          );
+        }
+
+        const isInterior = mode === "interior";
+        const breakdown = isInterior
+          ? lastCalcResult.interiorBreakdown
+          : lastCalcResult.exteriorBreakdown;
+        const selectedBrandId = document.getElementById(
+          "searchBrandEstimate",
+        ).value;
+
+        if (breakdown.length === 0) {
+          document.getElementById("variantSearchResultsBody").innerHTML =
+            `<tr><td colspan="3" class="table-placeholder">Chưa có dữ liệu phân rã màu cho ${isInterior ? "nội thất" : "ngoại thất"}. Vui lòng cấu hình màu và tính toán trước.</td></tr>`;
+          return;
+        }
+
+        document.getElementById("variantSearchResultsBody").innerHTML =
+          `<tr><td colspan="3" class="table-placeholder">Đang phân tích kho hàng theo dự toán...</td></tr>`;
+
+        // Lọc variants theo loại nội/ngoại và hãng
+        const filteredVariants = allVariants.filter((v) => {
+          const lineIsInterior = lineMap[v.line_id]
+            ? !!lineMap[v.line_id].is_interior
+            : false;
+          const typeMatch = isInterior ? lineIsInterior : !lineIsInterior;
+          const brandMatch =
+            !selectedBrandId || String(v.brand_id) === String(selectedBrandId);
+          return typeMatch && brandMatch;
+        });
+
+        // Nhóm variants theo line_id
+        const variantsByLine = {};
+        filteredVariants.forEach((v) => {
+          if (!variantsByLine[v.line_id]) variantsByLine[v.line_id] = [];
+          variantsByLine[v.line_id].push(v);
+        });
+
+        // Đánh giá từng dòng sơn
+        const lineResults = [];
+        Object.keys(variantsByLine).forEach((lineId) => {
+          const lineVariants = variantsByLine[lineId];
+          const lineInfo = lineMap[lineId];
+
+          // Với mỗi màu trong breakdown, kiểm tra kho
+          const colorChecks = [];
+          let lineIsOptimal = true;
+          let totalSurplusLiters = 0;
+
+          breakdown.forEach((bItem) => {
+            const requiredBase = bItem.base_id; // null = sơn gốc, không bắt buộc base
+            const needed = bItem.decomposition;
+
+            // Tìm variant khớp base (nếu base_id null thì lấy bất kỳ)
+            const findVariant = (vol) => {
+              return lineVariants.find((v) => {
+                const volMatch = String(v.volume) === String(vol);
+                const baseMatch = requiredBase
+                  ? String(v.base_id) === String(requiredBase)
+                  : true;
+                return volMatch && baseMatch;
+              });
+            };
+
+            const v20 = findVariant(20);
+            const v5 = findVariant(5);
+            const v1 = findVariant(1);
+
+            const has20 = v20 && v20.stock_quantity >= needed.p20;
+            const has5 = v5 && v5.stock_quantity >= needed.p5;
+            const has1 = v1 && v1.stock_quantity >= needed.p1;
+            const isColorOptimal = has20 && has5 && has1;
+
+            if (!isColorOptimal) lineIsOptimal = false;
+
+            // Tính phân rã kém tối ưu nếu cần
+            let suboptimalDecomp = null;
+            let surplusLiters = 0;
+
+            if (!isColorOptimal) {
+              // Thử các phương án thay thế: không dùng thùng 20L không đủ kho
+              const avail20 = v20 ? v20.stock_quantity : 0;
+              const avail5 = v5 ? v5.stock_quantity : 0;
+              const avail1 = v1 ? v1.stock_quantity : 0;
+
+              // Tìm phương án đầu tiên kho đáp ứng được
+              const allDecomps = getAllDecompositions(bItem.liters);
+              const feasible = allDecomps.find((d) => {
+                return d.p20 <= avail20 && d.p5 <= avail5 && d.p1 <= avail1;
+              });
+
+              if (feasible) {
+                suboptimalDecomp = feasible;
+                surplusLiters = feasible.surplus;
+              } else {
+                // Kho hoàn toàn không đủ
+                suboptimalDecomp = null;
+                surplusLiters = Infinity;
+              }
+              totalSurplusLiters +=
+                surplusLiters === Infinity ? 9999 : surplusLiters;
+            }
+
+            colorChecks.push({
+              bItem,
+              v20,
+              v5,
+              v1,
+              has20,
+              has5,
+              has1,
+              isColorOptimal,
+              suboptimalDecomp,
+              surplusLiters,
+              needed,
+            });
+          });
+
+          lineResults.push({
+            lineId,
+            lineInfo,
+            lineVariants,
+            colorChecks,
+            isOptimal: lineIsOptimal,
+            totalSurplusLiters,
+          });
+        });
+
+        // Tách optimal và suboptimal, sort suboptimal theo dư tăng dần
+        const optimalLines = lineResults.filter((r) => r.isOptimal);
+        const suboptimalLines = lineResults.filter(
+          (r) => !r.isOptimal && r.totalSurplusLiters < 9999 * breakdown.length,
+        );
+        suboptimalLines.sort(
+          (a, b) => a.totalSurplusLiters - b.totalSurplusLiters,
+        );
+
+        renderLineSearchResults(optimalLines, suboptimalLines, isInterior);
+      }
+
+      // ==========================================
+      // RENDER KẾT QUẢ TÌM KIẾM THÔNG THƯỜNG (biến thể)
+      // ==========================================
       function renderVariantSearchResults(variants) {
         const tbody = document.getElementById("variantSearchResultsBody");
         if (!tbody) return;
@@ -355,7 +1357,7 @@
             <tr>
               <td class="variant-row-details">
                 <span class="variant-title">[${v.brand_name || "N/A"}] ${v.line_name}</span><br>
-                <small class="variant-meta">Mã SKU: <code>${v.sku_code || "-"}</code> | Base: ${v.base_name} | Đóng gói: ${v.volume || "Mặc định"}</small>
+                <small class="variant-meta">Mã SKU: <code>${v.sku_code || "-"}</code> | Base: ${v.base_name} | Đóng gói: ${v.volume || "Mặc định"}L | Tồn kho: ${v.stock_quantity ?? "-"}</small>
               </td>
               <td class="variant-row-price">${priceDisplay}</td>
               <td class="variant-row-action">
@@ -367,63 +1369,271 @@
           .join("");
       }
 
+      // ==========================================
+      // RENDER KẾT QUẢ TÌM KIẾM THEO DỰ TOÁN (dòng sơn)
+      // ==========================================
+
+      // Lưu tổ hợp để nút "Thêm cả tổ hợp" có thể gọi lại theo index
+      let _lineComboCache = [];
+
+      function renderLineSearchResults(
+        optimalLines,
+        suboptimalLines,
+        isInterior,
+      ) {
+        const tbody = document.getElementById("variantSearchResultsBody");
+        if (!tbody) return;
+        _lineComboCache = []; // reset cache mỗi lần render
+
+        const totalLines = optimalLines.length + suboptimalLines.length;
+        if (totalLines === 0) {
+          tbody.innerHTML = `<tr><td colspan="3" class="table-no-results">Không tìm thấy dòng sơn nào phù hợp trong kho. Hãy thử đổi hãng hoặc kiểm tra lại tồn kho.</td></tr>`;
+          return;
+        }
+
+        let html = "";
+
+        const renderLineBlock = (result, isSuboptimal) => {
+          const { lineInfo, colorChecks, totalSurplusLiters } = result;
+          const comboIndex = _lineComboCache.length;
+
+          // ── Tính tổng giá tổ hợp & thu thập các item để thêm vào giỏ ──
+          const comboItems = []; // { variant_id, color_id, quantity, price }
+          let comboTotal = 0;
+          let comboFeasible = true; // false nếu có màu kho hoàn toàn không đủ
+
+          colorChecks.forEach((check) => {
+            const {
+              bItem,
+              v20,
+              v5,
+              v1,
+              isColorOptimal,
+              suboptimalDecomp,
+              needed,
+            } = check;
+            const useDecomp = isColorOptimal
+              ? needed
+              : suboptimalDecomp || null;
+
+            if (!useDecomp) {
+              comboFeasible = false;
+              return;
+            }
+
+            const colorId = bItem.color_id ? parseInt(bItem.color_id) : null;
+
+            if (useDecomp.p20 > 0 && v20) {
+              const subtotal = v20.unit_price * useDecomp.p20;
+              comboTotal += subtotal;
+              comboItems.push({
+                variant_id: v20.variant_id,
+                color_id: colorId,
+                quantity: useDecomp.p20,
+                price: v20.unit_price,
+              });
+            }
+            if (useDecomp.p5 > 0 && v5) {
+              const subtotal = v5.unit_price * useDecomp.p5;
+              comboTotal += subtotal;
+              comboItems.push({
+                variant_id: v5.variant_id,
+                color_id: colorId,
+                quantity: useDecomp.p5,
+                price: v5.unit_price,
+              });
+            }
+            if (useDecomp.p1 > 0 && v1) {
+              const subtotal = v1.unit_price * useDecomp.p1;
+              comboTotal += subtotal;
+              comboItems.push({
+                variant_id: v1.variant_id,
+                color_id: colorId,
+                quantity: useDecomp.p1,
+                price: v1.unit_price,
+              });
+            }
+          });
+
+          // Lưu vào cache để hàm addComboToCart dùng
+          _lineComboCache.push({ comboItems, comboFeasible, lineInfo });
+
+          const label = isSuboptimal
+            ? `<span class="line-result-badge badge-suboptimal">⚠️ Kém tối ưu — dư ${totalSurplusLiters.toLocaleString("vi-VN")} lít</span>`
+            : `<span class="line-result-badge badge-optimal">✅ Tối ưu</span>`;
+
+          const totalPriceHtml = comboFeasible
+            ? `<span class="combo-total-price">${comboTotal.toLocaleString("vi-VN")} đ</span>`
+            : `<span class="combo-total-price combo-total-unavail">Không đủ kho</span>`;
+
+          const addBtnHtml = comboFeasible
+            ? `<button type="button" class="btn-add-combo ${isSuboptimal ? "btn-add-combo--sub" : "btn-add-combo--opt"}" onclick="addComboToCart(${comboIndex})">
+                 ➕ Thêm cả tổ hợp vào đơn
+               </button>`
+            : `<button type="button" class="btn-add-combo btn-add-combo--disabled" disabled>
+                 ❌ Không thể thêm
+               </button>`;
+
+          // ── Render từng màu ──
+          let colorBlocksHtml = "";
+          colorChecks.forEach((check) => {
+            const {
+              bItem,
+              v20,
+              v5,
+              v1,
+              has20,
+              has5,
+              has1,
+              isColorOptimal,
+              suboptimalDecomp,
+              needed,
+            } = check;
+            const colorTitle = bItem.color_id
+              ? `Màu ${bItem.color_info.color_code}${bItem.color_info.color_name ? " — " + bItem.color_info.color_name : ""} (${bItem.liters}L)`
+              : `Sơn gốc / Không pha (${bItem.liters}L)`;
+
+            const useDecomp = isColorOptimal
+              ? needed
+              : suboptimalDecomp || needed;
+            const surplusNote =
+              !isColorOptimal &&
+              suboptimalDecomp &&
+              suboptimalDecomp.surplus > 0
+                ? `<div class="suboptimal-note">⚠️ Phân rã thay thế: dư ${suboptimalDecomp.surplus}L so với tối ưu</div>`
+                : !isColorOptimal && !suboptimalDecomp
+                  ? `<div class="suboptimal-note">❌ Kho không đủ tồn cho màu này</div>`
+                  : "";
+
+            const chipHtml = (vol, variantObj, qty, hasStock) => {
+              if (qty === 0) return "";
+              const stockInfo = variantObj
+                ? `(tồn: ${variantObj.stock_quantity})`
+                : "(không có)";
+              const chipClass = !variantObj
+                ? "chip-warn"
+                : hasStock
+                  ? "chip-ok"
+                  : "chip-warn";
+              const priceInfo = variantObj
+                ? `${variantObj.unit_price.toLocaleString("vi-VN")}đ/thùng`
+                : "";
+              return `
+                <div class="variant-chip ${chipClass}">
+                  <span class="chip-vol">${vol}L</span>
+                  <span class="chip-need">×${qty}</span>
+                  <span class="chip-stock">${stockInfo}</span>
+                  ${priceInfo ? `<span class="chip-price">${priceInfo}</span>` : ""}
+                </div>
+              `;
+            };
+
+            colorBlocksHtml += `
+              <div class="line-color-block">
+                <div class="line-color-title">${colorTitle}</div>
+                <div class="line-color-variants">
+                  ${chipHtml(20, v20, useDecomp.p20, has20)}
+                  ${chipHtml(5, v5, useDecomp.p5, has5)}
+                  ${chipHtml(1, v1, useDecomp.p1, has1)}
+                </div>
+                ${surplusNote}
+              </div>
+            `;
+          });
+
+          html += `
+            <tr>
+              <td colspan="3" style="padding: 6px 0; background: transparent;">
+                <div class="line-result-row ${isSuboptimal ? "is-suboptimal" : ""}">
+                  <div class="line-result-header">
+                    <span class="line-result-title">[${lineInfo ? lineInfo.brand_name : ""}] ${lineInfo ? lineInfo.line_name : `Dòng #${result.lineId}`}</span>
+                    <div class="line-result-header-right">
+                      ${label}
+                      ${totalPriceHtml}
+                      ${addBtnHtml}
+                    </div>
+                  </div>
+                  <div class="line-result-body">
+                    ${colorBlocksHtml}
+                  </div>
+                </div>
+              </td>
+            </tr>
+          `;
+        };
+
+        optimalLines.forEach((r) => renderLineBlock(r, false));
+
+        if (suboptimalLines.length > 0) {
+          if (optimalLines.length > 0) {
+            html += `<tr><td colspan="3" style="padding: 8px 4px; font-size: 0.82rem; color: #92400e; font-weight: 600;">— Các dòng sơn kém tối ưu hơn (sắp xếp theo lượng dư tăng dần) —</td></tr>`;
+          } else {
+            html += `<tr><td colspan="3" style="padding: 8px 4px; font-size: 0.82rem; color: #92400e; font-weight: 600;">Không có dòng sơn tối ưu. Các phương án thay thế (sắp xếp theo lượng dư tăng dần):</td></tr>`;
+          }
+          suboptimalLines.forEach((r) => renderLineBlock(r, true));
+        }
+
+        tbody.innerHTML = html;
+      }
+
+      // Thêm cả tổ hợp vào giỏ hàng
+      function addComboToCart(comboIndex) {
+        const combo = _lineComboCache[comboIndex];
+        if (!combo || !combo.comboFeasible) return;
+
+        const { comboItems, lineInfo } = combo;
+        const lineName = lineInfo
+          ? `[${lineInfo.brand_name}] ${lineInfo.line_name}`
+          : "dòng sơn này";
+
+        comboItems.forEach((item) => {
+          const existing = currentOrderItems.find(
+            (i) =>
+              String(i.variant_id) === String(item.variant_id) &&
+              String(i.color_id) === String(item.color_id),
+          );
+          if (existing) {
+            existing.quantity += item.quantity;
+          } else {
+            currentOrderItems.push({
+              variant_id: item.variant_id,
+              color_id: item.color_id,
+              price: item.price,
+              quantity: item.quantity,
+            });
+          }
+        });
+
+        renderCart();
+        alert(
+          `✅ Đã thêm ${comboItems.length} dòng sản phẩm của ${lineName} vào đơn hàng!`,
+        );
+      }
+
+      // ==========================================
+      // CHỌN BIẾN THỂ ĐỂ THÊM VÀO GIỎ
+      // ==========================================
       function selectVariantToConfigure(variantId) {
         const v = variantMap[variantId];
         if (!v) return;
 
         document.getElementById("selectedVariantId").value = variantId;
         document.getElementById("selectedVariantName").innerText =
-          `[${v.brand_name || "-"}] ${v.line_name} - Quy cách: ${v.volume || "Mặc định"} (SKU: ${v.sku_code || "-"})`;
+          `[${v.brand_name || "-"}] ${v.line_name} - Quy cách: ${v.volume || "Mặc định"}L (SKU: ${v.sku_code || "-"})`;
         document.getElementById("orderItemPrice").value = v.unit_price || 0;
         document.getElementById("orderItemQty").value = 1;
-
         document.getElementById("selectedVariantBlock").style.display = "block";
         document.getElementById("orderItemQty").focus();
+
+        // Scroll xuống khối chọn
+        document
+          .getElementById("selectedVariantBlock")
+          .scrollIntoView({ behavior: "smooth", block: "nearest" });
       }
 
-      document
-        .getElementById("btnSearchVariants")
-        .addEventListener("click", async () => {
-          let token = "";
-          try {
-            if (typeof getAdminToken === "function") token = getAdminToken();
-          } catch (e) {}
-
-          const sku = document.getElementById("searchSku").value.trim();
-          const volume = document.getElementById("searchVolume").value;
-          const brandId = document.getElementById("searchBrand").value;
-          const baseId = document.getElementById("searchBase").value;
-
-          const query = new URLSearchParams();
-          if (sku) query.append("sku_code", sku);
-          if (volume) query.append("volume", volume);
-          if (brandId) query.append("brand_id", brandId);
-          if (baseId) query.append("base_id", baseId);
-
-          document.getElementById("variantSearchResultsBody").innerHTML =
-            `<tr><td colspan="3" class="table-placeholder">Đang tìm kiếm...</td></tr>`;
-
-          try {
-            const res = await fetch(
-              `${API_ROUTES.GET_VARIANTS}?${query.toString()}`,
-              {
-                headers: { Authorization: "Bearer " + token },
-              },
-            );
-            if (res.ok) {
-              const variants = await res.json();
-              if (Array.isArray(variants)) {
-                variants.forEach((v) => {
-                  variantMap[v.variant_id] = v;
-                });
-                renderVariantSearchResults(variants);
-              }
-            }
-          } catch (err) {
-            console.error("❌ Lỗi tìm kiếm biến thể sản phẩm:", err);
-          }
-        });
-
+      // ==========================================
+      // PROVINCE / WARD
+      // ==========================================
       const provSelect = document.getElementById("orderProvinceSelect");
       if (provSelect) {
         provSelect.addEventListener("change", function () {
@@ -432,7 +1642,14 @@
           }
         });
       }
-
+      const newCustProvSel = document.getElementById("newCustProvince");
+      if (newCustProvSel) {
+        newCustProvSel.addEventListener("change", function () {
+          if (typeof loadWardsIntoSelect === "function") {
+            loadWardsIntoSelect(this.value, "newCustWard");
+          }
+        });
+      }
       document
         .getElementById("syncAddressBtn")
         .addEventListener("click", async () => {
@@ -440,25 +1657,24 @@
             "orderCustomerSelect",
           ).value;
           if (!customerId) return alert("Vui lòng chọn một khách hàng trước!");
-
           const cust = customerMap[customerId];
           if (!cust) return;
-
           document.getElementById("orderSpecificAddress").value =
             cust.street_address || "";
-
           if (cust.province_id) {
             document.getElementById("orderProvinceSelect").value =
               cust.province_id;
             if (typeof loadWardsIntoSelect === "function") {
               await loadWardsIntoSelect(cust.province_id, "orderWardSelect");
-              if (cust.ward_id) {
+              if (cust.ward_id)
                 document.getElementById("orderWardSelect").value = cust.ward_id;
-              }
             }
           }
         });
 
+      // ==========================================
+      // THÊM VÀO GIỎ
+      // ==========================================
       document.getElementById("addItemBtn").addEventListener("click", () => {
         const variantId = document.getElementById("selectedVariantId").value;
         const colorId = document.getElementById("orderColorSelect").value;
@@ -497,6 +1713,9 @@
         renderCart();
       });
 
+      // ==========================================
+      // XÁC NHẬN ĐƠN HÀNG
+      // ==========================================
       document
         .getElementById("submitOrderBtn")
         .addEventListener("click", async () => {
@@ -543,11 +1762,9 @@
               document.getElementById("orderWardSelect").innerHTML =
                 '<option value="">-- Chọn Phường/Xã --</option>';
               document.getElementById("orderSpecificAddress").value = "";
-
               document.getElementById("selectedVariantBlock").style.display =
                 "none";
               document.getElementById("selectedVariantId").value = "";
-
               renderCart();
             } else {
               alert(data.error || "Lỗi tạo đơn hàng.");
@@ -557,6 +1774,9 @@
           }
         });
 
+      // ==========================================
+      // RENDER GIỎ HÀNG
+      // ==========================================
       function renderCart() {
         const tbody = document.getElementById("cartTableBody");
         const totalLabel = document.getElementById("cartTotalLabel");
@@ -567,6 +1787,7 @@
           totalLabel.innerText = "0 VNĐ";
           return;
         }
+
         tbody.innerHTML = "";
         let total = 0;
         currentOrderItems.forEach((item, idx) => {
@@ -574,11 +1795,9 @@
           const c = colorMap[item.color_id];
           const sub = item.price * item.quantity;
           total += sub;
-
           const variantName = v
-            ? `[${v.brand_name || "-"}] ${v.line_name} (${v.volume || "Mặc định"})`
+            ? `[${v.brand_name || "-"}] ${v.line_name} (${v.volume || "Mặc định"}L)`
             : `Sơn mã #${item.variant_id}`;
-
           tbody.innerHTML += `<tr>
             <td><strong>${variantName}</strong></td>
             <td><span class="badge color-badge">${c ? c.color_code : "Sơn gốc"}</span></td>
@@ -596,8 +1815,261 @@
         renderCart();
       }
 
+      // ==========================================
+      // TÌM KIẾM & TẠO KHÁCH HÀNG INLINE
+      // ==========================================
+      function initCustomerSearch() {
+        const searchInput = document.getElementById("custSearchInput");
+        const dropdown = document.getElementById("custSearchDropdown");
+        const chip = document.getElementById("selectedCustChip");
+        const notFoundRow = document.getElementById("custNotFoundRow");
+        const createForm = document.getElementById("createCustForm");
+        const addressBlock = document.getElementById("addressBlock");
+        const clearBtn = document.getElementById("btnClearCustSearch");
+        const hiddenCustId = document.getElementById("orderCustomerSelect");
+
+        let searchTimer = null;
+        let isSelecting = false;
+
+        // ── Chọn KH từ dropdown ──
+        function selectCustomer(cust) {
+          isSelecting = true;
+          hiddenCustId.value = cust.customer_id;
+          customerMap[cust.customer_id] = cust;
+
+          searchInput.value =
+            cust.name + (cust.phone ? ` — ${cust.phone}` : "");
+          searchInput.classList.add("input-has-selection");
+          clearBtn.style.display = "inline-flex";
+
+          chip.innerHTML = `
+      <span class="chip-name">✅ ${cust.name}</span>
+      <span class="chip-meta">SĐT: ${cust.phone || "—"} &nbsp;|&nbsp; Email: ${cust.email || "—"}</span>
+    `;
+          chip.style.display = "flex";
+
+          dropdown.style.display = "none";
+          notFoundRow.style.display = "none";
+          createForm.style.display = "none";
+          addressBlock.style.display = "block";
+
+          // Đồng bộ địa chỉ nếu KH đã có sẵn
+          if (cust.province_id) {
+            document.getElementById("orderProvinceSelect").value =
+              cust.province_id;
+            if (typeof loadWardsIntoSelect === "function") {
+              loadWardsIntoSelect(cust.province_id, "orderWardSelect").then(
+                () => {
+                  if (cust.ward_id)
+                    document.getElementById("orderWardSelect").value =
+                      cust.ward_id;
+                },
+              );
+            }
+          }
+          if (cust.street_address)
+            document.getElementById("orderSpecificAddress").value =
+              cust.street_address;
+
+          setTimeout(() => {
+            isSelecting = false;
+          }, 200);
+        }
+
+        // ── Xóa lựa chọn ──
+        function clearSelection() {
+          hiddenCustId.value = "";
+          searchInput.value = "";
+          searchInput.classList.remove("input-has-selection");
+          clearBtn.style.display = "none";
+          chip.style.display = "none";
+
+          createForm.style.display = "none";
+
+          dropdown.style.display = "none";
+          document.getElementById("orderProvinceSelect").value = "";
+          document.getElementById("orderWardSelect").innerHTML =
+            '<option value="">-- Chọn Phường/Xã --</option>';
+          document.getElementById("orderSpecificAddress").value = "";
+          searchInput.focus();
+        }
+
+        clearBtn.addEventListener("click", clearSelection);
+
+        // ── Tìm kiếm realtime ──
+        searchInput.addEventListener("input", () => {
+          if (isSelecting) return;
+          const kw = searchInput.value.trim();
+
+          // Reset chip nếu user đang gõ lại
+          if (hiddenCustId.value) {
+            hiddenCustId.value = "";
+            searchInput.classList.remove("input-has-selection");
+            clearBtn.style.display = "none";
+            chip.style.display = "none";
+          }
+
+          if (kw.length < 2) {
+            dropdown.style.display = "none";
+            notFoundRow.style.display = "none";
+            return;
+          }
+
+          clearTimeout(searchTimer);
+          dropdown.innerHTML = `<div class="cust-dropdown-loading">Đang tìm...</div>`;
+          dropdown.style.display = "block";
+
+          searchTimer = setTimeout(async () => {
+            try {
+              let token = "";
+              try {
+                if (typeof getAdminToken === "function")
+                  token = getAdminToken();
+              } catch (e) {}
+
+              const res = await fetch(
+                `${API_ROUTES.GET_CUSTOMERS}?keyword=${encodeURIComponent(kw)}`,
+                { headers: { Authorization: "Bearer " + token } },
+              );
+              const customers = res.ok ? await res.json() : [];
+
+              if (!Array.isArray(customers) || customers.length === 0) {
+                dropdown.style.display = "none";
+                notFoundRow.style.display = "flex";
+                return;
+              }
+
+              notFoundRow.style.display = "none";
+              dropdown.innerHTML = customers
+                .slice(0, 8)
+                .map(
+                  (c) => `
+          <div class="cust-dropdown-item" data-id="${c.customer_id}">
+            <div class="cust-dd-name">${c.name}</div>
+            <div class="cust-dd-meta">
+              SĐT: ${c.phone || "—"} &nbsp;|&nbsp; ${c.province_name || ""} ${c.ward_name || ""}
+            </div>
+          </div>
+        `,
+                )
+                .join("");
+
+              dropdown.querySelectorAll(".cust-dropdown-item").forEach((el) => {
+                el.addEventListener("mousedown", (e) => {
+                  e.preventDefault(); // tránh blur trước khi click
+                  const cust = customers.find(
+                    (c) => String(c.customer_id) === el.dataset.id,
+                  );
+                  if (cust) selectCustomer(cust);
+                });
+              });
+
+              dropdown.style.display = "block";
+            } catch (err) {
+              console.error("❌ Lỗi tìm KH:", err);
+              dropdown.style.display = "none";
+            }
+          }, 300); // debounce 300ms
+        });
+
+        // Ẩn dropdown khi click ra ngoài
+        searchInput.addEventListener("blur", () => {
+          setTimeout(() => {
+            dropdown.style.display = "none";
+          }, 150);
+        });
+
+        // ── Lưu khách hàng mới và tự chọn ──
+        document
+          .getElementById("btnSaveNewCust")
+          .addEventListener("click", async () => {
+            const name = document.getElementById("newCustName").value.trim();
+            const phone = document.getElementById("newCustPhone").value.trim();
+            const email = document.getElementById("newCustEmail").value.trim();
+            const password = document.getElementById("newCustPassword").value;
+
+            if (!name || !email || !password) {
+              return alert("Vui lòng điền đủ Họ tên, Email và Mật khẩu!");
+            }
+
+            let token = "";
+            try {
+              if (typeof getAdminToken === "function") token = getAdminToken();
+            } catch (e) {}
+            const newCustProvinceId =
+              document.getElementById("newCustProvince").value;
+            const newCustWardId = document.getElementById("newCustWard").value;
+            const newCustAddr = document
+              .getElementById("newCustAddress")
+              .value.trim();
+            try {
+              const res = await fetch(API_ROUTES.ADD_CUSTOMER, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: "Bearer " + token,
+                },
+                body: JSON.stringify({
+                  name,
+                  phone,
+                  email,
+                  password,
+                  province_id: newCustProvinceId
+                    ? parseInt(newCustProvinceId)
+                    : null,
+                  ward_id: newCustWardId ? parseInt(newCustWardId) : null,
+                  street_address: newCustAddr || null,
+                }),
+              });
+
+              const data = await res.json().catch(() => null);
+
+              if (!res.ok || !data?.success) {
+                return alert(data?.error || "Lỗi khi tạo khách hàng mới!");
+              }
+
+              // Lấy lại thông tin KH vừa tạo (API trả customer_id trong data)
+              const newCustId = data.customer_id || data.id;
+              const newCust = {
+                customer_id: newCustId,
+                name,
+                phone,
+                email,
+                province_id: newCustProvinceId
+                  ? parseInt(newCustProvinceId)
+                  : null,
+                ward_id: newCustWardId ? parseInt(newCustWardId) : null,
+                street_address: newCustAddr || "",
+                ward_name: "",
+                province_name: "",
+              };
+
+              // Reset form tạo mới
+              document.getElementById("newCustName").value = "";
+              document.getElementById("newCustPhone").value = "";
+              document.getElementById("newCustEmail").value = "";
+              document.getElementById("newCustPassword").value = "";
+              document.getElementById("newCustProvince").value = "";
+              document.getElementById("newCustWard").innerHTML =
+                '<option value="">-- Chọn Phường/Xã --</option>';
+              document.getElementById("newCustAddress").value = "";
+
+              // Tự động chọn KH vừa tạo
+              selectCustomer(newCust);
+              notFoundRow.style.display = "none";
+              alert(
+                `✅ Tạo khách hàng "${name}" thành công và đã được chọn vào đơn!`,
+              );
+            } catch (err) {
+              console.error("❌ Lỗi tạo KH:", err);
+              alert("Lỗi kết nối máy chủ!");
+            }
+          });
+      }
+
       window.addEventListener("DOMContentLoaded", () => {
         initOrderForm();
+        initCustomerSearch();
       });
     </script>
   </body>
