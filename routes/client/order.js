@@ -13,36 +13,67 @@ router.post("/", async (req, res) => {
     return res.status(400).json({ error: "Đơn hàng phải có ít nhất một sản phẩm." });
   }
 
-  const normalizedItems = items.map((item) => ({
-    variant_id: Number(item.variant_id),
-    color_id: Number(item.color_id),
-    quantity: Number(item.quantity || 1),
-  }));
-
-  if (normalizedItems.some((item) => !item.variant_id || !item.color_id || item.quantity <= 0)) {
-    return res.status(400).json({ error: "Dòng sản phẩm không hợp lệ." });
-  }
-
+  const connection = await db.getConnection();
   try {
-    const [resultSets] = await db.query(
-      "CALL sp_create_order(?, ?, ?, ?)",
-      [customerId, JSON.stringify(normalizedItems), street_address || null, ward_id || null],
+    await connection.beginTransaction();
+
+    const [[customer]] = await connection.query(
+      "SELECT street_address, ward_id, credit_limit, current_debt FROM customers WHERE customer_id = ?",
+      [customerId],
     );
 
-    const orderId = resultSets?.[0]?.[0]?.order_id;
+    const [orderResult] = await connection.query(
+      `INSERT INTO orders (customer_id, total_amount, status, street_address, ward_id)
+       VALUES (?, 0, 'pending', ?, ?)`,
+      [
+        customerId,
+        street_address || customer?.street_address || null,
+        ward_id || customer?.ward_id || null,
+      ],
+    );
+
+    const orderId = orderResult.insertId;
+
+    for (const item of items) {
+      const variantId = Number(item.variant_id);
+      const colorId = Number(item.color_id);
+      const quantity = Number(item.quantity || 1);
+
+      if (!variantId || !colorId || quantity <= 0) {
+        throw new Error("Dòng sản phẩm không hợp lệ.");
+      }
+
+      const [[variant]] = await connection.query(
+        "SELECT unit_price FROM productvariants WHERE variant_id = ?",
+        [variantId],
+      );
+      if (!variant) throw new Error(`Không tìm thấy biến thể sản phẩm ${variantId}.`);
+
+      await connection.query(
+        `INSERT INTO orderdetails (order_id, variant_id, color_id, quantity, price_at_sale)
+         VALUES (?, ?, ?, ?, ?)`,
+        [orderId, variantId, colorId, quantity, variant.unit_price],
+      );
+    }
+
+    await connection.commit();
     res.status(201).json({ message: "Tạo đơn hàng thành công.", order_id: orderId });
   } catch (err) {
+    await connection.rollback();
     res.status(400).json({ error: err.message });
+  } finally {
+    connection.release();
   }
 });
 
 router.get("/", async (req, res) => {
   try {
     const [orders] = await db.query(
-      `SELECT order_id, total_amount, paid_amount, payment_status, status, street_address, ward_id, created_at, updated_at
+      `SELECT order_id, total_amount, status, street_address, ward_id,
+              DATE_FORMAT(created_at, '%Y-%m-%d %H:%i') AS created_at_text
        FROM orders
        WHERE customer_id = ?
-       ORDER BY created_at DESC, order_id DESC`,
+       ORDER BY order_id DESC`,
       [req.user.id],
     );
     res.json(orders);
@@ -54,7 +85,8 @@ router.get("/", async (req, res) => {
 router.get("/:id", async (req, res) => {
   try {
     const [[order]] = await db.query(
-      `SELECT order_id, total_amount, paid_amount, payment_status, status, street_address, ward_id, created_at, updated_at
+      `SELECT order_id, total_amount, status, street_address, ward_id,
+              DATE_FORMAT(created_at, '%Y-%m-%d %H:%i') AS created_at_text
        FROM orders
        WHERE order_id = ? AND customer_id = ?`,
       [req.params.id, req.user.id],
@@ -62,7 +94,7 @@ router.get("/:id", async (req, res) => {
     if (!order) return res.status(404).json({ error: "Không tìm thấy đơn hàng." });
 
     const [details] = await db.query(
-      `SELECT od.quantity, od.price_at_sale, od.formula_version, od.mix_status, od.qc_status, pv.sku_code, pv.volume,
+      `SELECT od.quantity, od.price_at_sale, pv.sku_code, pv.volume,
               pl.name AS line_name, br.name AS brand_name,
               bt.base_name, cs.color_code, cs.color_name
        FROM orderdetails od

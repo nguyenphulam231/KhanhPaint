@@ -1,4 +1,4 @@
-try { require("dotenv").config(); } catch (err) { /* dotenv is optional in local demo */ }
+require("./config/loadEnv");
 const express = require("express");
 const path = require("path");
 const db = require("./db");

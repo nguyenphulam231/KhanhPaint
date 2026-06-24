@@ -1,5 +1,5 @@
 function getAdminToken() {
-  const token = localStorage.getItem("adminToken");
+  const token = localStorage.getItem("adminToken") || localStorage.getItem("token");
   if (!token) {
     window.location.href = "/admin/login";
     return null;
@@ -9,6 +9,7 @@ function getAdminToken() {
 
 function clearAdminToken() {
   localStorage.removeItem("adminToken");
+  localStorage.removeItem("token");
 }
 
 function initAdminShell() {
@@ -41,7 +42,7 @@ function renderAdminSidebar(activeNav) {
       <a class="menu-item ${activeNav === "shifts" ? "active" : ""}" data-admin-nav="shifts" href="/admin/shift-manage.html">Quản lý Ca làm</a>
       <a class="menu-item ${activeNav === "assign-shift" ? "active" : ""}" data-admin-nav="assign-shift" href="/admin/shift-assign.html">Phân ca làm việc</a>
       <a class="menu-item ${activeNav === "orders" ? "active" : ""}" data-admin-nav="orders" href="/admin/order-manage.html">Quản lý đơn hàng</a>
-      <a class="menu-item ${activeNav === "inventory-movements" ? "active" : ""}" data-admin-nav="inventory-movements" href="/admin/inventory-movements.html">Nhật ký kho</a>
+      <a class="menu-item ${activeNav === "customers" ? "active" : ""}" data-admin-nav="customers" href="/admin/customer-manage.html">Quản lý khách hàng</a>
       <a class="menu-item" href="#" id="logoutLink" style="color: #ffcccc">Đăng xuất</a>
     </aside>
   `;
@@ -111,6 +112,53 @@ async function loadBaseTypesIntoSelect(selectId) {
   }
 }
 
+
+// Tải danh sách Tỉnh/Thành phố an toàn
+async function loadProvincesIntoSelect(selectId) {
+  try {
+    const response = await fetch(API_ROUTES.GEO_PROVINCES);
+    if (!response.ok) {
+      console.error(`[Lỗi địa lý] API Tỉnh trả về mã: ${response.status}`);
+      return;
+    }
+    const provinces = await response.json();
+    if (!Array.isArray(provinces)) return;
+    const select = document.getElementById(selectId);
+    if (!select) return;
+    select.innerHTML = '<option value="">-- Chọn Tỉnh/Thành phố --</option>';
+    provinces.forEach((p) => {
+      select.innerHTML += `<option value="${p.province_id}">${p.province_name}</option>`;
+    });
+  } catch (err) {
+    console.error("Không thể kết nối đến API tỉnh thành:", err);
+  }
+}
+
+// Tải danh sách Phường/Xã an toàn
+async function loadWardsIntoSelect(provinceId, selectId) {
+  const select = document.getElementById(selectId);
+  if (!select) return;
+  if (!provinceId) {
+    select.innerHTML = '<option value="">-- Chọn Phường/Xã --</option>';
+    return;
+  }
+  try {
+    const response = await fetch(API_ROUTES.GEO_WARDS(provinceId));
+    if (!response.ok) {
+      console.error(`[Lỗi địa lý] API Xã trả về mã: ${response.status}`);
+      return;
+    }
+    const wards = await response.json();
+    if (!Array.isArray(wards)) return;
+    select.innerHTML = '<option value="">-- Chọn Phường/Xã --</option>';
+    wards.forEach((w) => {
+      select.innerHTML += `<option value="${w.ward_id}">${w.ward_name}</option>`;
+    });
+  } catch (err) {
+    console.error("Không thể kết nối đến API phường xã:", err);
+  }
+}
+
 function escapeHtml(value) {
   return String(value)
     .replaceAll("&", "&amp;")
@@ -159,6 +207,49 @@ async function renderDashboardSummary(targetId) {
     });
     const data = await response.json();
     const stats = data.stats || {};
+    const statusRows = data.status_breakdown || [];
+    const lowBaseRows = data.low_base_stock || [];
+    const lowColorantRows = data.low_colorants || [];
+    const recentOrders = data.recent_orders || [];
+
+    const statusHtml = statusRows.length
+      ? statusRows.map((row) => `
+          <tr>
+            <td>${escapeHtml(row.status)}</td>
+            <td>${Number(row.count || 0)}</td>
+            <td>${Number(row.total_amount || 0).toLocaleString("vi-VN")} đ</td>
+          </tr>`).join("")
+      : '<tr><td colspan="3">Chưa có dữ liệu trạng thái.</td></tr>';
+
+    const lowBaseHtml = lowBaseRows.length
+      ? lowBaseRows.map((row) => `
+          <tr>
+            <td>${escapeHtml(row.brand_name)} - ${escapeHtml(row.line_name)}</td>
+            <td>${escapeHtml(row.sku_code)}</td>
+            <td>${escapeHtml(row.base_name)}</td>
+            <td>${Number(row.stock_quantity || 0)}</td>
+          </tr>`).join("")
+      : '<tr><td colspan="4">Chưa có SKU sắp hết.</td></tr>';
+
+    const lowColorantHtml = lowColorantRows.length
+      ? lowColorantRows.map((row) => `
+          <tr>
+            <td>${escapeHtml(row.colorant_name)}</td>
+            <td>${Number(row.stock_ml || 0).toLocaleString("vi-VN")} ml</td>
+            <td>${Number(row.unit_price_per_ml || 0).toLocaleString("vi-VN")} đ/ml</td>
+          </tr>`).join("")
+      : '<tr><td colspan="3">Chưa có tinh màu sắp hết.</td></tr>';
+
+    const recentHtml = recentOrders.length
+      ? recentOrders.map((row) => `
+          <tr>
+            <td>#${row.order_id}</td>
+            <td>${escapeHtml(row.customer_name)}</td>
+            <td>${escapeHtml(row.status)}</td>
+            <td>${Number(row.total_amount || 0).toLocaleString("vi-VN")} đ</td>
+            <td>${escapeHtml(row.created_at_text || "")}</td>
+          </tr>`).join("")
+      : '<tr><td colspan="5">Chưa có đơn hàng.</td></tr>';
 
     target.innerHTML = `
       <div class="admin-stats">
@@ -167,28 +258,51 @@ async function renderDashboardSummary(targetId) {
           <span>Đơn hàng</span>
         </div>
         <div class="stat-card">
-          <strong>${Number(stats.revenue || 0).toLocaleString("vi-VN")} đ</strong>
-          <span>Doanh thu ghi nhận</span>
+          <strong>${Number(stats.completed_revenue || 0).toLocaleString("vi-VN")} đ</strong>
+          <span>Doanh thu hoàn tất</span>
         </div>
         <div class="stat-card">
-          <strong>${Number(stats.total_variants || 0)}</strong>
-          <span>SKU sản phẩm</span>
+          <strong>${Number(stats.pending_orders || 0)}</strong>
+          <span>Đơn đang xử lý</span>
         </div>
         <div class="stat-card">
           <strong>${Number(stats.colorant_stock_ml || 0).toLocaleString("vi-VN")} ml</strong>
           <span>Tồn kho tinh màu</span>
         </div>
-        <div class="stat-card">
-          <strong>${Number(stats.total_customer_debt || 0).toLocaleString("vi-VN")} đ</strong>
-          <span>Công nợ khách hàng</span>
-        </div>
-        <div class="stat-card">
-          <strong>${Number(stats.inventory_movements || 0)}</strong>
-          <span>Dòng nhật ký kho</span>
-        </div>
       </div>
-      <div class="content-card">
-        <pre class="json-panel">${escapeHtml(JSON.stringify(data, null, 2))}</pre>
+
+      <div class="dashboard-grid">
+        <section class="content-card">
+          <h3>Trạng thái đơn hàng</h3>
+          <table class="data-table">
+            <thead><tr><th>Trạng thái</th><th>Số đơn</th><th>Giá trị</th></tr></thead>
+            <tbody>${statusHtml}</tbody>
+          </table>
+        </section>
+
+        <section class="content-card">
+          <h3>Đơn mới gần đây</h3>
+          <table class="data-table">
+            <thead><tr><th>Mã</th><th>Khách</th><th>Trạng thái</th><th>Tổng</th><th>Ngày</th></tr></thead>
+            <tbody>${recentHtml}</tbody>
+          </table>
+        </section>
+
+        <section class="content-card">
+          <h3>Cảnh báo sơn gốc sắp hết</h3>
+          <table class="data-table">
+            <thead><tr><th>Sản phẩm</th><th>SKU</th><th>Base</th><th>Tồn</th></tr></thead>
+            <tbody>${lowBaseHtml}</tbody>
+          </table>
+        </section>
+
+        <section class="content-card">
+          <h3>Cảnh báo tinh màu sắp hết</h3>
+          <table class="data-table">
+            <thead><tr><th>Tinh màu</th><th>Tồn</th><th>Đơn giá</th></tr></thead>
+            <tbody>${lowColorantHtml}</tbody>
+          </table>
+        </section>
       </div>
     `;
   } catch (error) {

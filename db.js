@@ -1,4 +1,4 @@
-try { require("dotenv").config(); } catch (err) { /* dotenv is optional in local demo */ }
+require("./config/loadEnv");
 const mysql = require("mysql2");
 
 const pool = mysql.createPool({

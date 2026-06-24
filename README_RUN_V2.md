@@ -1,26 +1,26 @@
+# KhanhPaint V2 - Bản cải tiến theo ERD mới, không tạo thêm bảng
 
-## 1. Thứ tự chạy database
+Bản này giữ nguyên bộ thực thể trong ERD nhóm, không bổ sung bảng mới. Các nâng cấp được thực hiện bằng cách thêm thuộc tính, ràng buộc, trigger, view, API và giao diện quản trị.
 
-Mở MySQL Workbench hoặc terminal MySQL, chạy theo thứ tự:
+## 1. Chuẩn bị database
+
+Mở MySQL Workbench hoặc terminal MySQL, sau đó chạy theo đúng thứ tự:
 
 ```sql
 SOURCE khanhpaintdatabasewithdata.sql;
 SOURCE database/upgrade_v2.sql;
-SOURCE database/upgrade_v2_2_compact_erd.sql;
 SOURCE database/seed_business_v2.sql;
 ```
 
 Ghi chú:
 
-- `upgrade_v2.sql` tạo nền V2.1: trigger, payment, công nợ, inventory movements.
-- `upgrade_v2_2_compact_erd.sql` nâng cấp ERD gọn: `baseinventory`, formula version, mix/QC status, stored procedures, view và index.
-- `seed_business_v2.sql` có thể chạy sau V2.2 vì V2.2 đã có trigger tự tạo `baseinventory` khi thêm `productvariants`.
-
-Nếu database đã có dữ liệu từ bản cũ, vẫn chạy được theo dạng migration bổ sung. Nếu cần dựng sạch nhất, drop database rồi chạy lại đúng thứ tự trên.
+- `khanhpaintdatabasewithdata.sql` đã được thêm `SET FOREIGN_KEY_CHECKS = 0/1` để tránh lỗi khóa ngoại do file nền tạo bảng chưa đúng thứ tự.
+- `database/upgrade_v2.sql` là migration chính. File này không tạo bảng mới; chỉ thêm `orders.created_at`, unique/check/index, view và trigger.
+- `database/seed_business_v2.sql` bổ sung dữ liệu demo cho SKU, công thức màu, nhân viên bán hàng, kỹ thuật viên và phân ca trong ngày hiện tại để test luồng đơn hàng.
 
 ## 2. Chuẩn bị biến môi trường
 
-Copy `.env.example` thành `.env`, rồi sửa thông tin MySQL:
+Copy `.env.example` thành `.env`, rồi sửa mật khẩu MySQL:
 
 ```bash
 cp .env.example .env
@@ -56,126 +56,71 @@ Mở trình duyệt:
 - Client: http://localhost:3000/client
 - Admin: http://localhost:3000/admin/login
 
-## 4. Điểm nâng cấp chính trong V2.2
+## 4. Tài khoản admin có sẵn
 
-### 4.1. Tách BaseInventory đúng theo ERD
+Theo dữ liệu hiện tại, tài khoản admin mẫu là:
 
-Tồn kho sơn gốc không còn lấy trực tiếp từ `productvariants.stock_quantity` làm nguồn chính. V2.2 thêm bảng:
+- Email: `admin@khanhpaint.com`
+- Mật khẩu: dùng mật khẩu đã hash trong dữ liệu nhóm đã nhập trước đó.
 
-```sql
-baseinventory(variant_id, stock_quantity, warehouse_location, reorder_level)
-```
+Nếu không đăng nhập được, hãy cập nhật lại `password_hash` của admin bằng bcrypt hoặc tạo admin mới trực tiếp trong database.
 
-Ý nghĩa:
+## 5. Nội dung nâng cấp chính
 
-- `productvariants` là danh mục bán hàng: SKU, dung tích, giá, base.
-- `baseinventory` là số lượng tồn kho thực tế.
+### Database
 
-Route admin/product và view catalog đã được chỉnh để đọc tồn kho từ `baseinventory`.
+- Thêm `orders.created_at` để truy vết ngày tạo đơn và kiểm tra ca làm theo đúng ngày.
+- Thêm unique/check/index bằng migration idempotent hơn, hạn chế lỗi khi chạy lại.
+- Sửa trigger `orderdetails`:
+  - kiểm tra số lượng dương;
+  - kiểm tra tồn kho sơn gốc;
+  - kiểm tra màu tương thích với base;
+  - bắt buộc mã màu phải có công thức pha;
+  - kiểm tra và trừ tồn kho tinh màu;
+  - cập nhật `orders.total_amount` tự động.
+- Thêm trigger `orders`:
+  - kiểm soát luồng trạng thái `pending -> confirmed -> mixing -> completed`;
+  - hủy đơn thì tự hoàn kho sơn gốc và tinh màu;
+  - không cho mở lại đơn đã hủy để tránh sai tồn kho;
+  - không cho chuyển ngược đơn đã hoàn tất;
+  - kiểm tra `sales_rep_id` phải là nhân viên bán hàng/admin;
+  - kiểm tra `tech_id` phải là kỹ thuật viên pha màu/admin;
+  - kiểm tra nhân viên phải được phân vào đúng ca của ngày tạo đơn.
+- Mở rộng view:
+  - `v_product_catalog`;
+  - `v_color_formula`;
+  - `v_order_trace`.
+- Bổ sung trigger bảo vệ lịch sử nghiệp vụ:
+  - không cho sửa/xóa công thức màu đã dùng trong đơn chưa hủy;
+  - không cho đổi base của mã màu đã phát sinh giao dịch;
+  - không cho đổi base/dòng sản phẩm của SKU đã có đơn chưa hủy.
 
-### 4.2. Version hóa công thức nhưng không thêm bảng mới
+### Backend/API
 
-Không thêm `color_formulas` / `color_formula_details` để tránh rối ERD. Thay vào đó, mở rộng bảng quan hệ N-N hiện có:
+- API cập nhật trạng thái đơn hàng chạy trong transaction và trả lỗi nghiệp vụ rõ hơn.
+- API gán nhân viên/ca làm kiểm tra job và lịch phân ca trước khi update.
+- Giữ lại API quản lý khách hàng của code nền mới.
+- API dashboard trả thêm:
+  - doanh thu đơn hoàn tất;
+  - giá trị đơn đang xử lý;
+  - thống kê trạng thái đơn;
+  - cảnh báo sơn gốc sắp hết;
+  - cảnh báo tinh màu sắp hết;
+  - đơn hàng mới gần đây.
 
-```sql
-colorsystem_colorants(
-  color_id,
-  colorant_id,
-  amount_ml,
-  formula_version,
-  effective_from,
-  effective_to,
-  is_active
-)
-```
+### Giao diện
 
-Khi cập nhật công thức màu, hệ thống không xóa công thức cũ mà tạo `formula_version` mới. `orderdetails` lưu `formula_version` đã dùng để hóa đơn cũ vẫn truy vết đúng công thức pha.
+- Dashboard admin có thêm bảng trạng thái đơn, đơn gần đây và cảnh báo tồn kho.
+- Trang quản lý đơn hàng có thêm ngày tạo đơn, form gán nhân viên bán hàng/kỹ thuật viên/ca làm.
+- Giữ trang quản lý khách hàng theo địa chỉ Tỉnh/Phường của ERD mới.
+- Khi hủy đơn từ admin, hệ thống báo rõ đã hoàn kho.
+- Client không cho đặt nhanh vượt quá tồn kho sơn gốc đang hiển thị.
 
-### 4.3. Trạng thái pha và QC nằm trên OrderDetails
+## 6. Luồng demo nên trình bày
 
-Không thêm bảng `mixing_jobs`. Mỗi dòng `orderdetails` được bổ sung:
-
-```sql
-formula_version,
-mix_status,
-qc_status,
-mixed_at,
-qc_note
-```
-
-Điều này hợp lý vì mỗi dòng đơn hàng tương ứng với một sản phẩm/màu cần pha.
-
-### 4.4. Stored procedures cho nghiệp vụ chính
-
-Backend đã được chỉnh để gọi stored procedure thay vì tự thao tác rời rạc:
-
-```sql
-sp_create_order
-sp_assign_order_staff
-sp_complete_order
-sp_cancel_order
-sp_record_payment
-sp_adjust_inventory
-```
-
-Trong đó `sp_create_order` dùng transaction và khóa tồn kho bằng `FOR UPDATE` / row lock trước khi insert orderdetails. Trigger vẫn là lớp bảo vệ cuối cùng.
-
-### 4.5. Tồn kho kép và audit kho
-
-Khi tạo đơn, hệ thống trừ đồng thời:
-
-- `baseinventory.stock_quantity` cho sơn gốc.
-- `colorants.stock_ml` cho tinh màu.
-
-Mọi biến động được ghi vào `inventory_movements`, gồm tồn trước, tồn sau, loại biến động, SKU/tinh màu và mã đơn liên quan.
-
-### 4.6. View báo cáo/truy vết
-
-Các view quan trọng:
-
-```sql
-v_product_catalog
-v_color_formula
-v_color_formula_current
-v_order_trace
-v_inventory_movements
-v_low_stock_alert
-v_daily_revenue
-v_employee_performance
-v_customer_debt
-```
-
-Đặc biệt, `v_order_trace` dùng để demo truy vết 360 độ: khách hàng, sản phẩm, base, mã màu, formula version, sales, tech, ca làm, trạng thái pha và trạng thái thanh toán.
-
-## 5. Luồng demo nên trình bày
-
-1. Client tạo đơn với sản phẩm và màu tương thích base.
-2. Backend gọi `sp_create_order`.
-3. Procedure khóa dòng tồn kho, kiểm tra sơn gốc, tinh màu và công thức active.
-4. Trigger insert `orderdetails` trừ `baseinventory` và `colorants`.
-5. Hệ thống ghi `inventory_movements`.
-6. Admin gán sales/tech/shift bằng `sp_assign_order_staff`.
-7. Admin complete đơn bằng `sp_complete_order`; hệ thống kiểm tra phân ca và công nợ.
-8. Admin ghi nhận thanh toán bằng `sp_record_payment`.
-9. Admin hủy một đơn chưa thanh toán bằng `sp_cancel_order` để demo hoàn kho đúng một lần.
-10. Mở `v_order_trace`, `v_inventory_movements`, `v_low_stock_alert` để demo truy vết và báo cáo.
-
-## 6. Test SQL
-
-Có file test gợi ý:
-
-```sql
-SOURCE database/tests/business_rule_tests_v2_2.sql;
-```
-
-Nên đọc file trước khi chạy vì một số test cần chỉnh `variant_id`, `color_id` hoặc bỏ comment tùy dữ liệu demo trên máy.
-
-## 7. Tài liệu nghiệp vụ
-
-Xem thêm:
-
-```text
-docs/BUSINESS_RULES_V2_2.md
-```
-
-File này liệt kê business rules và nơi cài đặt: constraint, trigger, procedure, view.
+1. Client chọn ProductVariant và ColorSystem tương thích theo base.
+2. Client tạo đơn, trigger tự trừ tồn kho sơn gốc và tinh màu.
+3. Admin phân công sales, tech và shift.
+4. Admin chuyển trạng thái: `pending -> confirmed -> mixing -> completed`.
+5. Nếu admin chuyển sang `cancelled`, trigger tự hoàn kho và khóa đơn đã hủy.
+6. Admin mở dashboard để xem tồn kho và truy vết đơn hàng.

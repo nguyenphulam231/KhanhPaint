@@ -452,20 +452,21 @@ a:hover {
   }
 }
 
-/* V2.1: compact forms inside order detail cards */
-.compact-form {
+.dashboard-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.assignment-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
   align-items: end;
+  margin: 16px 0;
 }
 
-.compact-form label {
-  font-weight: 600;
-  margin-bottom: -6px;
-}
-
-.compact-form input,
-.compact-form select {
-  margin-bottom: 0;
+.status-note {
+  color: #6c757d;
+  font-size: 0.95rem;
 }

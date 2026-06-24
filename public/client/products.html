@@ -114,8 +114,8 @@
               ${colors.map((c) => `<option value="${c.color_id}">${escapeHtml(c.color_code)} - ${escapeHtml(c.color_name)}</option>`).join("")}
             </select>
             <label>Số lượng</label>
-            <input class="quantity-input" type="number" min="1" value="1" />
-            <button class="order-button">Tạo đơn nhanh</button>
+            <input class="quantity-input" type="number" min="1" max="${Number(p.stock_quantity || 0)}" value="1" />
+            <button class="order-button" ${Number(p.stock_quantity || 0) <= 0 ? "disabled" : ""}>${Number(p.stock_quantity || 0) <= 0 ? "Hết hàng" : "Tạo đơn nhanh"}</button>
           `;
 
           card.querySelector(".order-button").addEventListener("click", () => submitQuickOrder(p, card));
@@ -131,6 +131,12 @@
 
         const colorId = card.querySelector(".color-select").value;
         const quantity = Number(card.querySelector(".quantity-input").value || 1);
+        if (quantity > Number(product.stock_quantity || 0)) {
+          message.style.color = "red";
+          message.textContent = "Số lượng đặt vượt tồn kho sơn gốc hiện có.";
+          return;
+        }
+
         if (!colorId) {
           message.style.color = "red";
           message.textContent = "Vui lòng chọn mã màu trước khi tạo đơn.";

@@ -27,11 +27,10 @@ router.get("/", async (req, res) => {
 
   try {
     const [rows] = await db.query(
-      `SELECT pv.variant_id, pv.sku_code, pv.volume, pv.unit_price, COALESCE(bi.stock_quantity, 0) AS stock_quantity, bi.warehouse_location,
+      `SELECT pv.variant_id, pv.sku_code, pv.volume, pv.unit_price, pv.stock_quantity, pv.warehouse_location,
               bt.base_id, bt.base_name, pl.line_id, pl.name AS line_name, pl.is_interior,
               br.brand_id, br.name AS brand_name
        FROM productvariants pv
-       LEFT JOIN baseinventory bi ON pv.variant_id = bi.variant_id
        JOIN basetypes bt ON pv.base_id = bt.base_id
        JOIN productlines pl ON pv.line_id = pl.line_id
        JOIN brands br ON pl.brand_id = br.brand_id
