@@ -5,6 +5,94 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="/style.css" />
     <title>Bảng điều khiển Admin</title>
+    <style>
+      .dashboard-layout {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+      .control-panel {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+      }
+      @media (max-width: 768px) {
+        .control-panel {
+          grid-template-columns: 1fr;
+        }
+      }
+      .filter-container,
+      .record-form {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+      }
+      .record-form {
+        border-left: 2px solid #ddd;
+        padding-left: 20px;
+      }
+      @media (max-width: 768px) {
+        .record-form {
+          border-left: none;
+          border-top: 2px solid #ddd;
+          padding-left: 0;
+          padding-top: 20px;
+        }
+      }
+      .form-group {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .form-group input,
+      .form-group select {
+        padding: 6px 10px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+      .btn-action {
+        padding: 6px 14px;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: bold;
+      }
+      .btn-filter {
+        background-color: #007bff;
+      }
+      .btn-save {
+        background-color: #28a745;
+      }
+      .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 20px;
+      }
+      .stat-card {
+        padding: 20px;
+        background: #fff;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      }
+      .stat-card h3 {
+        margin: 0 0 10px 0;
+        font-size: 13px;
+        color: #666;
+        text-transform: uppercase;
+      }
+      .stat-card p {
+        margin: 0;
+        font-size: 20px;
+        font-weight: bold;
+        color: #333;
+      }
+    </style>
   </head>
   <body>
     <div class="admin-container">
@@ -24,8 +112,53 @@
           </div>
         </div>
 
-        <div id="dashboard-summary" class="admin-card">
-          Đang tải dữ liệu hệ thống...
+        <div class="dashboard-layout">
+          <div class="control-panel">
+            <div class="filter-container">
+              <div class="form-group">
+                <label>Từ:</label>
+                <input type="date" id="startDate" />
+              </div>
+              <div class="form-group">
+                <label>Đến:</label>
+                <input type="date" id="endDate" />
+              </div>
+              <button class="btn-action btn-filter" id="btn-submit-filter">
+                Lọc dữ liệu
+              </button>
+            </div>
+
+            <form class="record-form" id="financial-form">
+              <div class="form-group">
+                <select id="recType" required>
+                  <option value="EXPENSE">Chi phát sinh (-)</option>
+                  <option value="INCOME">Thu ngoài (+)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <input
+                  type="number"
+                  id="recAmount"
+                  placeholder="Số tiền (đ)"
+                  required
+                  min="1"
+                />
+              </div>
+              <div class="form-group">
+                <input
+                  type="text"
+                  id="recDesc"
+                  placeholder="Lý do chi/thu..."
+                  required
+                />
+              </div>
+              <button type="submit" class="btn-action btn-save">
+                Ghi nhận
+              </button>
+            </form>
+          </div>
+
+          <div id="dashboard-summary">Đang tải dữ liệu hệ thống...</div>
         </div>
       </main>
     </div>
@@ -33,9 +166,131 @@
     <script src="/js/api.js"></script>
     <script src="/js/admin-common.js"></script>
     <script>
+      // Thiết lập ngày mặc định (Đầu tháng đến Hôm nay)
+      const now = new Date();
+      const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 2)
+        .toISOString()
+        .split("T")[0];
+      const today = now.toISOString().split("T")[0];
+
+      document.getElementById("startDate").value = firstDayOfMonth;
+      document.getElementById("endDate").value = today;
+
       mountAdminSidebar("dashboard");
       initAdminShell();
-      renderDashboardSummary("dashboard-summary");
+
+      // HÀM LẤY VÀ RENDERING DỮ LIỆU DASHBOARD
+      async function fetchAndRenderDashboard() {
+        const token = getAdminToken();
+        if (!token) return;
+
+        const startDate = document.getElementById("startDate").value;
+        const endDate = document.getElementById("endDate").value;
+        const container = document.getElementById("dashboard-summary");
+
+        container.innerHTML = "Đang tải dữ liệu hệ thống...";
+
+        try {
+          const response = await fetch(
+            `${API_ROUTES.DASHBOARD}?startDate=${startDate}&endDate=${endDate}`,
+            {
+              method: "GET",
+              headers: {
+                Authorization: "Bearer " + token,
+                "Content-Type": "application/json",
+              },
+            },
+          );
+
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.error || "Lỗi tải dữ liệu");
+
+          const { summary } = result.data;
+
+          container.innerHTML = `
+            <div class="dashboard-grid">
+              <div class="stat-card">
+                <h3>Doanh thu đơn hàng</h3>
+                <p style="color: #28a745;">+${Number(summary.totalRevenue).toLocaleString("vi-VN")} đ</p>
+              </div>
+              <div class="stat-card">
+                <h3>Thu ngoài phát sinh</h3>
+                <p style="color: #17a2b8;">+${Number(summary.totalOtherIncome).toLocaleString("vi-VN")} đ</p>
+              </div>
+              <div class="stat-card">
+                <h3>Lương dự kiến nhân viên</h3>
+                <p style="color: #dc3545;">-${Number(summary.estimatedPayroll).toLocaleString("vi-VN")} đ</p>
+              </div>
+              <div class="stat-card">
+                <h3>Chi phí phát sinh thêm</h3>
+                <p style="color: #ffc107;">-${Number(summary.totalOtherExpense).toLocaleString("vi-VN")} đ</p>
+              </div>
+              <div class="stat-card" style="background: #e2f0d9; border: 2px solid #70ad47;">
+                <h3>Lợi nhuận thuần trong kỳ</h3>
+                <p style="font-size: 22px; color: ${summary.netProfit >= 0 ? "#2e7d32" : "#c62828"};">
+                  ${Number(summary.netProfit).toLocaleString("vi-VN")} đ
+                </p>
+              </div>
+              <div class="stat-card">
+                <h3>Sản phẩm bán chạy nhất</h3>
+                <p style="font-size: 14px; font-weight: normal; margin-top: 5px;">${summary.topProduct}</p>
+              </div>
+              <div class="stat-card">
+                <h3>Hãng sơn bán chạy nhất</h3>
+                <p style="font-size: 15px; color: #007bff; margin-top: 5px;">${summary.topBrand}</p>
+              </div>
+            </div>
+          `;
+        } catch (error) {
+          container.innerHTML = `<p style="color: red; padding: 20px;">Lỗi: ${error.message}</p>`;
+        }
+      }
+
+      // XỬ LÝ SỰ KIỆN GỬI FORM THU/CHI PHÁT SINH
+      document
+        .getElementById("financial-form")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const token = getAdminToken();
+          if (!token) return;
+
+          const type = document.getElementById("recType").value;
+          const amount = document.getElementById("recAmount").value;
+          const description = document.getElementById("recDesc").value;
+
+          try {
+            // Gửi dữ liệu lên API con /record của Dashboard
+            const response = await fetch(`${API_ROUTES.DASHBOARD}/record`, {
+              method: "POST",
+              headers: {
+                Authorization: "Bearer " + token,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ type, amount, description }),
+            });
+
+            const result = await response.json();
+            if (!response.ok)
+              throw new Error(result.message || "Lỗi lưu bản ghi");
+
+            alert(result.message);
+            document.getElementById("recAmount").value = "";
+            document.getElementById("recDesc").value = "";
+
+            // Lưu thành công thì tự động làm mới số liệu Dashboard
+            fetchAndRenderDashboard();
+          } catch (error) {
+            alert("Lỗi: " + error.message);
+          }
+        });
+
+      // Bấm nút lọc thời gian
+      document
+        .getElementById("btn-submit-filter")
+        .addEventListener("click", fetchAndRenderDashboard);
+
+      // Khởi chạy nạp dữ liệu mặc định ban đầu
+      fetchAndRenderDashboard();
     </script>
   </body>
 </html>

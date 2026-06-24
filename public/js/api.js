@@ -61,4 +61,5 @@ const API_ROUTES = {
   UPDATE_ORDER: (id) => `/api/admin/orders/update/${id}`,
   DELETE_ORDER: (id) => `/api/admin/orders/delete/${id}`,
   RESTOCK_VARIANT: (id) => `/api/admin/variants/restock/${id}`,
+  DASHBOARD: "/api/admin/dashboard",
 };

@@ -91,6 +91,13 @@
             <select id="job_id">
               <option value="">-- Chọn vị trí --</option>
             </select>
+            <input
+              type="number"
+              id="salary"
+              placeholder="Mức lương theo giờ (VNĐ)"
+              min="0"
+              step="1000"
+            />
             <select id="role">
               <option value="staff">Nhân viên</option>
               <option value="admin">Admin</option>
@@ -111,6 +118,7 @@
                 <th>Họ và tên</th>
                 <th>Email / SĐT</th>
                 <th>Vị trí</th>
+                <th>Lương/Giờ</th>
                 <th>Quyền</th>
                 <th>Hành động</th>
               </tr>
@@ -118,7 +126,7 @@
             <tbody id="employeeTableBody">
               <tr>
                 <td
-                  colspan="6"
+                  colspan="7"
                   style="text-align: center; font-style: italic; color: #777"
                 >
                   Đang tải danh sách nhân viên...
@@ -144,6 +152,7 @@
       const hireDateInput = document.getElementById("hire_date");
       const passwordInput = document.getElementById("password");
       const jobIdSelect = document.getElementById("job_id");
+      const salaryInput = document.getElementById("salary"); // BỔ SUNG: DOM Lương
       const roleSelect = document.getElementById("role");
       const saveEmployeeBtn = document.getElementById("saveEmployeeBtn");
       const cancelEditBtn = document.getElementById("cancelEditBtn");
@@ -163,16 +172,20 @@
           tableBody.innerHTML = "";
 
           if (employees.length === 0) {
-            tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center;">Chưa có nhân viên nào.</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="7" style="text-align: center;">Chưa có nhân viên nào.</td></tr>`;
             return;
           }
 
           employees.forEach((emp) => {
             const row = document.createElement("tr");
-            // Định dạng ngày hiển thị (YYYY-MM-DD -> DD/MM/YYYY)
             const formattedDate = emp.hire_date
               ? new Date(emp.hire_date).toLocaleDateString("vi-VN")
               : "Chưa rõ";
+
+            // BỔ SUNG: Định dạng hiển thị tiền tệ VNĐ (VD: 50.000 đ/giờ)
+            const formattedSalary = emp.salary
+              ? Number(emp.salary).toLocaleString("vi-VN") + " đ/giờ"
+              : "Chưa cấu hình";
 
             row.innerHTML = `
               <td><b>#${emp.employee_id}</b></td>
@@ -185,9 +198,9 @@
                 <small style="color:#555">${emp.phone || "Không có SĐT"}</small>
               </td>
               <td><span class="badge">${emp.job_title || "Chưa phân phối"}</span></td>
-              <td><b style="color: ${emp.role === "admin" ? "red" : "green"}">${emp.role.toUpperCase()}</b></td>
+              <td><b style="color: #28a745">${formattedSalary}</b></td> <td><b style="color: ${emp.role === "admin" ? "red" : "green"}">${emp.role.toUpperCase()}</b></td>
               <td>
-                <button class="btn-edit" onclick="prepareEdit(${emp.employee_id}, '${emp.full_name}', '${emp.email}', '${emp.phone || ""}', '${emp.hire_date ? emp.hire_date.substring(0, 10) : ""}', '${emp.job_id || ""}', '${emp.role}')">Sửa</button>
+                <button class="btn-edit" onclick="prepareEdit(${emp.employee_id}, '${emp.full_name}', '${emp.email}', '${emp.phone || ""}', '${emp.hire_date ? emp.hire_date.substring(0, 10) : ""}', '${emp.job_id || ""}', '${emp.salary || ""}', '${emp.role}')">Sửa</button>
                 <button class="btn-delete" onclick="deleteEmployee(${emp.employee_id})">Xóa</button>
               </td>
             `;
@@ -195,22 +208,32 @@
           });
         } catch (err) {
           console.error(err);
-          tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: red;">Lỗi khi tải danh sách nhân viên!</td></tr>`;
+          tableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: red;">Lỗi khi tải danh sách nhân viên!</td></tr>`;
         }
       }
 
       window.addEventListener("DOMContentLoaded", loadEmployees);
 
       // --- 2. CHUẨN BỊ SỬA DỮ LIỆU ---
-      function prepareEdit(id, name, email, phone, hireDate, jobId, role) {
+      function prepareEdit(
+        id,
+        name,
+        email,
+        phone,
+        hireDate,
+        jobId,
+        salary,
+        role,
+      ) {
         editingEmployeeId = id;
         formTitle.innerText = "Chỉnh sửa thông tin nhân viên";
         fullNameInput.value = name;
         emailInput.value = email;
         phoneInput.value = phone;
         hireDateInput.value = hireDate;
-        passwordInput.value = ""; // Để trống mật khẩu, chỉ nhập khi cần đổi
+        passwordInput.value = "";
         jobIdSelect.value = jobId;
+        salaryInput.value = salary; // BỔ SUNG: Đổ dữ liệu lương vào ô nhập
         roleSelect.value = role;
 
         saveEmployeeBtn.innerText = "Cập nhật";
@@ -227,6 +250,7 @@
         hireDateInput.value = "";
         passwordInput.value = "";
         jobIdSelect.value = "";
+        salaryInput.value = ""; // BỔ SUNG: Reset ô lương
         roleSelect.value = "staff";
         saveEmployeeBtn.innerText = "Tạo tài khoản";
         cancelEditBtn.classList.add("d-none");
@@ -252,6 +276,7 @@
           hire_date: hireDateInput.value,
           password: passwordInput.value,
           job_id: jobIdSelect.value,
+          salary: salaryInput.value, // BỔ SUNG: Đóng gói dữ liệu lương gửi lên Server
           role: roleSelect.value,
         };
 

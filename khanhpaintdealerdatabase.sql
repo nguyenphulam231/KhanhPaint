@@ -90,6 +90,7 @@ CREATE TABLE `employees` (
   `hire_date` date DEFAULT NULL,
   `password_hash` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `job_id` int DEFAULT NULL,
+  `salary` decimal(14,2) DEFAULT NULL,
   `role` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'staff',
   PRIMARY KEY (`employee_id`),
   UNIQUE KEY `email` (`email`),
@@ -182,4 +183,13 @@ CREATE TABLE `orderdetails` (
   CONSTRAINT `orderdetails_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`order_id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `orderdetails_ibfk_2` FOREIGN KEY (`variant_id`) REFERENCES `productvariants` (`variant_id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `orderdetails_ibfk_3` FOREIGN KEY (`color_id`) REFERENCES `colorsystem` (`color_id`) ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `financial_logs` (
+  `log_id` int NOT NULL AUTO_INCREMENT,
+  `type` enum('INCOME', 'EXPENSE') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL, 
+  `amount` decimal(14,2) NOT NULL, 
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL, 
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, 
+  PRIMARY KEY (`log_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

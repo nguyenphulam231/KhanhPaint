@@ -33,14 +33,13 @@ const verifyAdmin = (req, res, next) => {
   }
 };
 
-// --- 1. API: Lấy danh sách nhân viên (CẢI TIẾN JOIN BẢNG JOBS) ---
+// --- 1. API: Lấy danh sách nhân viên ---
 router.get("/", verifyAdmin, async (req, res) => {
   try {
-    // JOIN để lấy thêm job_title hiển thị ra bảng dữ liệu công khai
     const [rows] = await db.query(`
-      SELECT e.employee_id, e.full_name, e.email, e.phone, e.hire_date, e.job_id, e.role, j.job_title 
+      SELECT e.employee_id, e.full_name, e.email, e.phone, e.hire_date, e.job_id, e.salary, e.role, j.job_title 
       FROM employees e
-      LEFT JOIN Jobs j ON e.job_id = j.job_id
+      LEFT JOIN jobs j ON e.job_id = j.job_id
       ORDER BY e.employee_id DESC
     `);
     res.json(rows);
@@ -50,9 +49,9 @@ router.get("/", verifyAdmin, async (req, res) => {
   }
 });
 
-// --- 2. API: Thêm nhân viên mới (Giữ nguyên) ---
+// --- 2. API: Thêm nhân viên mới (CÓ KIỂM TRA KHOẢNG LƯƠNG) ---
 router.post("/add", verifyAdmin, async (req, res) => {
-  const { full_name, email, phone, hire_date, password, job_id, role } =
+  const { full_name, email, phone, hire_date, password, job_id, salary, role } =
     req.body;
 
   if (!full_name || !email || !password) {
@@ -62,17 +61,48 @@ router.post("/add", verifyAdmin, async (req, res) => {
   }
 
   try {
+    // 2.1. Kiểm tra trùng Email
     const [existing] = await db.query(
       "SELECT * FROM employees WHERE email = ?",
       [email],
     );
     if (existing.length > 0) {
-      return res
-        .status(400)
-        .json({ error: "Email này đã được sử dụng bởi một nhân viên khác!" });
+      return res.status(400).json({ error: "Email này đã được sử dụng!" });
     }
 
     const finalJobId = job_id && job_id.trim() !== "" ? parseInt(job_id) : null;
+    const finalSalary =
+      salary !== undefined && salary !== null && salary !== ""
+        ? parseFloat(salary)
+        : null;
+
+    // 2.2. BỔ SUNG: Kiểm tra khống chế min/max salary của Job
+    if (finalJobId && finalSalary !== null) {
+      const [jobs] = await db.query(
+        "SELECT job_title, min_salary, max_salary FROM jobs WHERE job_id = ?",
+        [finalJobId],
+      );
+      if (jobs.length > 0) {
+        const job = jobs[0];
+        if (
+          job.min_salary !== null &&
+          finalSalary < parseFloat(job.min_salary)
+        ) {
+          return res.status(400).json({
+            error: `Lương không được thấp hơn mức tối thiểu của vị trí [${job.job_title}] (${Number(job.min_salary).toLocaleString("vi-VN")} đ)`,
+          });
+        }
+        if (
+          job.max_salary !== null &&
+          finalSalary > parseFloat(job.max_salary)
+        ) {
+          return res.status(400).json({
+            error: `Lương không được vượt quá mức tối đa của vị trí [${job.job_title}] (${Number(job.max_salary).toLocaleString("vi-VN")} đ)`,
+          });
+        }
+      }
+    }
+
     const finalHireDate =
       hire_date && hire_date.trim() !== "" ? hire_date : null;
     const finalPhone = phone && phone.trim() !== "" ? phone : null;
@@ -80,7 +110,7 @@ router.post("/add", verifyAdmin, async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     await db.query(
-      "INSERT INTO employees (full_name, email, phone, hire_date, password_hash, job_id, role) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO employees (full_name, email, phone, hire_date, password_hash, job_id, salary, role) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
       [
         full_name,
         email,
@@ -88,6 +118,7 @@ router.post("/add", verifyAdmin, async (req, res) => {
         finalHireDate,
         hashedPassword,
         finalJobId,
+        finalSalary,
         finalRole,
       ],
     );
@@ -98,10 +129,10 @@ router.post("/add", verifyAdmin, async (req, res) => {
   }
 });
 
-// --- 3. API: SỬA THÔNG TIN NHÂN VIÊN (MỚI) ---
+// --- 3. API: SỬA THÔNG TIN NHÂN VIÊN (CÓ KIỂM TRA KHOẢNG LƯƠNG) ---
 router.put("/update/:id", verifyAdmin, async (req, res) => {
   const employeeId = req.params.id;
-  const { full_name, email, phone, hire_date, password, job_id, role } =
+  const { full_name, email, phone, hire_date, password, job_id, salary, role } =
     req.body;
 
   if (!full_name || !email) {
@@ -111,7 +142,7 @@ router.put("/update/:id", verifyAdmin, async (req, res) => {
   }
 
   try {
-    // Kiểm tra trùng email với người khác
+    // 3.1. Kiểm tra trùng email với người khác
     const [dupEmail] = await db.query(
       "SELECT * FROM employees WHERE email = ? AND employee_id != ?",
       [email, employeeId],
@@ -123,15 +154,46 @@ router.put("/update/:id", verifyAdmin, async (req, res) => {
     }
 
     const finalJobId = job_id && job_id.trim() !== "" ? parseInt(job_id) : null;
+    const finalSalary =
+      salary !== undefined && salary !== null && salary !== ""
+        ? parseFloat(salary)
+        : null;
+
+    // 3.2. BỔ SUNG: Kiểm tra khống chế min/max salary của Job khi sửa
+    if (finalJobId && finalSalary !== null) {
+      const [jobs] = await db.query(
+        "SELECT job_title, min_salary, max_salary FROM jobs WHERE job_id = ?",
+        [finalJobId],
+      );
+      if (jobs.length > 0) {
+        const job = jobs[0];
+        if (
+          job.min_salary !== null &&
+          finalSalary < parseFloat(job.min_salary)
+        ) {
+          return res.status(400).json({
+            error: `Lương sửa đổi thấp hơn mức tối thiểu của vị trí [${job.job_title}] (${Number(job.min_salary).toLocaleString("vi-VN")} đ)`,
+          });
+        }
+        if (
+          job.max_salary !== null &&
+          finalSalary > parseFloat(job.max_salary)
+        ) {
+          return res.status(400).json({
+            error: `Lương sửa đổi vượt quá mức tối đa của vị trí [${job.job_title}] (${Number(job.max_salary).toLocaleString("vi-VN")} đ)`,
+          });
+        }
+      }
+    }
+
     const finalHireDate =
       hire_date && hire_date.trim() !== "" ? hire_date : null;
     const finalPhone = phone && phone.trim() !== "" ? phone : null;
 
     if (password && password.trim() !== "") {
-      // Nếu quản trị viên có nhập mật khẩu mới -> cập nhật cả pass
       const hashedPassword = await bcrypt.hash(password, 10);
       await db.query(
-        "UPDATE employees SET full_name = ?, email = ?, phone = ?, hire_date = ?, password_hash = ?, job_id = ?, role = ? WHERE employee_id = ?",
+        "UPDATE employees SET full_name = ?, email = ?, phone = ?, hire_date = ?, password_hash = ?, job_id = ?, salary = ?, role = ? WHERE employee_id = ?",
         [
           full_name,
           email,
@@ -139,20 +201,21 @@ router.put("/update/:id", verifyAdmin, async (req, res) => {
           finalHireDate,
           hashedPassword,
           finalJobId,
+          finalSalary,
           role,
           employeeId,
         ],
       );
     } else {
-      // Không nhập mật khẩu mới -> giữ nguyên pass cũ
       await db.query(
-        "UPDATE employees SET full_name = ?, email = ?, phone = ?, hire_date = ?, job_id = ?, role = ? WHERE employee_id = ?",
+        "UPDATE employees SET full_name = ?, email = ?, phone = ?, hire_date = ?, job_id = ?, salary = ?, role = ? WHERE employee_id = ?",
         [
           full_name,
           email,
           finalPhone,
           finalHireDate,
           finalJobId,
+          finalSalary,
           role,
           employeeId,
         ],
@@ -165,7 +228,7 @@ router.put("/update/:id", verifyAdmin, async (req, res) => {
   }
 });
 
-// --- 4. API: XÓA NHÂN VIÊN (MỚI) ---
+// --- 4. API: XÓA NHÂN VIÊN ---
 router.delete("/delete/:id", verifyAdmin, async (req, res) => {
   const employeeId = req.params.id;
   try {
