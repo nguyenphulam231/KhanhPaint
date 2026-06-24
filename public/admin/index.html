@@ -6,6 +6,64 @@
     <link rel="stylesheet" href="/style.css" />
     <title>Bảng điều khiển Admin</title>
     <style>
+      .logs-section {
+        background: #fff;
+        padding: 20px;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        margin-top: 20px;
+      }
+      .logs-section h2 {
+        font-size: 18px;
+        margin-top: 0;
+        margin-bottom: 15px;
+        color: #333;
+      }
+      .responsive-table {
+        overflow-x: auto;
+      }
+      .financial-table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+      }
+      .financial-table th,
+      .financial-table td {
+        padding: 12px;
+        border-bottom: 1px solid #eee;
+      }
+      .financial-table th {
+        background-color: #f8f9fa;
+        color: #555;
+      }
+      .badge {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: bold;
+      }
+      .badge-income {
+        background: #d4edda;
+        color: #155724;
+      }
+      .badge-expense {
+        background: #f8d7da;
+        color: #721c24;
+      }
+      .btn-sm {
+        padding: 4px 8px;
+        font-size: 12px;
+        border-radius: 3px;
+        margin-right: 5px;
+      }
+      .btn-edit {
+        background: #ffc107;
+        color: #000;
+      }
+      .btn-delete {
+        background: #dc3545;
+        color: #fff;
+      }
       .dashboard-layout {
         display: flex;
         flex-direction: column;
@@ -159,6 +217,27 @@
           </div>
 
           <div id="dashboard-summary">Đang tải dữ liệu hệ thống...</div>
+          <div class="logs-section">
+            <h2>Danh sách các khoản Thu/Chi phát sinh trong kỳ</h2>
+            <div class="responsive-table">
+              <table class="financial-table">
+                <thead>
+                  <tr>
+                    <th>Thời gian</th>
+                    <th>Loại hình</th>
+                    <th>Lý do / Nội dung</th>
+                    <th>Số tiền (đ)</th>
+                    <th>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody id="financial-logs-tbody">
+                  <tr>
+                    <td colspan="5">Đang tải danh sách...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </main>
     </div>
@@ -166,12 +245,14 @@
     <script src="/js/api.js"></script>
     <script src="/js/admin-common.js"></script>
     <script>
-      // Thiết lập ngày mặc định (Đầu tháng đến Hôm nay)
+      // SỬA LỖI MÚI GIỜ: Thiết lập ngày mặc định theo giờ địa phương (Local Time)
       const now = new Date();
-      const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 2)
-        .toISOString()
-        .split("T")[0];
-      const today = now.toISOString().split("T")[0];
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, "0");
+      const dd = String(now.getDate()).padStart(2, "0");
+
+      const firstDayOfMonth = `${yyyy}-${mm}-01`; // Luôn là mùng 1 đầu tháng
+      const today = `${yyyy}-${mm}-${dd}`; // Luôn là ngày hôm nay chuẩn Việt Nam
 
       document.getElementById("startDate").value = firstDayOfMonth;
       document.getElementById("endDate").value = today;
@@ -179,7 +260,7 @@
       mountAdminSidebar("dashboard");
       initAdminShell();
 
-      // HÀM LẤY VÀ RENDERING DỮ LIỆU DASHBOARD
+      // HÀM LẤY VÀ RENDERING DỮ LIỆU DASHBOARD KHÈM BẢNG LOGS
       async function fetchAndRenderDashboard() {
         const token = getAdminToken();
         if (!token) return;
@@ -187,10 +268,13 @@
         const startDate = document.getElementById("startDate").value;
         const endDate = document.getElementById("endDate").value;
         const container = document.getElementById("dashboard-summary");
+        const tbody = document.getElementById("financial-logs-tbody");
 
         container.innerHTML = "Đang tải dữ liệu hệ thống...";
+        tbody.innerHTML = '<tr><td colspan="5">Đang tải danh sách...</td></tr>';
 
         try {
+          // 1. Tải dữ liệu các thẻ thống kê tổng quan
           const response = await fetch(
             `${API_ROUTES.DASHBOARD}?startDate=${startDate}&endDate=${endDate}`,
             {
@@ -201,51 +285,130 @@
               },
             },
           );
-
           const result = await response.json();
           if (!response.ok) throw new Error(result.error || "Lỗi tải dữ liệu");
 
           const { summary } = result.data;
-
           container.innerHTML = `
-            <div class="dashboard-grid">
-              <div class="stat-card">
-                <h3>Doanh thu đơn hàng</h3>
-                <p style="color: #28a745;">+${Number(summary.totalRevenue).toLocaleString("vi-VN")} đ</p>
-              </div>
-              <div class="stat-card">
-                <h3>Thu ngoài phát sinh</h3>
-                <p style="color: #17a2b8;">+${Number(summary.totalOtherIncome).toLocaleString("vi-VN")} đ</p>
-              </div>
-              <div class="stat-card">
-                <h3>Lương dự kiến nhân viên</h3>
-                <p style="color: #dc3545;">-${Number(summary.estimatedPayroll).toLocaleString("vi-VN")} đ</p>
-              </div>
-              <div class="stat-card">
-                <h3>Chi phí phát sinh thêm</h3>
-                <p style="color: #ffc107;">-${Number(summary.totalOtherExpense).toLocaleString("vi-VN")} đ</p>
-              </div>
-              <div class="stat-card" style="background: #e2f0d9; border: 2px solid #70ad47;">
-                <h3>Lợi nhuận thuần trong kỳ</h3>
-                <p style="font-size: 22px; color: ${summary.netProfit >= 0 ? "#2e7d32" : "#c62828"};">
-                  ${Number(summary.netProfit).toLocaleString("vi-VN")} đ
-                </p>
-              </div>
-              <div class="stat-card">
-                <h3>Sản phẩm bán chạy nhất</h3>
-                <p style="font-size: 14px; font-weight: normal; margin-top: 5px;">${summary.topProduct}</p>
-              </div>
-              <div class="stat-card">
-                <h3>Hãng sơn bán chạy nhất</h3>
-                <p style="font-size: 15px; color: #007bff; margin-top: 5px;">${summary.topBrand}</p>
-              </div>
-            </div>
-          `;
+      <div class="dashboard-grid">
+        <div class="stat-card"><h3>Doanh thu đơn hàng</h3><p style="color: #28a745;">+${Number(summary.totalRevenue).toLocaleString("vi-VN")} đ</p></div>
+        <div class="stat-card"><h3>Giá vốn nhập sơn</h3><p style="color: #e67e22;">-${Number(summary.totalCogs).toLocaleString("vi-VN")} đ</p></div>
+        <div class="stat-card"><h3>Lợi nhuận gộp (Sơn)</h3><p style="color: #007bff;">+${Number(summary.grossProfit).toLocaleString("vi-VN")} đ</p></div>
+        <div class="stat-card"><h3>Thu ngoài phát sinh</h3><p style="color: #17a2b8;">+${Number(summary.totalOtherIncome).toLocaleString("vi-VN")} đ</p></div>
+        <div class="stat-card"><h3>Lương dự kiến nhân viên</h3><p style="color: #dc3545;">-${Number(summary.estimatedPayroll).toLocaleString("vi-VN")} đ</p></div>
+        <div class="stat-card"><h3>Chi phí phát sinh thêm</h3><p style="color: #6c757d;">-${Number(summary.totalOtherExpense).toLocaleString("vi-VN")} đ</p></div>
+        <div class="stat-card" style="background: #e2f0d9; border: 2px solid #70ad47; grid-column: 1 / -1;">
+          <h3>Lợi nhuận thuần thực tế trong kỳ</h3>
+          <p style="font-size: 24px; color: ${summary.netProfit >= 0 ? "#2e7d32" : "#c62828"};">${Number(summary.netProfit).toLocaleString("vi-VN")} đ</p>
+        </div>
+        <div class="stat-card"><h3>Sản phẩm bán chạy nhất</h3><p style="font-size: 14px; font-weight: normal; margin-top: 5px;">${summary.topProduct}</p></div>
+        <div class="stat-card"><h3>Hãng sơn bán chạy nhất</h3><p style="font-size: 15px; color: #007bff; margin-top: 5px;">${summary.topBrand}</p></div>
+      </div>
+    `;
+
+          // 2. Tải danh sách chi tiết các khoản tài chính đổ vào bảng công cụ
+          const logsResponse = await fetch(
+            `${API_ROUTES.DASHBOARD}/records?startDate=${startDate}&endDate=${endDate}`,
+            {
+              method: "GET",
+              headers: { Authorization: "Bearer " + token },
+            },
+          );
+          const logsResult = await logsResponse.json();
+
+          if (logsResult.success && logsResult.data.length > 0) {
+            tbody.innerHTML = logsResult.data
+              .map(
+                (log) => `
+        <tr>
+          <td>${log.date_formatted}</td>
+          <td>
+            <span class="badge ${log.type === "INCOME" ? "badge-income" : "badge-expense"}">
+              ${log.type === "INCOME" ? "THU" : "CHI"}
+            </span>
+          </td>
+          <td>${log.description}</td>
+          <td style="font-weight: bold; color: ${log.type === "INCOME" ? "#2e7d32" : "#c62828"}">
+            ${log.type === "INCOME" ? "+" : "-"}${Number(log.amount).toLocaleString("vi-VN")} đ
+          </td>
+          <td>
+            <button class="btn-action btn-sm btn-edit" onclick="editLog(${log.log_id}, '${log.type}', ${log.amount}, '${log.description}')">Sửa</button>
+            <button class="btn-action btn-sm btn-delete" onclick="deleteLog(${log.log_id})">Xóa</button>
+          </td>
+        </tr>
+      `,
+              )
+              .join("");
+          } else {
+            tbody.innerHTML =
+              '<tr><td colspan="5" style="text-align: center; color: #888;">Không có biến động thu chi nào trong kỳ này.</td></tr>';
+          }
         } catch (error) {
           container.innerHTML = `<p style="color: red; padding: 20px;">Lỗi: ${error.message}</p>`;
         }
       }
 
+      // HÀM XỬ LÝ XÓA LOG FINANCIAL
+      async function deleteLog(id) {
+        if (!confirm("Bạn có chắc chắn muốn xóa khoản tài chính này không?"))
+          return;
+        const token = getAdminToken();
+        try {
+          const response = await fetch(`${API_ROUTES.DASHBOARD}/record/${id}`, {
+            method: "DELETE",
+            headers: { Authorization: "Bearer " + token },
+          });
+          const result = await response.json();
+          alert(result.message || "Đã xóa thành công");
+          fetchAndRenderDashboard(); // Tự động load lại số liệu tổng và bảng
+        } catch (err) {
+          alert("Lỗi: " + err.message);
+        }
+      }
+
+      // HÀM XỬ LÝ SỬA LOG FINANCIAL (Dùng prompt nhanh để tối ưu code giao diện)
+      async function editLog(id, oldType, oldAmount, oldDesc) {
+        const newDesc = prompt("Nhập nội dung/lý do mới:", oldDesc);
+        if (newDesc === null) return; // Bấm Hủy bỏ
+
+        const newAmountStr = prompt("Nhập số tiền mới (đ):", oldAmount);
+        if (newAmountStr === null) return;
+        const newAmount = Number(newAmountStr);
+
+        const newType = confirm(
+          `Chọn loại giao dịch:\n- Bấm OK để giữ nguyên hoặc đặt là [${oldType}]\n- Bấm CANCEL nếu muốn đảo ngược (THU <-> CHI)`,
+        )
+          ? oldType
+          : oldType === "INCOME"
+            ? "EXPENSE"
+            : "INCOME";
+
+        if (!newDesc.trim() || isNaN(newAmount) || newAmount <= 0) {
+          alert("Dữ liệu nhập vào sai quy định, chỉnh sửa thất bại!");
+          return;
+        }
+
+        const token = getAdminToken();
+        try {
+          const response = await fetch(`${API_ROUTES.DASHBOARD}/record/${id}`, {
+            method: "PUT",
+            headers: {
+              Authorization: "Bearer " + token,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              type: newType,
+              amount: newAmount,
+              description: newDesc,
+            }),
+          });
+          const result = await response.json();
+          alert(result.message || "Cập nhật thành công");
+          fetchAndRenderDashboard(); // Load lại toàn cục
+        } catch (err) {
+          alert("Lỗi: " + err.message);
+        }
+      }
       // XỬ LÝ SỰ KIỆN GỬI FORM THU/CHI PHÁT SINH
       document
         .getElementById("financial-form")
@@ -259,7 +422,6 @@
           const description = document.getElementById("recDesc").value;
 
           try {
-            // Gửi dữ liệu lên API con /record của Dashboard
             const response = await fetch(`${API_ROUTES.DASHBOARD}/record`, {
               method: "POST",
               headers: {
@@ -277,7 +439,7 @@
             document.getElementById("recAmount").value = "";
             document.getElementById("recDesc").value = "";
 
-            // Lưu thành công thì tự động làm mới số liệu Dashboard
+            // Làm mới số liệu Dashboard ngay lập tức để thấy biến động dòng tiền
             fetchAndRenderDashboard();
           } catch (error) {
             alert("Lỗi: " + error.message);

@@ -13,6 +13,7 @@ CREATE TABLE `brands` (
   `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `origin` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `discount_percentage` decimal(5,2) NOT NULL DEFAULT '0.00', -- Mức chiết khấu ký gửi (%) bổ sung
   PRIMARY KEY (`brand_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -177,6 +178,7 @@ CREATE TABLE `orderdetails` (
   `color_id` int NOT NULL,
   `quantity` int NOT NULL DEFAULT '1',
   `price_at_sale` decimal(14,2) NOT NULL,
+  `cost_price_at_sale` decimal(14,2) NOT NULL DEFAULT '0.00', -- Giá vốn ký gửi tại thời điểm bán bổ sung
   PRIMARY KEY (`order_id`,`variant_id`,`color_id`),
   KEY `variant_id` (`variant_id`),
   KEY `color_id` (`color_id`),
@@ -193,3 +195,29 @@ CREATE TABLE `financial_logs` (
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, 
   PRIMARY KEY (`log_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -------------------------------------------------------------------------
+-- TRIGGER TỰ ĐỘNG TÍNH GIÁ VỐN KÝ GỬI KHI INSERT VÀO ORDERDETAILS
+-- -------------------------------------------------------------------------
+DELIMITER $$
+
+CREATE TRIGGER before_orderdetails_insert
+BEFORE INSERT ON orderdetails
+FOR EACH ROW
+BEGIN
+    DECLARE current_unit_price DECIMAL(12,2);
+    DECLARE current_brand_discount DECIMAL(5,2);
+
+    -- Tìm giá niêm yết của biến thể sản phẩm và tỷ lệ chiết khấu hiện hành của Hãng
+    SELECT pv.unit_price, b.discount_percentage 
+    INTO current_unit_price, current_brand_discount
+    FROM productvariants pv
+    JOIN productlines pl ON pv.line_id = pl.line_id
+    JOIN brands b ON pl.brand_id = b.brand_id
+    WHERE pv.variant_id = NEW.variant_id;
+
+    -- Tự động tính số tiền đại lý phải thanh toán lại cho hãng (Giá vốn ký gửi)
+    SET NEW.cost_price_at_sale = current_unit_price * (1 - (current_brand_discount / 100));
+END$$
+
+DELIMITER ;

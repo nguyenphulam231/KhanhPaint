@@ -3,7 +3,7 @@ const express = require("express");
 const router = express.Router();
 const db = require("../../db");
 
-// Lấy danh sách thương hiệu (thường dùng để load vào select)
+// Lấy danh sách thương hiệu
 router.get("/", async (req, res) => {
   try {
     const [rows] = await db.execute("SELECT * FROM brands");
@@ -15,11 +15,11 @@ router.get("/", async (req, res) => {
 
 // Thêm thương hiệu mới
 router.post("/add", async (req, res) => {
-  const { name, origin, description } = req.body;
+  const { name, origin, description, discount_percentage } = req.body;
   try {
     const [result] = await db.execute(
-      "INSERT INTO brands (name, origin, description) VALUES (?, ?, ?)",
-      [name, origin, description],
+      "INSERT INTO brands (name, origin, description, discount_percentage) VALUES (?, ?, ?, ?)",
+      [name, origin || null, description || null, discount_percentage || 0],
     );
     res
       .status(201)
@@ -29,10 +29,10 @@ router.post("/add", async (req, res) => {
   }
 });
 
-// 3. CẬP NHẬT THƯƠNG HIỆU
+// CẬP NHẬT THƯƠNG HIỆU
 router.put("/update/:id", async (req, res) => {
   const brandId = req.params.id;
-  const { name, origin, description } = req.body;
+  const { name, origin, description, discount_percentage } = req.body;
 
   if (!name) {
     return res
@@ -42,8 +42,14 @@ router.put("/update/:id", async (req, res) => {
 
   try {
     const [result] = await db.execute(
-      "UPDATE brands SET name = ?, origin = ?, description = ? WHERE brand_id = ?",
-      [name, origin || null, description || null, brandId],
+      "UPDATE brands SET name = ?, origin = ?, description = ?, discount_percentage = ? WHERE brand_id = ?",
+      [
+        name,
+        origin || null,
+        description || null,
+        discount_percentage || 0,
+        brandId,
+      ],
     );
 
     if (result.affectedRows === 0) {
@@ -57,7 +63,7 @@ router.put("/update/:id", async (req, res) => {
   }
 });
 
-// 4. XÓA THƯƠNG HIỆU
+// XÓA THƯƠNG HIỆU
 router.delete("/delete/:id", async (req, res) => {
   const brandId = req.params.id;
   try {
@@ -72,11 +78,9 @@ router.delete("/delete/:id", async (req, res) => {
     }
     res.json({ message: "Đã xóa thương hiệu thành công!" });
   } catch (err) {
-    // Phòng trường hợp thương hiệu này đang ràng buộc khóa ngoại với bảng Lines (Dòng sơn/sản phẩm)
     res.status(500).json({
       error:
-        "Không thể xóa thương hiệu này vì đang có các dòng sản phẩm thuộc thương hiệu!" ||
-        err.message,
+        "Không thể xóa thương hiệu này vì đang có các dòng sản phẩm thuộc thương hiệu!",
     });
   }
 });

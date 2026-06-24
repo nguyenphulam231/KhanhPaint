@@ -362,7 +362,12 @@
     <td><b>${order.customer_name}</b></td>
     <td>${staffInfo}</td>
     <td style="max-width: 200px; word-wrap: break-word;">${fullAddress || "<i>Chưa cập nhật</i>"}</td>
-    <td><b style="color:#28a745;">${parseFloat(order.total_amount).toLocaleString("vi-VN")} đ</b></td>
+    <td>
+  <b style="color:#28a745;" title="Doanh thu">${parseFloat(order.total_amount).toLocaleString("vi-VN")} đ</b>
+  <div style="font-size: 11px; color: #6c757d; margin-top: 4px; white-space: nowrap;">
+    Vốn: <b>${parseFloat(order.total_cost || 0).toLocaleString("vi-VN")} đ</b>
+  </div>
+</td>
     <td>${statusBadge}</td>
     <td>${quickActions}</td>
     <td>

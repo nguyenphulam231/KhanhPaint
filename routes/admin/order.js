@@ -10,11 +10,16 @@ console.log("===> ĐÃ NẠP FILE ROUTES/ADMIN/ORDER.JS THÀNH CÔNG! <===");
 // =========================================================================
 
 // Hàm kiểm tra và trừ kho khi tạo đơn hoặc mở lại đơn bị từ chối
+// Đồng thời tính luôn giá vốn thực tế (sơn nền + tinh màu) của từng item,
+// để KHÔNG phụ thuộc vào item.price do client gửi lên (tránh sai/giả mạo giá).
+// Trả về: { itemCosts } - mảng { variant_id, color_id, quantity, unit_cost, line_total }
 async function deductInventory(connection, items) {
+  const itemCosts = [];
+
   for (const item of items) {
-    // 1. Kiểm tra và khóa dòng dữ liệu sơn nền (Base Paint)
+    // 1. Kiểm tra và khóa dòng dữ liệu sơn nền (Base Paint), lấy luôn giá vốn
     const [variantRows] = await connection.query(
-      "SELECT stock_quantity, sku_code FROM productvariants WHERE variant_id = ? FOR UPDATE",
+      "SELECT stock_quantity, sku_code, unit_price FROM productvariants WHERE variant_id = ? FOR UPDATE",
       [parseInt(item.variant_id)],
     );
 
@@ -31,15 +36,16 @@ async function deductInventory(connection, items) {
       );
     }
 
-    // 2. Kiểm tra và khóa dòng dữ liệu các tinh màu cấu thành (Colorants)
+    // 2. Kiểm tra và khóa dòng dữ liệu các tinh màu cấu thành (Colorants), lấy luôn đơn giá/ml
     const [colorantRows] = await connection.query(
-      `SELECT cc.colorant_id, cc.amount_ml, c.colorant_name, c.stock_ml 
+      `SELECT cc.colorant_id, cc.amount_ml, c.colorant_name, c.stock_ml, c.unit_price_per_ml 
        FROM colorsystem_colorants cc
        JOIN colorants c ON cc.colorant_id = c.colorant_id
        WHERE cc.color_id = ? FOR UPDATE`,
       [parseInt(item.color_id)],
     );
 
+    let colorantCostPerUnit = 0;
     for (const col of colorantRows) {
       const requiredMl = parseFloat(col.amount_ml) * parseInt(item.quantity);
       if (parseFloat(col.stock_ml) < requiredMl) {
@@ -47,6 +53,8 @@ async function deductInventory(connection, items) {
           `Tinh màu [${col.colorant_name}] không đủ để pha màu đơn hàng này (Cần: ${requiredMl}ml, Hiện có: ${col.stock_ml}ml).`,
         );
       }
+      colorantCostPerUnit +=
+        parseFloat(col.amount_ml) * parseFloat(col.unit_price_per_ml);
     }
 
     // 3. Tiến hành trừ kho sơn nền
@@ -63,7 +71,25 @@ async function deductInventory(connection, items) {
         [requiredMl, col.colorant_id],
       );
     }
+
+    // 5. Tính giá vốn thực tế cho 1 đơn vị sản phẩm = giá sơn nền + tổng tinh màu cấu thành
+    // (dùng cho price_at_sale - giá bán cho khách, không liên quan chiết khấu hãng)
+    const unitCost = parseFloat(variant.unit_price) + colorantCostPerUnit;
+    itemCosts.push({
+      variant_id: parseInt(item.variant_id),
+      color_id: parseInt(item.color_id),
+      quantity: parseInt(item.quantity),
+      unit_cost: unitCost,
+      line_total: unitCost * parseInt(item.quantity),
+      // Chi phí tinh màu/1 đơn vị (đại lý tự mua đứt) - dùng để cộng thêm vào
+      // cost_price_at_sale mà trigger before_orderdetails_insert đã tự tính
+      // sẵn cho phần sơn nền (theo chiết khấu hãng), vì trigger không biết
+      // về chi phí tinh màu.
+      colorant_cost_per_unit: colorantCostPerUnit,
+    });
   }
+
+  return itemCosts;
 }
 
 // Hàm hoàn lại kho khi đơn hàng bị hủy (từ chối) hoặc bị xóa khỏi hệ thống
@@ -110,23 +136,24 @@ router.post("/add", async (req, res) => {
     connection = await db.getConnection();
     await connection.beginTransaction();
 
-    let totalAmount = 0;
+    // Validate cấu trúc cơ bản của từng item (KHÔNG còn dựa vào item.price nữa,
+    // giá sẽ được backend tự tính từ DB ở bước deductInventory bên dưới)
     for (const item of items) {
-      if (
-        !item.variant_id ||
-        !item.color_id ||
-        isNaN(item.price) ||
-        isNaN(item.quantity)
-      ) {
+      if (!item.variant_id || !item.color_id || isNaN(item.quantity)) {
         throw new Error(
           "Cấu trúc thông tin sản phẩm hoặc mã màu trong giỏ hàng không hợp lệ.",
         );
       }
-      totalAmount += parseFloat(item.price) * parseInt(item.quantity);
     }
 
-    // Thực hiện trừ kho sơn nền và tinh màu (Nếu thiếu hàng sẽ throw lỗi nhảy vào catch)
-    await deductInventory(connection, items);
+    // Thực hiện trừ kho sơn nền và tinh màu, đồng thời tính giá vốn thực tế
+    // (sơn nền + tinh màu) cho từng item dựa trên dữ liệu thật trong DB.
+    // (Nếu thiếu hàng sẽ throw lỗi nhảy vào catch)
+    const itemCosts = await deductInventory(connection, items);
+
+    // Tổng tiền đơn hàng = tổng giá vốn (sơn nền + tinh màu) của tất cả item,
+    // không tin vào item.price do client gửi lên.
+    const totalAmount = itemCosts.reduce((sum, ic) => sum + ic.line_total, 0);
 
     // Xác định ca làm việc & nhân viên gán tự động
     const { shift_id, sales_rep_id, tech_id } =
@@ -150,18 +177,42 @@ router.post("/add", async (req, res) => {
     const newOrderId = orderResult.insertId;
 
     // Chèn danh sách sản phẩm chi tiết vào bảng `orderdetails`
+    // price_at_sale ở đây là giá vốn thực tế (unit_cost) đã tính từ DB,
+    // không còn lấy từ item.price do client gửi lên.
+    //
+    // LƯU Ý: bảng orderdetails có trigger `before_orderdetails_insert` tự động
+    // gán cost_price_at_sale = unit_price (sơn nền) * (1 - discount_percentage/100)
+    // khi INSERT. Trigger này KHÔNG biết về chi phí tinh màu, nên ngay sau khi
+    // insert, ta UPDATE cộng thêm phần chi phí tinh màu (đại lý tự mua, không
+    // chiết khấu hãng) vào cost_price_at_sale mà trigger vừa tính.
     const detailQuery = `
       INSERT INTO orderdetails (order_id, variant_id, color_id, quantity, price_at_sale)
       VALUES (?, ?, ?, ?, ?)
     `;
 
-    for (const item of items) {
+    const addColorantCostQuery = `
+      UPDATE orderdetails
+      SET cost_price_at_sale = cost_price_at_sale + ?
+      WHERE order_id = ? AND variant_id = ? AND color_id = ?
+    `;
+
+    for (const ic of itemCosts) {
       await connection.query(detailQuery, [
         newOrderId,
-        parseInt(item.variant_id),
-        parseInt(item.color_id),
-        parseInt(item.quantity),
-        parseFloat(item.price),
+        ic.variant_id,
+        ic.color_id,
+        ic.quantity,
+        ic.unit_cost,
+      ]);
+
+      // Cộng thêm chi phí tinh màu (cho toàn bộ quantity của dòng này) vào
+      // cost_price_at_sale mà trigger đã tự tính sẵn cho phần sơn nền.
+      const colorantCostTotal = ic.colorant_cost_per_unit * ic.quantity;
+      await connection.query(addColorantCostQuery, [
+        colorantCostTotal,
+        newOrderId,
+        ic.variant_id,
+        ic.color_id,
       ]);
     }
 
@@ -171,6 +222,7 @@ router.post("/add", async (req, res) => {
       success: true,
       message: "Tạo đơn hàng và trừ tồn kho thành công!",
       order_id: newOrderId,
+      total_amount: totalAmount,
       assigned: { shift_id, sales_rep_id, tech_id },
     });
   } catch (err) {
@@ -183,7 +235,7 @@ router.post("/add", async (req, res) => {
 });
 
 // =========================================================================
-// 2. LẤY DANH SÁCH TOÀN BỘ ĐƠN HÀNG
+// 2. LẤY DANH SÁCH TOÀN BỘ ĐƠN HÀNG (Đã sửa lỗi Unknown column 'pv.cost_price')
 // =========================================================================
 router.get("/", async (req, res) => {
   try {
@@ -195,7 +247,8 @@ router.get("/", async (req, res) => {
         e2.full_name AS tech_name,
         s.shift_name,
         w.ward_name,
-        p.province_name
+        p.province_name,
+        IFNULL(order_cost.total_cost, 0) AS total_cost
       FROM orders o
       JOIN customers c ON o.customer_id = c.customer_id
       LEFT JOIN employees e1 ON o.sales_rep_id = e1.employee_id
@@ -203,6 +256,15 @@ router.get("/", async (req, res) => {
       LEFT JOIN shifts s ON o.shift_id = s.shift_id
       LEFT JOIN wards w ON o.ward_id = w.ward_id
       LEFT JOIN provinces p ON w.province_id = p.province_id
+      
+      /* Subquery gom nhóm và tính tổng tiền vốn trực tiếp từ bảng orderdetails */
+      LEFT JOIN (
+        SELECT order_id,
+               SUM(cost_price_at_sale * quantity) AS total_cost
+        FROM orderdetails
+        GROUP BY order_id
+      ) order_cost ON o.order_id = order_cost.order_id
+      
       ORDER BY o.order_id DESC
     `;
     const [rows] = await db.execute(query);
@@ -411,8 +473,6 @@ router.delete("/delete/:id", async (req, res) => {
   }
 });
 
-module.exports = router;
-
 // =========================================================================
 // 6. LẤY CHI TIẾT CÁC MẶT HÀNG CỦA MỘT ĐƠN HÀNG (Sơn, Base, Thể tích, Mã màu)
 // =========================================================================
@@ -445,3 +505,5 @@ router.get("/:id/details", async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
+module.exports = router;

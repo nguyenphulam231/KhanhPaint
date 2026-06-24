@@ -1248,10 +1248,10 @@
           let totalSurplusLiters = 0;
 
           breakdown.forEach((bItem) => {
-            const requiredBase = bItem.base_id; // null = sơn gốc, không bắt buộc base
+            const requiredBase = bItem.base_id;
             const needed = bItem.decomposition;
 
-            // Tìm variant khớp base (nếu base_id null thì lấy bất kỳ)
+            // Tìm variant khớp base
             const findVariant = (vol) => {
               return lineVariants.find((v) => {
                 const volMatch = String(v.volume) === String(vol);

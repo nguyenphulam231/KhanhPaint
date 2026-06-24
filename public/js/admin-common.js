@@ -30,20 +30,24 @@ function renderAdminSidebar(activeNav) {
     <aside class="sidebar">
       <h3>Quản trị hệ thống</h3>
       <a class="menu-item ${activeNav === "dashboard" ? "active" : ""}" data-admin-nav="dashboard" href="/admin/">Bảng điều khiển</a>
-      <a class="menu-item ${activeNav === "jobs" ? "active" : ""}" data-admin-nav="jobs" href="/admin/job-manage.html">Tạo vị trí công việc</a>
-      <a class="menu-item ${activeNav === "employees" ? "active" : ""}" data-admin-nav="employees" href="/admin/employee-manage.html">Thêm nhân viên</a>
-      <a class="menu-item ${activeNav === "brands" ? "active" : ""}" data-admin-nav="brands" href="/admin/brand-manage.html">Quản lý Thương hiệu</a>
+      <a class="menu-item ${activeNav === "create-order" ? "active" : ""}" data-admin-nav="create-order" href="/admin/order-create.html">Tạo đơn hàng mới</a>
+      <a class="menu-item ${activeNav === "orders" ? "active" : ""}" data-admin-nav="orders" href="/admin/order-manage.html">Quản lý Đơn hàng</a>
+      
+      
+      
       <a class="menu-item ${activeNav === "lines" ? "active" : ""}" data-admin-nav="lines" href="/admin/line-manage.html">Quản lý Dòng SP</a>
-      <a class="menu-item ${activeNav === "basetypes" ? "active" : ""}" data-admin-nav="basetypes" href="/admin/basetype-manage.html">Quản lý BaseTypes</a>
-      <a class="menu-item ${activeNav === "variants" ? "active" : ""}" data-admin-nav="variants" href="/admin/variant-manage.html">Quản lý Product Variant</a>
-      <a class="menu-item ${activeNav === "colorants" ? "active" : ""}" data-admin-nav="colorants" href="/admin/colorant-manage.html">Quản lý Tinh màu</a>
+      <a class="menu-item ${activeNav === "variants" ? "active" : ""}" data-admin-nav="variants" href="/admin/variant-manage.html">Quản lý biến thể SP</a>
+      
       <a class="menu-item ${activeNav === "colorsystem" ? "active" : ""}" data-admin-nav="colorsystem" href="/admin/colorsystem-manage.html">Quản lý Mã màu</a>
       <a class="menu-item ${activeNav === "shifts" ? "active" : ""}" data-admin-nav="shifts" href="/admin/shift-manage.html">Quản lý Ca làm</a>
       <a class="menu-item ${activeNav === "assign-shift" ? "active" : ""}" data-admin-nav="assign-shift" href="/admin/shift-assign.html">Phân ca làm việc</a>
       <a class="menu-item ${activeNav === "customers" ? "active" : ""}" data-admin-nav="customers" href="/admin/customer-manage.html">Quản lý Khách hàng</a>
-      <a class="menu-item ${activeNav === "create-order" ? "active" : ""}" data-admin-nav="create-order" href="/admin/order-create.html">Tạo đơn hàng mới</a>
-      <a class="menu-item ${activeNav === "orders" ? "active" : ""}" data-admin-nav="orders" href="/admin/order-manage.html">Quản lý Đơn hàng</a>
+      <a class="menu-item ${activeNav === "brands" ? "active" : ""}" data-admin-nav="brands" href="/admin/brand-manage.html">Quản lý Thương hiệu</a>
       <a class="menu-item ${activeNav === "stock-import" ? "active" : ""}" data-admin-nav="stock-import" href="/admin/stock-import.html">Nhập hàng vào kho</a>
+      <a class="menu-item ${activeNav === "colorants" ? "active" : ""}" data-admin-nav="colorants" href="/admin/colorant-manage.html">Quản lý Tinh màu</a>
+      <a class="menu-item ${activeNav === "basetypes" ? "active" : ""}" data-admin-nav="basetypes" href="/admin/basetype-manage.html">Quản lý Base</a>
+      <a class="menu-item ${activeNav === "employees" ? "active" : ""}" data-admin-nav="employees" href="/admin/employee-manage.html">Quản lý nhân viên</a>
+      <a class="menu-item ${activeNav === "jobs" ? "active" : ""}" data-admin-nav="jobs" href="/admin/job-manage.html">Quản lý vị trí công việc</a>
       <a class="menu-item" href="#" id="logoutLink" style="color: #ffcccc">Đăng xuất</a>
     </aside>
   `;

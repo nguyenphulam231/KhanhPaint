@@ -81,13 +81,11 @@ router.post("/add", async (req, res) => {
     ];
 
     const [insertResult] = await db.query(query, params);
-    res
-      .status(201)
-      .json({
-        success: true,
-        customer_id: insertResult.insertId,
-        message: "Thêm khách hàng thành công!",
-      });
+    res.status(201).json({
+      success: true,
+      customer_id: insertResult.insertId,
+      message: "Thêm khách hàng thành công!",
+    });
   } catch (err) {
     res.status(500).json({ success: false, error: "Lỗi: " + err.message });
   }
@@ -185,6 +183,83 @@ router.delete("/delete/:id", async (req, res) => {
       error:
         "Không thể xóa khách hàng này vì tài khoản đã có dữ liệu đơn hàng hoặc lịch sử liên kết hệ thống!",
     });
+  }
+});
+
+// 5. LẤY LỊCH SỬ ĐƠN HÀNG CHI TIẾT CỦA 1 KHÁCH HÀNG  ← THÊM TỪ ĐÂY
+router.get("/:id/orders", async (req, res) => {
+  const customerId = req.params.id;
+
+  try {
+    const [orders] = await db.query(
+      `
+      SELECT
+        o.order_id,
+        o.total_amount,
+        o.status,
+        o.street_address,
+        o.created_at,
+        w.ward_name,
+        p.province_name,
+        sales.full_name AS sales_rep_name,
+        tech.full_name  AS tech_name,
+        s.shift_name
+      FROM orders o
+      LEFT JOIN wards w ON o.ward_id = w.ward_id
+      LEFT JOIN provinces p ON w.province_id = p.province_id
+      LEFT JOIN employees sales ON o.sales_rep_id = sales.employee_id
+      LEFT JOIN employees tech ON o.tech_id = tech.employee_id
+      LEFT JOIN shifts s ON o.shift_id = s.shift_id
+      WHERE o.customer_id = ?
+      ORDER BY o.created_at DESC
+      `,
+      [customerId],
+    );
+
+    if (orders.length === 0) {
+      return res.json([]);
+    }
+
+    const orderIds = orders.map((o) => o.order_id);
+    const [details] = await db.query(
+      `
+      SELECT
+        od.order_id,
+        od.quantity,
+        od.price_at_sale,
+        cs.color_code,
+        cs.color_name,
+        bt.base_name,
+        pv.sku_code,
+        pv.volume,
+        pl.name AS line_name,
+        br.name AS brand_name
+      FROM orderdetails od
+      JOIN colorsystem cs ON od.color_id = cs.color_id
+      JOIN basetypes bt ON cs.base_id = bt.base_id
+      JOIN productvariants pv ON od.variant_id = pv.variant_id
+      JOIN productlines pl ON pv.line_id = pl.line_id
+      JOIN brands br ON pl.brand_id = br.brand_id
+      WHERE od.order_id IN (?)
+      ORDER BY od.order_id DESC
+      `,
+      [orderIds],
+    );
+
+    const detailsByOrder = {};
+    details.forEach((d) => {
+      if (!detailsByOrder[d.order_id]) detailsByOrder[d.order_id] = [];
+      detailsByOrder[d.order_id].push(d);
+    });
+
+    const result = orders.map((o) => ({
+      ...o,
+      items: detailsByOrder[o.order_id] || [],
+    }));
+
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: "Lỗi: " + err.message });
   }
 });
 

@@ -144,6 +144,19 @@
       </main>
     </div>
 
+    <!-- MODAL LỊCH SỬ ĐƠN HÀNG KHÁCH HÀNG -->
+    <div id="orderHistoryModal" class="modal">
+      <div class="modal-content">
+        <span class="close-btn" id="closeOrderHistoryBtn">&times;</span>
+        <div class="order-history-header">
+          <h2 id="orderHistoryTitle">Lịch sử đơn hàng</h2>
+        </div>
+        <div id="orderHistoryContent" class="order-history-body">
+          <p class="order-history-loading">Đang tải...</p>
+        </div>
+      </div>
+    </div>
+
     <script src="/js/api.js"></script>
     <script src="/js/admin-common.js"></script>
     <script>
@@ -237,6 +250,7 @@
               </td>
               <td><span style="font-size:13px; color:#555;">${fullAddress}</span></td>
               <td>
+                <button class="btn-view" onclick="viewOrderHistory(${currentId}, '${cust.name.replace(/'/g, "\\'")}')">Chi tiết</button>
                 <button class="btn-edit" onclick="prepareEdit(${currentId}, '${cust.name}', '${cust.email}', 
                   '${cust.phone || ""}', '${cust.province_id || ""}', '${cust.ward_id || ""}', '${cust.street_address || ""}')">Sửa</button>
                 <button class="btn-delete" onclick="deleteCustomer(${currentId})">Xóa</button>
@@ -456,6 +470,124 @@
           alert("Gặp lỗi hệ thống khi gửi lệnh xóa!");
         }
       }
+
+      // ── 5. XEM LỊCH SỬ ĐƠN HÀNG CHI TIẾT CỦA KHÁCH HÀNG ──────────────────────
+      const orderHistoryModal = document.getElementById("orderHistoryModal");
+      const orderHistoryContent = document.getElementById(
+        "orderHistoryContent",
+      );
+      const orderHistoryTitle = document.getElementById("orderHistoryTitle");
+
+      function formatCurrency(num) {
+        return Number(num || 0).toLocaleString("vi-VN") + " đ";
+      }
+
+      function formatDateTime(str) {
+        if (!str) return "";
+        return new Date(str).toLocaleString("vi-VN");
+      }
+
+      async function viewOrderHistory(customerId, customerName) {
+        orderHistoryTitle.innerText = `Lịch sử đơn hàng - ${customerName} (#${customerId})`;
+        orderHistoryContent.innerHTML =
+          '<p class="order-history-loading">Đang tải dữ liệu...</p>';
+        orderHistoryModal.style.display = "block";
+
+        try {
+          const response = await fetch(
+            API_ROUTES.GET_CUSTOMER_ORDERS(customerId),
+            {
+              headers: { Authorization: "Bearer " + getAdminToken() },
+            },
+          );
+          if (!response.ok) throw new Error("Không thể tải lịch sử đơn hàng.");
+
+          const orders = await response.json();
+
+          if (orders.length === 0) {
+            orderHistoryContent.innerHTML =
+              '<p class="order-history-empty">Khách hàng này chưa có đơn hàng nào.</p>';
+            return;
+          }
+
+          orderHistoryContent.innerHTML = orders
+            .map((order) => {
+              const addressParts = [
+                order.street_address,
+                order.ward_name,
+                order.province_name,
+              ].filter(Boolean);
+              const addressText = addressParts.length
+                ? addressParts.join(", ")
+                : "Chưa cập nhật";
+
+              const itemsHtml = order.items.length
+                ? order.items
+                    .map(
+                      (item) => `
+                  <tr>
+                    <td>${item.brand_name} - ${item.line_name}</td>
+                    <td><span class="order-history-color-code">${item.color_code}</span> (${item.color_name}, ${item.base_name})</td>
+                    <td>${item.volume || ""}</td>
+                    <td style="text-align:center;">${item.quantity}</td>
+                    <td style="text-align:right;">${formatCurrency(item.price_at_sale)}</td>
+                  </tr>
+                `,
+                    )
+                    .join("")
+                : '<tr><td colspan="5" style="text-align:center; color:#777;">Không có chi tiết sản phẩm.</td></tr>';
+
+              return `
+                <div class="order-history-card">
+                  <div class="order-history-card-top">
+                    <div>
+                      <span class="order-id">Đơn #${order.order_id}</span>
+                      <span class="order-status-badge">${order.status}</span>
+                    </div>
+                    <div class="order-history-card-date">${formatDateTime(order.created_at)}</div>
+                  </div>
+                  <div class="order-history-meta">
+                    • Địa chỉ giao: ${addressText}<br>
+                    ${order.sales_rep_name ? `• NV bán: ${order.sales_rep_name}<br>` : ""}
+                    ${order.tech_name ? `• NV thi công: ${order.tech_name}<br>` : ""}
+                  </div>
+                  <table class="order-history-items-table">
+                    <thead>
+                      <tr>
+                        <th>Dòng sản phẩm</th>
+                        <th>Mã màu</th>
+                        <th>Quy cách</th>
+                        <th>SL</th>
+                        <th>Giá bán</th>
+                      </tr>
+                    </thead>
+                    <tbody>${itemsHtml}</tbody>
+                  </table>
+                  <div class="order-history-card-total">
+                    Tổng cộng: ${formatCurrency(order.total_amount)}
+                  </div>
+                </div>
+              `;
+            })
+            .join("");
+        } catch (err) {
+          console.error(err);
+          orderHistoryContent.innerHTML =
+            '<p class="order-history-error">Gặp lỗi khi tải lịch sử đơn hàng.</p>';
+        }
+      }
+
+      document
+        .getElementById("closeOrderHistoryBtn")
+        .addEventListener("click", () => {
+          orderHistoryModal.style.display = "none";
+        });
+
+      orderHistoryModal.addEventListener("click", (e) => {
+        if (e.target === orderHistoryModal) {
+          orderHistoryModal.style.display = "none";
+        }
+      });
 
       // Khởi chạy nạp danh sách ban đầu
       window.addEventListener("DOMContentLoaded", () => {

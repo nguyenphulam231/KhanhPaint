@@ -1506,3 +1506,144 @@ a:hover {
   font-size: 0.85rem;
   padding: 8px 0;
 }
+
+/* ==========================================================================
+   Order History Modal — Customer Management Page
+   (dùng chung pattern .modal / .modal-content / .close-btn đã có sẵn)
+   ========================================================================== */
+
+.btn-view {
+  background-color: #0d6efd;
+  color: #fff;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-right: 5px;
+}
+
+.btn-view:hover {
+  background-color: #0b5ed7;
+}
+
+/* Modal lịch sử đơn hàng cần rộng hơn modal mặc định (400px) */
+#orderHistoryModal .modal-content {
+  width: 90%;
+  max-width: 820px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.order-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-right: 24px;
+  border-bottom: 2px solid #eee;
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+}
+
+.order-history-header h2 {
+  margin: 0;
+  font-size: 18px;
+  text-align: left;
+}
+
+.order-history-body {
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+/* Card cho 1 đơn hàng */
+.order-history-card {
+  background: #fff;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 14px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+.order-history-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.order-history-card-top .order-id {
+  font-weight: bold;
+  font-size: 14px;
+  color: #333;
+}
+
+.order-status-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 10px;
+  border-radius: 99px;
+  background: #f1f3f5;
+  color: #495057;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.order-history-card-date {
+  color: #777;
+  font-size: 13px;
+}
+
+.order-history-meta {
+  font-size: 13px;
+  color: #555;
+  margin-top: 8px;
+  line-height: 1.6;
+}
+
+.order-history-items-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  font-size: 13px;
+}
+
+.order-history-items-table th,
+.order-history-items-table td {
+  border: 1px solid #ddd;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.order-history-items-table th {
+  background-color: #f5f5f5;
+  font-weight: bold;
+}
+
+.order-history-color-code {
+  font-weight: bold;
+  color: #1b5e20;
+}
+
+.order-history-card-total {
+  text-align: right;
+  margin-top: 10px;
+  font-weight: bold;
+  font-size: 14px;
+  color: #2e7d32;
+}
+
+.order-history-empty,
+.order-history-loading,
+.order-history-error {
+  text-align: center;
+  padding: 20px;
+  font-style: italic;
+  color: #777;
+}
+
+.order-history-error {
+  color: #dc3545;
+}

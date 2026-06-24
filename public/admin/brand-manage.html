@@ -81,6 +81,15 @@
               required
             />
             <input type="text" id="brandOrigin" placeholder="Xuất xứ" />
+            <input
+              type="number"
+              id="brandDiscount"
+              placeholder="Mức chiết khấu (%)"
+              step="0.01"
+              min="0"
+              max="100"
+              required
+            />
             <input type="text" id="brandDesc" placeholder="Mô tả" />
 
             <button id="saveBrandBtn" type="button">Lưu thương hiệu</button>
@@ -98,6 +107,7 @@
                 <th>ID</th>
                 <th>Tên thương hiệu</th>
                 <th>Xuất xứ</th>
+                <th>Chiết khấu (%)</th>
                 <th>Mô tả</th>
                 <th>Hành động</th>
               </tr>
@@ -105,7 +115,7 @@
             <tbody id="brandTableBody">
               <tr>
                 <td
-                  colspan="5"
+                  colspan="6"
                   style="text-align: center; font-style: italic; color: #777"
                 >
                   Đang tải danh sách thương hiệu...
@@ -126,6 +136,7 @@
       const tableBody = document.getElementById("brandTableBody");
       const brandNameInput = document.getElementById("brandName");
       const brandOriginInput = document.getElementById("brandOrigin");
+      const brandDiscountInput = document.getElementById("brandDiscount");
       const brandDescInput = document.getElementById("brandDesc");
       const saveBrandBtn = document.getElementById("saveBrandBtn");
       const cancelEditBtn = document.getElementById("cancelEditBtn");
@@ -146,21 +157,26 @@
           tableBody.innerHTML = "";
 
           if (brands.length === 0) {
-            tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center;">Chưa có thương hiệu nào.</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center;">Chưa có thương hiệu nào.</td></tr>`;
             return;
           }
 
           brands.forEach((brand) => {
             const row = document.createElement("tr");
             const currentId = brand.brand_id || brand.id;
+            const discount =
+              brand.discount_percentage !== undefined
+                ? brand.discount_percentage
+                : 0;
 
             row.innerHTML = `
               <td><b>#${currentId}</b></td>
               <td><b>${brand.name}</b></td>
               <td>${brand.origin || "Chưa rõ"}</td>
+              <td><span style="color: #28a745; font-weight: bold;">${discount}%</span></td>
               <td>${brand.description || "Không có mô tả"}</td>
               <td>
-                <button class="btn-edit" onclick="prepareEdit(${currentId}, '${brand.name}', '${brand.origin || ""}', '${brand.description || ""}')">Sửa</button>
+                <button class="btn-edit" onclick="prepareEdit(${currentId}, '${brand.name}', '${brand.origin || ""}', ${discount}, '${brand.description || ""}')">Sửa</button>
                 <button class="btn-delete" onclick="deleteBrand(${currentId})">Xóa</button>
               </td>
             `;
@@ -168,18 +184,19 @@
           });
         } catch (err) {
           console.error(err);
-          tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: red;">Lỗi khi tải dữ liệu!</td></tr>`;
+          tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: red;">Lỗi khi tải dữ liệu!</td></tr>`;
         }
       }
 
       window.addEventListener("DOMContentLoaded", loadBrands);
 
       // --- 2. ĐẨY DỮ LIỆU LÊN FORM ĐỂ SỬA ---
-      function prepareEdit(id, name, origin, description) {
+      function prepareEdit(id, name, origin, discount, description) {
         editingBrandId = id;
         formTitle.innerText = "Chỉnh sửa thông tin thương hiệu";
         brandNameInput.value = name;
         brandOriginInput.value = origin;
+        brandDiscountInput.value = discount;
         brandDescInput.value = description;
 
         saveBrandBtn.innerText = "Cập nhật";
@@ -192,6 +209,7 @@
         formTitle.innerText = "Thêm thương hiệu mới";
         brandNameInput.value = "";
         brandOriginInput.value = "";
+        brandDiscountInput.value = "";
         brandDescInput.value = "";
         saveBrandBtn.innerText = "Lưu thương hiệu";
         cancelEditBtn.classList.add("d-none");
@@ -206,9 +224,16 @@
           return;
         }
 
+        let discountVal = parseFloat(brandDiscountInput.value);
+        if (isNaN(discountVal) || discountVal < 0 || discountVal > 100) {
+          alert("Mức chiết khấu phải nằm trong khoảng từ 0 đến 100%!");
+          return;
+        }
+
         const brandData = {
           name: brandNameInput.value,
           origin: brandOriginInput.value,
+          discount_percentage: discountVal,
           description: brandDescInput.value,
         };
 
@@ -250,7 +275,7 @@
       async function deleteBrand(id) {
         if (
           !confirm(
-            `Bạn có chắc chắn muốn xóa thương hiệu #${id} này không?\nLưu ý: Hành động này có thể thất bại nếu thương hiệu đang chứa sản phẩm.`,
+            `Bạn có chắc chắn muốn xóa thương hiệu #${id} này không?\nLưu ý: Hành động này sẽ thất bại nếu thương hiệu đang chứa các dòng sản phẩm (Product Lines).`,
           )
         )
           return;

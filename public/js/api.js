@@ -53,6 +53,7 @@ const API_ROUTES = {
   ADD_CUSTOMER: "/api/admin/customers/add",
   UPDATE_CUSTOMER: (id) => `/api/admin/customers/update/${id}`,
   DELETE_CUSTOMER: (id) => `/api/admin/customers/delete/${id}`,
+  GET_CUSTOMER_ORDERS: (id) => `/api/admin/customers/${id}/orders`,
   GEO_PROVINCES: "/api/auth/provinces",
   GEO_WARDS: (provinceId) => `/api/auth/wards/${provinceId}`,
   ADD_ORDER: "/api/admin/orders/add",
