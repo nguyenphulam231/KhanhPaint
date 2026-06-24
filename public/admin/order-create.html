@@ -1,0 +1,604 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/style.css" />
+    <title>Tạo đơn hàng mới</title>
+  </head>
+  <body>
+    <div class="admin-container">
+      <div id="admin-sidebar"></div>
+
+      <main class="main-content">
+        <div class="page-header">
+          <div>
+            <p class="eyebrow">Quản trị hệ thống</p>
+            <h1>Lập hóa đơn và Tạo đơn hàng</h1>
+          </div>
+        </div>
+
+        <div class="order-grid">
+          <div class="col-form">
+            <section class="admin-card">
+              <div class="customer-header">
+                <h2>1. Thông tin khách hàng</h2>
+                <button
+                  type="button"
+                  id="syncAddressBtn"
+                  class="btn-sync-address"
+                >
+                  🔄 Đồng bộ địa chỉ KH
+                </button>
+              </div>
+
+              <div class="form-group">
+                <label>Khách hàng mua hàng *</label>
+                <select id="orderCustomerSelect">
+                  <option value="">-- Chọn khách hàng đối tác --</option>
+                </select>
+              </div>
+
+              <div class="form-grid-2col">
+                <div class="form-group">
+                  <label>Tỉnh/Thành phố *</label>
+                  <select id="orderProvinceSelect">
+                    <option value="">-- Chọn Tỉnh/Thành --</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Phường/Xã *</label>
+                  <select id="orderWardSelect">
+                    <option value="">-- Chọn Phường/Xã --</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label>Số nhà, tên đường, thôn xóm *</label>
+                <input
+                  type="text"
+                  id="orderSpecificAddress"
+                  placeholder="Ví dụ: 123 Đường Lê Lợi..."
+                />
+              </div>
+            </section>
+
+            <section class="admin-card">
+              <h2>2. Bộ lọc tìm kiếm sản phẩm sơn nhanh</h2>
+
+              <div class="form-grid-2col">
+                <div class="form-group">
+                  <label>Mã SKU / Từ khóa</label>
+                  <input
+                    type="text"
+                    id="searchSku"
+                    placeholder="Tìm theo mã SKU..."
+                  />
+                </div>
+                <div class="form-group">
+                  <label>Dung tích quy cách</label>
+                  <select id="searchVolume">
+                    <option value="">-- Tất cả dung tích --</option>
+                    <option value="1">1L</option>
+                    <option value="5">5L</option>
+                    <option value="15">15L</option>
+                    <option value="20">20L</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Thương hiệu</label>
+                  <select id="searchBrand">
+                    <option value="">-- Tất cả thương hiệu --</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Hệ thống Base Type</label>
+                  <select id="searchBase">
+                    <option value="">-- Tất cả Base --</option>
+                  </select>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                id="btnSearchVariants"
+                class="btn-add-item btn-orange"
+              >
+                🔍 Lọc tìm kiếm sản phẩm
+              </button>
+
+              <label class="form-group form-label-bold"
+                >Danh sách biến thể sơn khớp điều kiện:</label
+              >
+
+              <div class="variant-search-container">
+                <table class="variant-search-table">
+                  <thead class="variant-search-thead">
+                    <tr>
+                      <th class="variant-search-th-left">Chi tiết sản phẩm</th>
+                      <th class="variant-search-th-right">Giá niêm yết</th>
+                      <th class="variant-search-th-center">Hành động</th>
+                    </tr>
+                  </thead>
+                  <tbody id="variantSearchResultsBody">
+                    <tr>
+                      <td colspan="3" class="table-placeholder">
+                        Đang tải danh sách biến thể sản phẩm...
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div id="selectedVariantBlock" class="selected-variant-block">
+                <p class="selected-variant-title">
+                  📌 Bạn đang chọn:
+                  <strong
+                    id="selectedVariantName"
+                    class="variant-name-highlight"
+                    >-</strong
+                  >
+                </p>
+                <input type="hidden" id="selectedVariantId" value="" />
+
+                <div class="form-group">
+                  <label>Mã hệ thống màu pha (Nếu có)</label>
+                  <select id="orderColorSelect">
+                    <option value="">-- Sơn gốc / Không pha màu --</option>
+                  </select>
+                </div>
+
+                <div class="form-grid-2col">
+                  <div class="form-group">
+                    <label>Đơn giá xuất bán (đ)</label>
+                    <input type="number" id="orderItemPrice" placeholder="0" />
+                  </div>
+                  <div class="form-group">
+                    <label>Số lượng đặt *</label>
+                    <input type="number" id="orderItemQty" value="1" min="1" />
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  id="addItemBtn"
+                  class="btn-add-item btn-green"
+                >
+                  ➕ Thêm vào danh sách đơn
+                </button>
+              </div>
+            </section>
+          </div>
+
+          <div class="col-cart">
+            <section class="admin-card h-full">
+              <h2>Danh sách mặt hàng chọn mua</h2>
+              <div class="table-responsive">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Sản phẩm sơn</th>
+                      <th>Mã màu</th>
+                      <th class="w-70">SL</th>
+                      <th>Đơn giá</th>
+                      <th>Thành tiền</th>
+                      <th class="w-40"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="cartTableBody">
+                    <tr>
+                      <td colspan="6" class="table-placeholder">
+                        Chưa có sản phẩm nào được chọn.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="summary-box">
+                <h3>Tổng tiền thanh toán:</h3>
+                <div class="item-total cart-total-large" id="cartTotalLabel">
+                  0 VNĐ
+                </div>
+                <button
+                  type="button"
+                  class="btn-submit-order"
+                  id="submitOrderBtn"
+                >
+                  Xác nhận đặt đơn & Lưu hệ thống
+                </button>
+              </div>
+            </section>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/admin-common.js"></script>
+
+    <script>
+      console.log(
+        "🚀 [Hệ thống] File order-create.html đã nạp Script thành công!",
+      );
+
+      let currentOrderItems = [];
+      let customerMap = {};
+      let variantMap = {};
+      let colorMap = {};
+
+      try {
+        if (typeof mountAdminSidebar === "function")
+          mountAdminSidebar("create-order");
+        if (typeof initAdminShell === "function") initAdminShell();
+      } catch (themeError) {
+        console.error("❌ Lỗi dựng giao diện khung:", themeError);
+      }
+
+      async function initOrderForm() {
+        let token = "";
+        try {
+          if (typeof getAdminToken === "function") token = getAdminToken();
+        } catch (e) {}
+
+        // A. TẢI DANH SÁCH TỈNH THÀNH
+        try {
+          if (typeof loadProvincesIntoSelect === "function") {
+            await loadProvincesIntoSelect("orderProvinceSelect");
+          }
+        } catch (err) {
+          console.error("❌ Lỗi nạp Tỉnh:", err);
+        }
+
+        // B. TẢI DANH SÁCH KHÁCH HÀNG ĐỐI TÁC
+        try {
+          const resCust = await fetch(API_ROUTES.GET_CUSTOMERS, {
+            headers: { Authorization: "Bearer " + token },
+          });
+          if (resCust.ok) {
+            const customers = await resCust.json();
+            const custSelect = document.getElementById("orderCustomerSelect");
+            if (custSelect && Array.isArray(customers)) {
+              custSelect.innerHTML =
+                '<option value="">-- Chọn khách hàng đối tác --</option>';
+              customers.forEach((c) => {
+                customerMap[c.customer_id] = c;
+                custSelect.innerHTML += `<option value="${c.customer_id}">${c.name} (${c.phone || "Không SĐT"})</option>`;
+              });
+            }
+          }
+        } catch (err) {
+          console.error("❌ Lỗi nạp Khách hàng:", err);
+        }
+
+        // C. TẢI TOÀN BỘ BIẾN THỂ SƠN
+        try {
+          const resVar = await fetch(API_ROUTES.GET_VARIANTS, {
+            headers: { Authorization: "Bearer " + token },
+          });
+          if (resVar.ok) {
+            const variants = await resVar.json();
+            if (Array.isArray(variants)) {
+              variants.forEach((v) => {
+                variantMap[v.variant_id] = v;
+              });
+              generateDynamicFilterOptions(variants);
+              renderVariantSearchResults(variants);
+            }
+          }
+        } catch (err) {
+          console.error("❌ Lỗi nạp Biến thể sơn:", err);
+        }
+
+        // D. TẢI DANH SÁCH MÃ MÀU PHA HỆ THỐNG
+        try {
+          const resCol = await fetch(API_ROUTES.GET_COLORS, {
+            headers: { Authorization: "Bearer " + token },
+          });
+          if (resCol.ok) {
+            const colors = await resCol.json();
+            const colSelect = document.getElementById("orderColorSelect");
+            if (colSelect && Array.isArray(colors)) {
+              colSelect.innerHTML =
+                '<option value="">-- Sơn gốc / Không pha màu --</option>';
+              colors.forEach((c) => {
+                colorMap[c.color_id] = c;
+                colSelect.innerHTML += `<option value="${c.color_id}">${c.color_code} ${c.color_name ? "- " + c.color_name : ""}</option>`;
+              });
+            }
+          }
+        } catch (err) {
+          console.error("❌ Lỗi nạp Mã màu:", err);
+        }
+      }
+
+      function generateDynamicFilterOptions(variants) {
+        const brandSelect = document.getElementById("searchBrand");
+        const baseSelect = document.getElementById("searchBase");
+        const uniqueBrands = {};
+        const uniqueBases = {};
+
+        variants.forEach((v) => {
+          if (v.brand_id && v.brand_name)
+            uniqueBrands[v.brand_id] = v.brand_name;
+          if (v.base_id && v.base_name) uniqueBases[v.base_id] = v.base_name;
+        });
+
+        brandSelect.innerHTML =
+          '<option value="">-- Tất cả thương hiệu --</option>';
+        Object.keys(uniqueBrands).forEach((id) => {
+          brandSelect.innerHTML += `<option value="${id}">${uniqueBrands[id]}</option>`;
+        });
+
+        baseSelect.innerHTML = '<option value="">-- Tất cả Base --</option>';
+        Object.keys(uniqueBases).forEach((id) => {
+          baseSelect.innerHTML += `<option value="${id}"> ${uniqueBases[id]}</option>`;
+        });
+      }
+
+      function renderVariantSearchResults(variants) {
+        const tbody = document.getElementById("variantSearchResultsBody");
+        if (!tbody) return;
+
+        if (variants.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="3" class="table-no-results">Không tìm thấy sản phẩm nào khớp bộ lọc!</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = variants
+          .map((v) => {
+            const priceDisplay = v.unit_price
+              ? v.unit_price.toLocaleString("vi-VN") + " đ"
+              : "0 đ";
+            return `
+            <tr>
+              <td class="variant-row-details">
+                <span class="variant-title">[${v.brand_name || "N/A"}] ${v.line_name}</span><br>
+                <small class="variant-meta">Mã SKU: <code>${v.sku_code || "-"}</code> | Base: ${v.base_name} | Đóng gói: ${v.volume || "Mặc định"}</small>
+              </td>
+              <td class="variant-row-price">${priceDisplay}</td>
+              <td class="variant-row-action">
+                <button type="button" class="btn-remove btn-select-variant" onclick="selectVariantToConfigure(${v.variant_id})">Chọn</button>
+              </td>
+            </tr>
+          `;
+          })
+          .join("");
+      }
+
+      function selectVariantToConfigure(variantId) {
+        const v = variantMap[variantId];
+        if (!v) return;
+
+        document.getElementById("selectedVariantId").value = variantId;
+        document.getElementById("selectedVariantName").innerText =
+          `[${v.brand_name || "-"}] ${v.line_name} - Quy cách: ${v.volume || "Mặc định"} (SKU: ${v.sku_code || "-"})`;
+        document.getElementById("orderItemPrice").value = v.unit_price || 0;
+        document.getElementById("orderItemQty").value = 1;
+
+        document.getElementById("selectedVariantBlock").style.display = "block";
+        document.getElementById("orderItemQty").focus();
+      }
+
+      document
+        .getElementById("btnSearchVariants")
+        .addEventListener("click", async () => {
+          let token = "";
+          try {
+            if (typeof getAdminToken === "function") token = getAdminToken();
+          } catch (e) {}
+
+          const sku = document.getElementById("searchSku").value.trim();
+          const volume = document.getElementById("searchVolume").value;
+          const brandId = document.getElementById("searchBrand").value;
+          const baseId = document.getElementById("searchBase").value;
+
+          const query = new URLSearchParams();
+          if (sku) query.append("sku_code", sku);
+          if (volume) query.append("volume", volume);
+          if (brandId) query.append("brand_id", brandId);
+          if (baseId) query.append("base_id", baseId);
+
+          document.getElementById("variantSearchResultsBody").innerHTML =
+            `<tr><td colspan="3" class="table-placeholder">Đang tìm kiếm...</td></tr>`;
+
+          try {
+            const res = await fetch(
+              `${API_ROUTES.GET_VARIANTS}?${query.toString()}`,
+              {
+                headers: { Authorization: "Bearer " + token },
+              },
+            );
+            if (res.ok) {
+              const variants = await res.json();
+              if (Array.isArray(variants)) {
+                variants.forEach((v) => {
+                  variantMap[v.variant_id] = v;
+                });
+                renderVariantSearchResults(variants);
+              }
+            }
+          } catch (err) {
+            console.error("❌ Lỗi tìm kiếm biến thể sản phẩm:", err);
+          }
+        });
+
+      const provSelect = document.getElementById("orderProvinceSelect");
+      if (provSelect) {
+        provSelect.addEventListener("change", function () {
+          if (typeof loadWardsIntoSelect === "function") {
+            loadWardsIntoSelect(this.value, "orderWardSelect");
+          }
+        });
+      }
+
+      document
+        .getElementById("syncAddressBtn")
+        .addEventListener("click", async () => {
+          const customerId = document.getElementById(
+            "orderCustomerSelect",
+          ).value;
+          if (!customerId) return alert("Vui lòng chọn một khách hàng trước!");
+
+          const cust = customerMap[customerId];
+          if (!cust) return;
+
+          document.getElementById("orderSpecificAddress").value =
+            cust.street_address || "";
+
+          if (cust.province_id) {
+            document.getElementById("orderProvinceSelect").value =
+              cust.province_id;
+            if (typeof loadWardsIntoSelect === "function") {
+              await loadWardsIntoSelect(cust.province_id, "orderWardSelect");
+              if (cust.ward_id) {
+                document.getElementById("orderWardSelect").value = cust.ward_id;
+              }
+            }
+          }
+        });
+
+      document.getElementById("addItemBtn").addEventListener("click", () => {
+        const variantId = document.getElementById("selectedVariantId").value;
+        const colorId = document.getElementById("orderColorSelect").value;
+        const price = parseFloat(
+          document.getElementById("orderItemPrice").value,
+        );
+        const qty = parseInt(document.getElementById("orderItemQty").value);
+
+        if (
+          !variantId ||
+          isNaN(price) ||
+          price <= 0 ||
+          isNaN(qty) ||
+          qty <= 0
+        ) {
+          return alert(
+            "Vui lòng kiểm tra lại thông tin sản phẩm, giá bán và số lượng đặt hàng!",
+          );
+        }
+
+        const existingItem = currentOrderItems.find(
+          (i) =>
+            String(i.variant_id) === String(variantId) &&
+            String(i.color_id) === String(colorId || null),
+        );
+        if (existingItem) {
+          existingItem.quantity += qty;
+        } else {
+          currentOrderItems.push({
+            variant_id: parseInt(variantId),
+            color_id: colorId ? parseInt(colorId) : null,
+            price,
+            quantity: qty,
+          });
+        }
+        renderCart();
+      });
+
+      document
+        .getElementById("submitOrderBtn")
+        .addEventListener("click", async () => {
+          const customerId = document.getElementById(
+            "orderCustomerSelect",
+          ).value;
+          const wardId = document.getElementById("orderWardSelect").value;
+          const specAddress = document
+            .getElementById("orderSpecificAddress")
+            .value.trim();
+
+          if (!customerId || !wardId || !specAddress) {
+            return alert(
+              "Vui lòng điền đầy đủ thông tin nhận hàng (Tỉnh, Phường, Số nhà)!",
+            );
+          }
+          if (currentOrderItems.length === 0)
+            return alert("Giỏ hàng đang trống!");
+          if (!confirm("Xác nhận tạo đơn hàng này?")) return;
+
+          try {
+            const res = await fetch(API_ROUTES.ADD_ORDER, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization:
+                  "Bearer " +
+                  (typeof getAdminToken === "function" ? getAdminToken() : ""),
+              },
+              body: JSON.stringify({
+                customer_id: parseInt(customerId),
+                ward_id: parseInt(wardId),
+                street_address: specAddress,
+                items: currentOrderItems,
+              }),
+            });
+
+            const data = await res.json();
+            if (res.ok && data.success) {
+              alert("Tạo đơn hàng thành công! Mã đơn: #" + data.order_id);
+              currentOrderItems = [];
+              document.getElementById("orderCustomerSelect").value = "";
+              document.getElementById("orderProvinceSelect").value = "";
+              document.getElementById("orderWardSelect").innerHTML =
+                '<option value="">-- Chọn Phường/Xã --</option>';
+              document.getElementById("orderSpecificAddress").value = "";
+
+              document.getElementById("selectedVariantBlock").style.display =
+                "none";
+              document.getElementById("selectedVariantId").value = "";
+
+              renderCart();
+            } else {
+              alert(data.error || "Lỗi tạo đơn hàng.");
+            }
+          } catch (e) {
+            alert("Lỗi kết nối máy chủ.");
+          }
+        });
+
+      function renderCart() {
+        const tbody = document.getElementById("cartTableBody");
+        const totalLabel = document.getElementById("cartTotalLabel");
+        if (!tbody || !totalLabel) return;
+
+        if (currentOrderItems.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="6" class="table-placeholder">Chưa có sản phẩm nào được chọn.</td></tr>`;
+          totalLabel.innerText = "0 VNĐ";
+          return;
+        }
+        tbody.innerHTML = "";
+        let total = 0;
+        currentOrderItems.forEach((item, idx) => {
+          const v = variantMap[item.variant_id];
+          const c = colorMap[item.color_id];
+          const sub = item.price * item.quantity;
+          total += sub;
+
+          const variantName = v
+            ? `[${v.brand_name || "-"}] ${v.line_name} (${v.volume || "Mặc định"})`
+            : `Sơn mã #${item.variant_id}`;
+
+          tbody.innerHTML += `<tr>
+            <td><strong>${variantName}</strong></td>
+            <td><span class="badge color-badge">${c ? c.color_code : "Sơn gốc"}</span></td>
+            <td>${item.quantity}</td>
+            <td>${item.price.toLocaleString("vi-VN")} đ</td>
+            <td><strong class="item-total">${sub.toLocaleString("vi-VN")} đ</strong></td>
+            <td><button type="button" class="btn-remove" onclick="removeItemFromCart(${idx})">Xóa</button></td>
+          </tr>`;
+        });
+        totalLabel.innerText = total.toLocaleString("vi-VN") + " VNĐ";
+      }
+
+      function removeItemFromCart(index) {
+        currentOrderItems.splice(index, 1);
+        renderCart();
+      }
+
+      window.addEventListener("DOMContentLoaded", () => {
+        initOrderForm();
+      });
+    </script>
+  </body>
+</html>

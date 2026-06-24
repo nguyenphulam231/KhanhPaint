@@ -41,6 +41,7 @@ function renderAdminSidebar(activeNav) {
       <a class="menu-item ${activeNav === "shifts" ? "active" : ""}" data-admin-nav="shifts" href="/admin/shift-manage.html">Quản lý Ca làm</a>
       <a class="menu-item ${activeNav === "assign-shift" ? "active" : ""}" data-admin-nav="assign-shift" href="/admin/shift-assign.html">Phân ca làm việc</a>
       <a class="menu-item ${activeNav === "customers" ? "active" : ""}" data-admin-nav="customers" href="/admin/customer-manage.html">Quản lý Khách hàng</a>
+      <a class="menu-item ${activeNav === "create-order" ? "active" : ""}" data-admin-nav="create-order" href="/admin/order-create.html">Tạo đơn hàng mới</a>
       <a class="menu-item" href="#" id="logoutLink" style="color: #ffcccc">Đăng xuất</a>
     </aside>
   `;

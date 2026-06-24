@@ -55,4 +55,5 @@ const API_ROUTES = {
   DELETE_CUSTOMER: (id) => `/api/admin/customers/delete/${id}`,
   GEO_PROVINCES: "/api/auth/provinces",
   GEO_WARDS: (provinceId) => `/api/auth/wards/${provinceId}`,
+  ADD_ORDER: "/api/admin/orders/add",
 };
