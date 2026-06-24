@@ -163,4 +163,32 @@ router.delete("/delete/:variant_id", async (req, res) => {
   }
 });
 
+// 5. Nhập hàng (cộng thêm vào tồn kho)
+router.put("/restock/:variant_id", async (req, res) => {
+  const { variant_id } = req.params;
+  const { quantity } = req.body;
+
+  if (!quantity || parseInt(quantity) <= 0) {
+    return res
+      .status(400)
+      .json({ success: false, error: "Số lượng không hợp lệ!" });
+  }
+
+  try {
+    await db.execute(
+      "UPDATE productvariants SET stock_quantity = stock_quantity + ? WHERE variant_id = ?",
+      [parseInt(quantity), variant_id],
+    );
+
+    const [[updated]] = await db.execute(
+      "SELECT stock_quantity FROM productvariants WHERE variant_id = ?",
+      [variant_id],
+    );
+
+    res.json({ success: true, new_stock: updated.stock_quantity });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;

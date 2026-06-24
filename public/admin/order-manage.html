@@ -1,0 +1,603 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/style.css" />
+    <title>Quản lý Đơn hàng</title>
+    <style>
+      .btn-cancel {
+        background-color: #6c757d;
+        color: #fff;
+        border: none;
+        padding: 10px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-left: 5px;
+      }
+      .d-none {
+        display: none !important;
+      }
+      .action-link {
+        cursor: pointer;
+        border: none;
+        background: none;
+        text-decoration: underline;
+        font-weight: bold;
+        font-size: 13px;
+      }
+      .edit-link {
+        color: #ffc107;
+        margin-right: 8px;
+      }
+      .delete-link {
+        color: #dc3545;
+      }
+
+      /* Badge trạng thái đơn sơn */
+      .badge {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: bold;
+        display: inline-block;
+      }
+      .badge-pending {
+        background-color: #ffeeba;
+        color: #856404;
+      }
+      .badge-approved {
+        background-color: #cce5ff;
+        color: #004085;
+      }
+      .badge-delivered {
+        background-color: #d4edda;
+        color: #155724;
+      }
+      .badge-rejected {
+        background-color: #f8d7da;
+        color: #721c24;
+      }
+
+      .btn-status {
+        padding: 4px 8px;
+        margin: 2px;
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+        font-size: 11px;
+        font-weight: bold;
+        color: #fff;
+      }
+      .btn-approve {
+        background-color: #28a745;
+      }
+      .btn-deliver {
+        background-color: #007bff;
+      }
+      .btn-reject {
+        background-color: #dc3545;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="admin-container">
+      <div id="admin-sidebar"></div>
+
+      <main class="main-content">
+        <div class="page-header">
+          <div>
+            <p class="eyebrow">Điều phối kinh doanh đại lý</p>
+            <h1 id="formTitle">Chi tiết / Chỉnh sửa đơn hàng</h1>
+          </div>
+        </div>
+
+        <section
+          id="editOrderSection"
+          class="admin-card d-none"
+          style="margin-bottom: 2rem"
+        >
+          <div
+            class="form-section"
+            style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px"
+          >
+            <div>
+              <label><b>Nhân viên phụ trách sales:</b></label>
+              <select
+                id="salesRepSelect"
+                style="width: 100%; padding: 8px; margin-top: 5px"
+              ></select>
+            </div>
+            <div>
+              <label><b>Kỹ thuật viên pha sơn:</b></label>
+              <select
+                id="techSelect"
+                style="width: 100%; padding: 8px; margin-top: 5px"
+              ></select>
+            </div>
+            <div>
+              <label><b>Ca làm việc nhận đơn:</b></label>
+              <select
+                id="shiftSelect"
+                style="width: 100%; padding: 8px; margin-top: 5px"
+              ></select>
+            </div>
+            <div>
+              <label><b>Tổng tiền đơn hàng (VNĐ):</b></label>
+              <input
+                type="number"
+                id="orderTotalAmount"
+                style="width: 100%; padding: 8px; margin-top: 5px"
+              />
+            </div>
+            <div>
+              <label><b>Tỉnh/Thành giao hàng:</b></label>
+              <select
+                id="provinceSelect"
+                style="width: 100%; padding: 8px; margin-top: 5px"
+              ></select>
+            </div>
+            <div>
+              <label><b>Phường/Xã giao hàng:</b></label>
+              <select
+                id="wardSelect"
+                style="width: 100%; padding: 8px; margin-top: 5px"
+              ></select>
+            </div>
+            <div style="grid-column: span 2">
+              <label><b>Địa chỉ nhà / Số đường cụ thể:</b></label>
+              <input
+                type="text"
+                id="streetAddressInput"
+                style="width: 100%; padding: 8px; margin-top: 5px"
+              />
+            </div>
+            <div style="grid-column: span 2">
+              <label><b>Trạng thái đơn hàng:</b></label>
+              <select
+                id="statusSelect"
+                style="width: 100%; padding: 8px; margin-top: 5px"
+              >
+                <option value="chưa duyệt">Chưa duyệt</option>
+                <option value="đã duyệt">Đã duyệt</option>
+                <option value="đã giao">Đã giao</option>
+                <option value="từ chối">Từ chối đơn hàng</option>
+              </select>
+            </div>
+            <div
+              style="
+                grid-column: span 2;
+                margin-top: 15px;
+                border-top: 2px dashed #ddd;
+                padding-top: 15px;
+              "
+            >
+              <h4 style="margin-bottom: 10px; color: #004085">
+                Danh sách sản phẩm cần pha (Chi tiết đơn hàng)
+              </h4>
+              <div style="overflow-x: auto">
+                <table
+                  style="
+                    width: 100%;
+                    border-collapse: collapse;
+                    text-align: left;
+                    font-size: 13px;
+                    background-color: #fff;
+                  "
+                >
+                  <thead>
+                    <tr
+                      style="
+                        border-bottom: 2px solid #007bff;
+                        height: 35px;
+                        background-color: #f8f9fa;
+                      "
+                    >
+                      <th style="padding: 5px">Dòng sản phẩm</th>
+                      <th style="padding: 5px">Mã SKU</th>
+                      <th style="padding: 5px">Loại Base</th>
+                      <th style="padding: 5px">Dung tích</th>
+                      <th style="padding: 5px">Hệ màu / Tên màu</th>
+                      <th style="padding: 5px; text-align: center">Số lượng</th>
+                      <th style="padding: 5px; text-align: right">
+                        Đơn giá lúc bán
+                      </th>
+                      <th style="padding: 5px; text-align: right">
+                        Thành tiền
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody id="orderItemsBody">
+                    <tr>
+                      <td
+                        colspan="8"
+                        style="
+                          text-align: center;
+                          padding: 15px;
+                          color: #6c757d;
+                        "
+                      >
+                        Chọn một đơn hàng bên dưới để xem chi tiết sản phẩm.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div style="grid-column: span 2; margin-top: 10px">
+              <button id="saveOrderBtn" type="button">Cập nhật đơn hàng</button>
+              <button id="cancelEditBtn" type="button" class="btn-cancel">
+                Hủy bỏ
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section class="admin-card">
+          <h3>Danh sách quản lý đơn hàng đại lý</h3>
+          <div style="overflow-x: auto; margin-top: 1rem">
+            <table
+              style="width: 100%; border-collapse: collapse; text-align: left"
+            >
+              <thead>
+                <tr style="border-bottom: 2px solid #ddd; height: 40px">
+                  <th>Mã Đơn</th>
+                  <th>Khách hàng</th>
+                  <th>Phụ trách / Ca</th>
+                  <th>Địa chỉ giao hàng</th>
+                  <th>Tổng tiền</th>
+                  <th>Trạng thái</th>
+                  <th style="width: 220px">Xử lý nhanh</th>
+                  <th>Hành động</th>
+                </tr>
+              </thead>
+              <tbody id="orderListBody">
+                <tr>
+                  <td colspan="8" style="text-align: center; padding: 20px">
+                    Đang truy xuất danh sách đơn hàng sơn...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/admin-common.js"></script>
+    <script>
+      // Gắn sidebar động mục 'orders'
+      mountAdminSidebar("orders");
+      initAdminShell();
+
+      const tbody = document.getElementById("orderListBody");
+      const editSection = document.getElementById("editOrderSection");
+
+      // Các trường form edit
+      const salesRepSelect = document.getElementById("salesRepSelect");
+      const techSelect = document.getElementById("techSelect");
+      const shiftSelect = document.getElementById("shiftSelect");
+      const orderTotalAmount = document.getElementById("orderTotalAmount");
+      const provinceSelect = document.getElementById("provinceSelect");
+      const wardSelect = document.getElementById("wardSelect");
+      const streetAddressInput = document.getElementById("streetAddressInput");
+      const statusSelect = document.getElementById("statusSelect");
+
+      const saveOrderBtn = document.getElementById("saveOrderBtn");
+      const cancelEditBtn = document.getElementById("cancelEditBtn");
+
+      let editingOrderId = null;
+      let cachedOrders = []; // Lưu trữ tạm danh sách để đổ dữ liệu khi bấm sửa nhanh
+
+      // 1. Tải danh sách đơn hàng
+      async function loadOrders() {
+        try {
+          console.log("👉 Xem thử trong API_ROUTES có gì nào:", API_ROUTES);
+          const response = await fetch(API_ROUTES.GET_ORDERS, {
+            headers: { Authorization: "Bearer " + getAdminToken() },
+          });
+          if (!response.ok) {
+            // Đọc chi tiết lỗi do backend trả về (nếu có)
+            const errorData = await response.json().catch(() => ({}));
+            console.error("❌ Chi tiết lỗi từ Backend:", errorData);
+            throw new Error(
+              errorData.error || `Server trả về mã lỗi: ${response.status}`,
+            );
+          }
+          cachedOrders = await response.json();
+          if (cachedOrders.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 20px;">Hệ thống chưa ghi nhận đơn hàng nào.</td></tr>`;
+            return;
+          }
+
+          tbody.innerHTML = cachedOrders
+            .map((order) => {
+              let statusBadge = "";
+              let quickActions = "";
+
+              // Định dạng badge trạng thái đơn
+              if (order.status === "chưa duyệt") {
+                statusBadge = `<span class="badge badge-pending">Chưa duyệt</span>`;
+                quickActions = `
+                <button class="btn-status btn-approve" onclick="changeStatus(${order.order_id}, 'đã duyệt')">Duyệt đơn</button>
+                <button class="btn-status btn-reject" onclick="changeStatus(${order.order_id}, 'từ chối')">Từ chối</button>
+              `;
+              } else if (order.status === "đã duyệt") {
+                statusBadge = `<span class="badge badge-approved">Đã duyệt</span>`;
+                quickActions = `
+                <button class="btn-status btn-deliver" onclick="changeStatus(${order.order_id}, 'đã giao')">Xác nhận giao</button>
+                <button class="btn-status btn-reject" onclick="changeStatus(${order.order_id}, 'từ chối')">Từ chối</button>
+              `;
+              } else if (order.status === "đã giao") {
+                statusBadge = `<span class="badge badge-delivered">Đã giao hoàn tất</span>`;
+                quickActions = `<span style="color:#6c757d; font-size:12px;">Không có</span>`;
+              } else {
+                statusBadge = `<span class="badge badge-rejected">Đã hủy/Từ chối</span>`;
+                quickActions = `<button class="btn-status btn-approve" onclick="changeStatus(${order.order_id}, 'chưa duyệt')">Khôi phục đơn</button>`;
+              }
+
+              const staffInfo = `
+              <div style="font-size:12px;">
+                Sales: ${order.sales_rep_name || "<i>Chưa gán</i>"}<br>
+                Tech: ${order.tech_name || "<i>Chưa gán</i>"}<br>
+                Ca: ${order.shift_name || "<i>Chưa gán</i>"}
+              </div>
+            `;
+
+              const fullAddress =
+                `${order.street_address || ""}, ${order.ward_name || ""}, ${order.province_name || ""}`.replace(
+                  /^,\s*|,\s*$/,
+                  "",
+                );
+
+              return `
+                <tr style="border-bottom: 1px solid #eee; height: 50px; font-size: 14px;">
+                <td>
+                    <b>#${order.order_id}</b>
+                    <div style="font-size: 11px; color: #6c757d; margin-top: 4px; white-space: nowrap;">
+                     ${formatDateTime(order.created_at)}
+                    </div>
+                </td>
+    <td><b>${order.customer_name}</b></td>
+    <td>${staffInfo}</td>
+    <td style="max-width: 200px; word-wrap: break-word;">${fullAddress || "<i>Chưa cập nhật</i>"}</td>
+    <td><b style="color:#28a745;">${parseFloat(order.total_amount).toLocaleString("vi-VN")} đ</b></td>
+    <td>${statusBadge}</td>
+    <td>${quickActions}</td>
+    <td>
+      <button class="action-link edit-link" onclick="prepareEdit(${order.order_id})">Chi tiết</button>
+      <button class="action-link delete-link" onclick="deleteOrder(${order.order_id})">Xóa</button>
+    </td>
+  </tr>
+`;
+            })
+            .join("");
+        } catch (error) {
+          console.error(error);
+          tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: red; padding: 20px;">Không thể nạp dữ liệu đơn hàng!</td></tr>`;
+        }
+      }
+
+      // 2. Hàm chuyển đổi trạng thái nhanh bằng nút bấm duyệt / từ chối / giao hàng
+      async function changeStatus(id, newStatus) {
+        if (
+          !confirm(
+            `Bạn chắc chắn muốn chuyển trạng thái đơn hàng #${id} sang "${newStatus}"?`,
+          )
+        )
+          return;
+        try {
+          const response = await fetch(API_ROUTES.UPDATE_ORDER_STATUS(id), {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + getAdminToken(),
+            },
+            body: JSON.stringify({ status: newStatus }),
+          });
+          const result = await response.json();
+          if (response.ok && result.success) {
+            alert(result.message);
+            loadOrders();
+            if (editingOrderId === id) resetForm();
+          } else {
+            alert(result.error || "Thao tác đổi trạng thái thất bại.");
+          }
+        } catch (err) {
+          alert("Lỗi kết nối Server.");
+        }
+      }
+
+      // 3. Chuẩn bị dữ liệu form để Chỉnh sửa chi tiết & Xem sản phẩm pha sơn
+      async function prepareEdit(id) {
+        const order = cachedOrders.find((o) => o.order_id === id);
+        if (!order) return;
+
+        editingOrderId = id;
+        editSection.classList.remove("d-none");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+
+        // CẬP NHẬT: Hiển thị kèm ngày giờ tạo đơn lên tiêu đề form chi tiết
+        const timeStr = formatDateTime(order.created_at);
+        document.getElementById("formTitle").innerHTML =
+          `Chi tiết / Điều phối đơn hàng #${id} <span style="font-size: 14px; color: #6c757d; font-weight: normal;">(Ngày tạo: ${timeStr})</span>`;
+
+        // Điền dữ liệu cơ bản vào các ô input/select
+        orderTotalAmount.value = order.total_amount;
+        streetAddressInput.value = order.street_address || "";
+        statusSelect.value = order.status;
+
+        salesRepSelect.value = order.sales_rep_id || "";
+        techSelect.value = order.tech_id || "";
+        shiftSelect.value = order.shift_id || "";
+
+        // Xử lý nạp địa lý Tỉnh -> Xã
+        if (order.ward_id) {
+          wardSelect.innerHTML = `<option value="${order.ward_id}">${order.ward_name || "Phường xã hiện tại"}</option>`;
+        }
+
+        // --- ĐOẠN XỬ LÝ TẢI CHI TIẾT SẢN PHẨM TRONG ĐƠN ---
+        const itemsBody = document.getElementById("orderItemsBody");
+        itemsBody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 15px;">Đang truy xuất thông tin pha sơn...</td></tr>`;
+
+        try {
+          // Xây dựng đường dẫn API tương thích với cấu trúc API_ROUTES của bạn
+          const detailsUrl = `${API_ROUTES.GET_ORDERS}/${id}/details`;
+
+          const response = await fetch(detailsUrl, {
+            headers: { Authorization: "Bearer " + getAdminToken() },
+          });
+
+          if (!response.ok)
+            throw new Error("Không thể tải dữ liệu chi tiết từ server.");
+
+          const items = await response.json();
+
+          if (items.length === 0) {
+            itemsBody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 15px; color: red;">Đơn hàng rỗng hoặc không có dữ liệu sản phẩm chi tiết.</td></tr>`;
+            return;
+          }
+
+          // Đổ dữ liệu chi tiết thùng sơn, loại mã màu lên bảng hiển thị
+          itemsBody.innerHTML = items
+            .map((item) => {
+              const priceAtSale = parseFloat(item.price_at_sale);
+              const qty = parseInt(item.quantity);
+              const subTotal = priceAtSale * qty;
+
+              return `
+              <tr style="border-bottom: 1px solid #eee; height: 35px; vertical-align: middle;">
+                <td style="padding: 5px;"><b>${item.product_line_name}</b></td>
+                <td style="padding: 5px;"><code style="color: #e83e8c;">${item.sku_code}</code></td>
+                <td style="padding: 5px;"><span class="badge" style="background-color:#e2e3e5; color:#383d41;">${item.base_name}</span></td>
+                <td style="padding: 5px;">${item.volume || "N/A"}</td>
+                <td style="padding: 5px;"><b style="color:#007bff;">${item.color_code}</b> (${item.color_name})</td>
+                <td style="padding: 5px; text-align: center;"><b>${qty}</b> thùng</td>
+                <td style="padding: 5px; text-align: right;">${priceAtSale.toLocaleString("vi-VN")} đ</td>
+                <td style="padding: 5px; text-align: right; color:#28a745;"><b>${subTotal.toLocaleString("vi-VN")} đ</b></td>
+              </tr>
+            `;
+            })
+            .join("");
+        } catch (err) {
+          console.error("Lỗi giao diện chi tiết:", err);
+          itemsBody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: red; padding: 15px;">Lỗi hệ thống, không thể nạp cấu trúc sản phẩm!</td></tr>`;
+        }
+      }
+
+      // 4. Hủy bỏ trạng thái chỉnh sửa
+      function resetForm() {
+        editingOrderId = null;
+        editSection.classList.add("d-none");
+        streetAddressInput.value = "";
+        orderTotalAmount.value = "";
+        document.getElementById("formTitle").innerText =
+          "Chi tiết / Chỉnh sửa đơn hàng";
+        document.getElementById("orderItemsBody").innerHTML = `
+          <tr>
+            <td colspan="8" style="text-align: center; padding: 15px; color: #6c757d;">
+              Chọn một đơn hàng bên dưới để xem chi tiết sản phẩm.
+            </td>
+          </tr>
+        `;
+      }
+
+      // 5. Lưu thông tin chỉnh sửa chi tiết đơn hàng
+      saveOrderBtn.addEventListener("click", async () => {
+        if (!editingOrderId) return;
+
+        const data = {
+          sales_rep_id: salesRepSelect.value
+            ? parseInt(salesRepSelect.value)
+            : null,
+          tech_id: techSelect.value ? parseInt(techSelect.value) : null,
+          shift_id: shiftSelect.value ? parseInt(shiftSelect.value) : null,
+          total_amount: parseFloat(orderTotalAmount.value) || 0,
+          street_address: streetAddressInput.value.trim(),
+          ward_id: wardSelect.value ? parseInt(wardSelect.value) : null,
+          status: statusSelect.value,
+        };
+
+        try {
+          const response = await fetch(
+            API_ROUTES.UPDATE_ORDER(editingOrderId),
+            {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: "Bearer " + getAdminToken(),
+              },
+              body: JSON.stringify(data),
+            },
+          );
+          const result = await response.json();
+          if (response.ok && result.success) {
+            alert("Đã cập nhật chi tiết đơn hàng thành công!");
+            resetForm();
+            loadOrders();
+          } else {
+            alert(result.error || "Có lỗi xảy ra.");
+          }
+        } catch (err) {
+          alert("Lỗi hệ thống không thể lưu chỉnh sửa.");
+        }
+      });
+
+      // 6. Xóa đơn hàng hoàn toàn
+      async function deleteOrder(id) {
+        if (
+          !confirm(
+            `Cảnh báo: Bạn có chắc chắn muốn XÓA hoàn toàn đơn hàng #${id}?\nHành động này cũng sẽ tự động xóa tất cả danh sách sản phẩm sơn thuộc chi tiết đơn hàng này!`,
+          )
+        )
+          return;
+
+        try {
+          const response = await fetch(API_ROUTES.DELETE_ORDER(id), {
+            method: "DELETE",
+            headers: { Authorization: "Bearer " + getAdminToken() },
+          });
+          const result = await response.json();
+          if (response.ok && result.success) {
+            alert("Đã xóa đơn hàng thành công!");
+            if (editingOrderId === id) resetForm();
+            loadOrders();
+          } else {
+            alert(result.error || "Không thể thực hiện lệnh xóa đơn hàng.");
+          }
+        } catch (err) {
+          alert("Lỗi kết nối khi xóa đơn.");
+        }
+      }
+      // Hàm hỗ trợ định dạng ngày giờ chuẩn Việt Nam
+      function formatDateTime(isoString) {
+        if (!isoString) return "<i>Chưa rõ</i>";
+        const d = new Date(isoString);
+        return d.toLocaleString("vi-VN", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        });
+      }
+      // Nạp tất cả dữ liệu danh mục khi khởi động trang quản lý
+      window.addEventListener("DOMContentLoaded", async () => {
+        loadOrders();
+
+        // Tận dụng triệt để tài nguyên từ file admin-common.js bạn đã cung cấp sẵn
+        await loadEmployeesIntoSelect("salesRepSelect");
+        await loadEmployeesIntoSelect("techSelect");
+        await loadShiftsIntoSelect("shiftSelect");
+        await loadProvincesIntoSelect("provinceSelect");
+
+        // Sự kiện khi đổi tỉnh thành phố -> Tự động nạp xã
+        provinceSelect.addEventListener("change", async (e) => {
+          await loadWardsIntoSelect(e.target.value, "wardSelect");
+        });
+      });
+    </script>
+  </body>
+</html>

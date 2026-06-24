@@ -1,0 +1,661 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/style.css" />
+    <title>Nhập hàng</title>
+    <style>
+      .import-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 14px;
+        margin-bottom: 20px;
+      }
+      .import-grid > div {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+      .import-grid label {
+        font-size: 12px;
+        font-weight: bold;
+        color: #555;
+      }
+      .import-grid select,
+      .import-grid input {
+        padding: 9px 10px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 13px;
+        width: 100%;
+        box-sizing: border-box;
+      }
+
+      /* Preview card */
+      #variantPreview {
+        display: none;
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        padding: 16px 20px;
+        margin-bottom: 20px;
+      }
+      #variantPreview h4 {
+        margin: 0 0 10px;
+        font-size: 14px;
+        color: #333;
+      }
+      .preview-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+      }
+      .preview-item {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .preview-item span:first-child {
+        font-size: 11px;
+        color: #888;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+      }
+      .preview-item span:last-child {
+        font-size: 14px;
+        font-weight: bold;
+        color: #222;
+      }
+      .stock-highlight {
+        color: #198754 !important;
+      }
+
+      /* Qty input */
+      .qty-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 20px;
+      }
+      .qty-row label {
+        font-size: 13px;
+        font-weight: bold;
+        white-space: nowrap;
+      }
+      .qty-row input {
+        width: 140px;
+        padding: 9px 10px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 15px;
+        font-weight: bold;
+      }
+      .qty-row .after-import {
+        font-size: 13px;
+        color: #555;
+      }
+      .qty-row .after-import b {
+        color: #0d6efd;
+      }
+
+      /* Buttons */
+      .btn-import {
+        background-color: #198754;
+        color: #fff;
+        border: none;
+        padding: 10px 24px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: bold;
+      }
+      .btn-import:disabled {
+        background-color: #adb5bd;
+        cursor: not-allowed;
+      }
+      .btn-reset {
+        background-color: #6c757d;
+        color: #fff;
+        border: none;
+        padding: 10px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        margin-left: 8px;
+      }
+
+      /* Result table */
+      .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+      }
+      .data-table th,
+      .data-table td {
+        border: 1px solid #ddd;
+        padding: 8px 10px;
+        text-align: left;
+      }
+      .data-table th {
+        background-color: #f5f5f5;
+        font-weight: bold;
+      }
+      .data-table tr:nth-child(even) {
+        background-color: #fafafa;
+      }
+      .badge-success {
+        background: #d1e7dd;
+        color: #0f5132;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: bold;
+      }
+      .badge-fail {
+        background: #f8d7da;
+        color: #842029;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: bold;
+      }
+
+      .empty-state {
+        text-align: center;
+        padding: 24px;
+        color: #888;
+        font-size: 14px;
+      }
+
+      /* Filter bar for history */
+      .filter-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: flex-end;
+        margin-bottom: 14px;
+      }
+      .filter-bar > div {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .filter-bar label {
+        font-size: 11px;
+        font-weight: bold;
+        color: #666;
+      }
+      .filter-bar select,
+      .filter-bar input {
+        padding: 7px 10px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 13px;
+        min-width: 130px;
+      }
+      .btn-filter {
+        background-color: #0d6efd;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: bold;
+        align-self: flex-end;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="admin-container">
+      <div id="admin-sidebar"></div>
+
+      <main class="main-content">
+        <div class="page-header">
+          <div>
+            <p class="eyebrow">Quản trị kho hàng</p>
+            <h1>Nhập hàng vào kho</h1>
+          </div>
+        </div>
+
+        <!-- ── Form nhập hàng ─────────────────────────────────── -->
+        <section class="admin-card">
+          <h3 style="margin-top: 0">Chọn sản phẩm cần nhập</h3>
+
+          <div class="import-grid">
+            <div>
+              <label>Thương hiệu <span style="color: red">*</span></label>
+              <select id="brandSelect">
+                <option value="">-- Chọn thương hiệu --</option>
+              </select>
+            </div>
+            <div>
+              <label>Dòng sản phẩm <span style="color: red">*</span></label>
+              <select id="lineSelect" disabled>
+                <option value="">-- Chọn dòng SP --</option>
+              </select>
+            </div>
+            <div>
+              <label>Loại base <span style="color: red">*</span></label>
+              <select id="baseSelect" disabled>
+                <option value="">-- Chọn base --</option>
+              </select>
+            </div>
+            <div>
+              <label>Dung tích <span style="color: red">*</span></label>
+              <select id="volumeSelect" disabled>
+                <option value="">-- Chọn dung tích --</option>
+                <option value="1">1L</option>
+                <option value="5">5L</option>
+                <option value="20">20L</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Preview variant tìm được -->
+          <div id="variantPreview">
+            <h4>📦 Thông tin sản phẩm</h4>
+            <div class="preview-row">
+              <div class="preview-item">
+                <span>SKU</span>
+                <span id="pvSku">—</span>
+              </div>
+              <div class="preview-item">
+                <span>Dòng SP</span>
+                <span id="pvLine">—</span>
+              </div>
+              <div class="preview-item">
+                <span>Base</span>
+                <span id="pvBase">—</span>
+              </div>
+              <div class="preview-item">
+                <span>Dung tích</span>
+                <span id="pvVolume">—</span>
+              </div>
+              <div class="preview-item">
+                <span>Giá bán</span>
+                <span id="pvPrice">—</span>
+              </div>
+              <div class="preview-item">
+                <span>Tồn kho hiện tại</span>
+                <span id="pvStock" class="stock-highlight">—</span>
+              </div>
+              <div class="preview-item">
+                <span>Vị trí kho</span>
+                <span id="pvLocation">—</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Nhập số lượng -->
+          <div class="qty-row" id="qtyRow" style="display: none">
+            <label>Số lượng nhập:</label>
+            <input type="number" id="importQty" min="1" placeholder="VD: 50" />
+            <span class="after-import" id="afterImportHint"></span>
+          </div>
+
+          <div>
+            <button class="btn-import" id="importBtn" disabled>
+              ✅ Xác nhận nhập hàng
+            </button>
+            <button class="btn-reset" id="resetBtn">Làm mới</button>
+          </div>
+        </section>
+
+        <!-- ── Lịch sử nhập trong phiên ───────────────────────── -->
+        <section class="admin-card" style="margin-top: 28px">
+          <h3 style="margin-top: 0">Lịch sử nhập trong phiên này</h3>
+          <div style="overflow-x: auto">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Thương hiệu</th>
+                  <th>SKU</th>
+                  <th>Dòng SP</th>
+                  <th>Base</th>
+                  <th>Dung tích</th>
+                  <th>SL nhập</th>
+                  <th>Tồn trước</th>
+                  <th>Tồn sau</th>
+                  <th>Kết quả</th>
+                </tr>
+              </thead>
+              <tbody id="historyTableBody">
+                <tr>
+                  <td colspan="10" class="empty-state">
+                    Chưa có lần nhập nào trong phiên này.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/admin-common.js"></script>
+    <script>
+      mountAdminSidebar("stock-import");
+      initAdminShell();
+
+      // ── State ────────────────────────────────────────────────
+      let selectedVariant = null;
+      let sessionHistory = [];
+
+      const brandSelect = document.getElementById("brandSelect");
+      const lineSelect = document.getElementById("lineSelect");
+      const baseSelect = document.getElementById("baseSelect");
+      const volumeSelect = document.getElementById("volumeSelect");
+      const importQtyInput = document.getElementById("importQty");
+      const importBtn = document.getElementById("importBtn");
+      const qtyRow = document.getElementById("qtyRow");
+      const variantPreview = document.getElementById("variantPreview");
+
+      // ── Load Brands ──────────────────────────────────────────
+      async function loadBrands() {
+        try {
+          const res = await fetch(API_ROUTES.GET_BRANDS, {
+            headers: { Authorization: "Bearer " + getAdminToken() },
+          });
+          const brands = await res.json();
+          brands.forEach((b) => {
+            brandSelect.innerHTML += `<option value="${b.brand_id}">${b.name}</option>`;
+          });
+        } catch (err) {
+          console.error("Lỗi tải thương hiệu:", err);
+        }
+      }
+
+      // ── Brand → Lines ────────────────────────────────────────
+      brandSelect.addEventListener("change", async function () {
+        resetFromLine();
+        const brandId = this.value;
+        if (!brandId) return;
+
+        lineSelect.innerHTML = '<option value="">-- Chọn dòng SP --</option>';
+        lineSelect.disabled = true;
+
+        try {
+          const res = await fetch(
+            `${API_ROUTES.GET_LINES_BY_BRAND}/${brandId}`,
+            {
+              headers: { Authorization: "Bearer " + getAdminToken() },
+            },
+          );
+          const lines = await res.json();
+          lines.forEach((l) => {
+            lineSelect.innerHTML += `<option value="${l.line_id}">${l.name}</option>`;
+          });
+          lineSelect.disabled = false;
+        } catch (err) {
+          console.error("Lỗi tải dòng SP:", err);
+        }
+      });
+
+      // ── Line → Bases ─────────────────────────────────────────
+      lineSelect.addEventListener("change", async function () {
+        resetFromBase();
+        if (!this.value) return;
+
+        baseSelect.innerHTML = '<option value="">-- Chọn base --</option>';
+        baseSelect.disabled = true;
+
+        try {
+          const res = await fetch(API_ROUTES.GET_BASETYPES, {
+            headers: { Authorization: "Bearer " + getAdminToken() },
+          });
+          const bases = await res.json();
+          bases.forEach((b) => {
+            baseSelect.innerHTML += `<option value="${b.base_id}">${b.base_name}</option>`;
+          });
+          baseSelect.disabled = false;
+        } catch (err) {
+          console.error("Lỗi tải base:", err);
+        }
+      });
+
+      // ── Base/Volume → lookup variant ─────────────────────────
+      baseSelect.addEventListener("change", () => {
+        volumeSelect.disabled = !baseSelect.value;
+        if (!baseSelect.value) volumeSelect.value = "";
+        tryLookupVariant();
+      });
+
+      volumeSelect.addEventListener("change", tryLookupVariant);
+
+      async function tryLookupVariant() {
+        hidePreview();
+        selectedVariant = null;
+        importBtn.disabled = true;
+        qtyRow.style.display = "none";
+
+        const lineId = lineSelect.value;
+        const baseId = baseSelect.value;
+        const volume = volumeSelect.value;
+        if (!lineId || !baseId || !volume) return;
+
+        try {
+          const params = new URLSearchParams({
+            line_id: lineId,
+            base_id: baseId,
+            volume,
+          });
+          const res = await fetch(`${API_ROUTES.GET_VARIANTS}?${params}`, {
+            headers: { Authorization: "Bearer " + getAdminToken() },
+          });
+          const variants = await res.json();
+
+          if (!variants.length) {
+            showPreviewError(
+              "Không tìm thấy sản phẩm phù hợp với lựa chọn này.",
+            );
+            return;
+          }
+
+          selectedVariant = variants[0];
+          showPreview(selectedVariant);
+          qtyRow.style.display = "flex";
+          importQtyInput.value = "";
+          document.getElementById("afterImportHint").textContent = "";
+          importBtn.disabled = false;
+        } catch (err) {
+          console.error("Lỗi tìm variant:", err);
+        }
+      }
+
+      // ── Preview helpers ──────────────────────────────────────
+      function showPreview(v) {
+        document.getElementById("pvSku").textContent = v.sku_code;
+        document.getElementById("pvLine").textContent = v.line_name;
+        document.getElementById("pvBase").textContent = v.base_name;
+        document.getElementById("pvVolume").textContent = v.volume || "—";
+        document.getElementById("pvPrice").textContent =
+          v.unit_price.toLocaleString("vi-VN") + " đ";
+        document.getElementById("pvStock").textContent =
+          v.stock_quantity.toLocaleString("vi-VN");
+        document.getElementById("pvLocation").textContent =
+          v.warehouse_location || "—";
+        variantPreview.style.display = "block";
+        variantPreview.style.borderColor = "#dee2e6";
+        document.querySelector("#variantPreview h4").textContent =
+          "📦 Thông tin sản phẩm";
+      }
+
+      function showPreviewError(msg) {
+        variantPreview.style.display = "block";
+        variantPreview.style.borderColor = "#f5c2c7";
+        document.querySelector("#variantPreview h4").textContent = "⚠️ " + msg;
+        document.querySelector(".preview-row").innerHTML = "";
+      }
+
+      function hidePreview() {
+        variantPreview.style.display = "none";
+        document.querySelector(".preview-row").innerHTML = `
+          <div class="preview-item"><span>SKU</span><span id="pvSku">—</span></div>
+          <div class="preview-item"><span>Dòng SP</span><span id="pvLine">—</span></div>
+          <div class="preview-item"><span>Base</span><span id="pvBase">—</span></div>
+          <div class="preview-item"><span>Dung tích</span><span id="pvVolume">—</span></div>
+          <div class="preview-item"><span>Giá bán</span><span id="pvPrice">—</span></div>
+          <div class="preview-item"><span>Tồn kho hiện tại</span><span id="pvStock" class="stock-highlight">—</span></div>
+          <div class="preview-item"><span>Vị trí kho</span><span id="pvLocation">—</span></div>
+        `;
+      }
+
+      // ── Gợi ý tồn sau khi nhập ──────────────────────────────
+      importQtyInput.addEventListener("input", function () {
+        const qty = parseInt(this.value);
+        const hint = document.getElementById("afterImportHint");
+        if (selectedVariant && qty > 0) {
+          const after = selectedVariant.stock_quantity + qty;
+          hint.innerHTML = `→ Tồn sau khi nhập: <b>${after.toLocaleString("vi-VN")}</b>`;
+        } else {
+          hint.textContent = "";
+        }
+      });
+
+      // ── Xác nhận nhập hàng ──────────────────────────────────
+      importBtn.addEventListener("click", async () => {
+        if (!selectedVariant) return;
+        const qty = parseInt(importQtyInput.value);
+        if (!qty || qty <= 0) {
+          alert("Vui lòng nhập số lượng hợp lệ (≥ 1)!");
+          return;
+        }
+
+        importBtn.disabled = true;
+        importBtn.textContent = "Đang xử lý...";
+
+        const prevStock = selectedVariant.stock_quantity;
+
+        try {
+          const res = await fetch(
+            API_ROUTES.RESTOCK_VARIANT(selectedVariant.variant_id),
+            {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: "Bearer " + getAdminToken(),
+              },
+              body: JSON.stringify({ quantity: qty }),
+            },
+          );
+
+          const result = await res.json().catch(() => null);
+
+          if (res.ok && result?.success) {
+            const newStock = result.new_stock ?? prevStock + qty;
+
+            // Cập nhật preview
+            selectedVariant.stock_quantity = newStock;
+            document.getElementById("pvStock").textContent =
+              newStock.toLocaleString("vi-VN");
+            document.getElementById("afterImportHint").textContent = "";
+            importQtyInput.value = "";
+
+            // Ghi vào lịch sử phiên
+            addToHistory({
+              brand: brandSelect.options[brandSelect.selectedIndex].text,
+              sku: selectedVariant.sku_code,
+              line: selectedVariant.line_name,
+              base: selectedVariant.base_name,
+              volume: selectedVariant.volume,
+              qty,
+              prevStock,
+              newStock,
+              ok: true,
+            });
+
+            alert(
+              `✅ Nhập hàng thành công!\nTồn kho: ${prevStock} → ${newStock}`,
+            );
+          } else {
+            addToHistory({
+              sku: selectedVariant.sku_code,
+              qty,
+              prevStock,
+              newStock: prevStock,
+              ok: false,
+            });
+            alert(result?.error || "Lỗi khi nhập hàng!");
+          }
+        } catch (err) {
+          console.error(err);
+          addToHistory({
+            sku: selectedVariant.sku_code,
+            qty,
+            prevStock,
+            newStock: prevStock,
+            ok: false,
+          });
+          alert("Lỗi kết nối tới máy chủ!");
+        } finally {
+          importBtn.disabled = false;
+          importBtn.textContent = "✅ Xác nhận nhập hàng";
+        }
+      });
+
+      // ── Lịch sử phiên ───────────────────────────────────────
+      function addToHistory(entry) {
+        sessionHistory.unshift(entry);
+        renderHistory();
+      }
+
+      function renderHistory() {
+        const tbody = document.getElementById("historyTableBody");
+        if (!sessionHistory.length) {
+          tbody.innerHTML = `<tr><td colspan="10" class="empty-state">Chưa có lần nhập nào trong phiên này.</td></tr>`;
+          return;
+        }
+        tbody.innerHTML = sessionHistory
+          .map(
+            (e, i) => `
+          <tr>
+            <td>${sessionHistory.length - i}</td>
+            <td>${e.brand || "—"}</td>
+            <td><code>${e.sku}</code></td>
+            <td>${e.line || "—"}</td>
+            <td>${e.base || "—"}</td>
+            <td>${e.volume || "—"}</td>
+            <td><b>+${e.qty.toLocaleString("vi-VN")}</b></td>
+            <td>${e.prevStock.toLocaleString("vi-VN")}</td>
+            <td>${e.newStock.toLocaleString("vi-VN")}</td>
+            <td><span class="${e.ok ? "badge-success" : "badge-fail"}">${e.ok ? "Thành công" : "Thất bại"}</span></td>
+          </tr>
+        `,
+          )
+          .join("");
+      }
+
+      // ── Reset helpers ────────────────────────────────────────
+      function resetFromLine() {
+        lineSelect.value = "";
+        lineSelect.innerHTML = '<option value="">-- Chọn dòng SP --</option>';
+        lineSelect.disabled = true;
+        resetFromBase();
+      }
+
+      function resetFromBase() {
+        baseSelect.value = "";
+        baseSelect.innerHTML = '<option value="">-- Chọn base --</option>';
+        baseSelect.disabled = true;
+        volumeSelect.value = "";
+        volumeSelect.disabled = true;
+        hidePreview();
+        qtyRow.style.display = "none";
+        importBtn.disabled = true;
+        selectedVariant = null;
+      }
+
+      document.getElementById("resetBtn").addEventListener("click", () => {
+        brandSelect.value = "";
+        resetFromLine();
+        importQtyInput.value = "";
+      });
+
+      // ── Init ─────────────────────────────────────────────────
+      loadBrands();
+    </script>
+  </body>
+</html>

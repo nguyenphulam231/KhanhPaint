@@ -56,4 +56,9 @@ const API_ROUTES = {
   GEO_PROVINCES: "/api/auth/provinces",
   GEO_WARDS: (provinceId) => `/api/auth/wards/${provinceId}`,
   ADD_ORDER: "/api/admin/orders/add",
+  GET_ORDERS: "/api/admin/orders",
+  UPDATE_ORDER_STATUS: (id) => `/api/admin/orders/status/${id}`,
+  UPDATE_ORDER: (id) => `/api/admin/orders/update/${id}`,
+  DELETE_ORDER: (id) => `/api/admin/orders/delete/${id}`,
+  RESTOCK_VARIANT: (id) => `/api/admin/variants/restock/${id}`,
 };

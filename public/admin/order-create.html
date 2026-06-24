@@ -1014,6 +1014,7 @@
             color_id: item.color_id,
             color_info: item.color_info,
             liters: colorLiters,
+            pct: item.pct, // ← THÊM DÒNG NÀY
             base_id: item.color_info ? item.color_info.base_id : null,
             decomposition: decomposePackaging(colorLiters),
           });
@@ -1031,7 +1032,8 @@
               base_id: null,
             },
             liters: remainingLiters,
-            base_id: null, // sơn gốc không cần base cụ thể
+            pct: remainingPct, // ← THÊM DÒNG NÀY (đồng bộ cho nhánh sơn gốc)
+            base_id: null,
             decomposition: decomposePackaging(remainingLiters),
           });
         }
