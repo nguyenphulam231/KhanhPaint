@@ -103,7 +103,7 @@ router.put("/update/:id", async (req, res) => {
   try {
     // Kiểm tra trùng email với tài khoản khác
     const [existing] = await db.query(
-      "SELECT * FROM customers WHERE email = ? AND customer_id != ?",
+      "SELECT * FROM v_customers_safe WHERE email = ? AND customer_id != ?",
       [email, customerId],
     );
     if (existing.length > 0) {

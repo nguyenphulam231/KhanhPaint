@@ -221,3 +221,353 @@ BEGIN
 END$$
 
 DELIMITER ;
+
+
+-- -------------------------------------------------------------------------
+-- TRIGGER 2: PHÒNG THỦ BẢNG ORDERDETAILS (CHẶN SỐ LƯỢNG ÂM VÀ GIÁ < 0)
+-- -------------------------------------------------------------------------
+DELIMITER $$
+
+CREATE TRIGGER check_orderdetails_before_insert
+BEFORE INSERT ON orderdetails
+FOR EACH ROW
+BEGIN
+    IF NEW.quantity <= 0 THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'Loi phong thu: So luong san pham mua phai lon hon 0!';
+    END IF;
+    
+    IF NEW.price_at_sale < 0 THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'Loi phong thu: Gia ban khong duoc la so am!';
+    END IF;
+END$$
+
+DELIMITER ;
+
+-- -------------------------------------------------------------------------
+-- TRIGGER 3: PHÒNG THỦ BẢNG CUSTOMERS (CHẶN CÔNG NỢ VƯỢT HẠN MỨC)
+-- -------------------------------------------------------------------------
+DELIMITER $$
+
+CREATE TRIGGER check_customer_debt_before_update
+BEFORE UPDATE ON customers
+FOR EACH ROW
+BEGIN
+    IF NEW.current_debt > NEW.credit_limit THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'Loi phong thu: Khong the cap nhat! No hien tai da vuot qua han muc tin dung.';
+    END IF;
+END$$
+
+DELIMITER ;
+
+-- -------------------------------------------------------------------------
+-- TRIGGER 4: PHÒNG THỦ BẢNG EMPLOYEES (KIỂM TRA ĐỊNH DẠNG EMAIL)
+-- -------------------------------------------------------------------------
+DELIMITER $$
+
+CREATE TRIGGER check_employee_email_before_insert
+BEFORE INSERT ON employees
+FOR EACH ROW
+BEGIN
+    IF NEW.email NOT REGEXP '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$' THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'Loi phong thu: Dinh dang Email cua nhan vien khong hop le!';
+    END IF;
+END$$
+
+DELIMITER ;
+
+-----5. chặn tồn kho tinh màu âm
+
+DELIMITER $$
+
+CREATE TRIGGER check_colorant_stock_before_insert
+BEFORE INSERT ON colorants
+FOR EACH ROW
+BEGIN
+   IF NEW.stock_ml < 0 THEN
+       SIGNAL SQLSTATE '45000'
+       SET MESSAGE_TEXT = 'Loi phong thu: Ton kho tinh mau khong duoc am!';
+   END IF;
+END$$
+
+CREATE TRIGGER check_colorant_stock_before_update
+BEFORE UPDATE ON colorants
+FOR EACH ROW
+BEGIN
+   IF NEW.stock_ml < 0 THEN
+       SIGNAL SQLSTATE '45000'
+       SET MESSAGE_TEXT = 'Loi phong thu: Ton kho tinh mau khong duoc am!';
+   END IF;
+END$$
+
+DELIMITER ;
+
+
+----6. Chặn giá sản phẩm âm
+
+DELIMITER $$
+
+CREATE TRIGGER check_product_price_before_insert
+BEFORE INSERT ON productvariants
+FOR EACH ROW
+BEGIN
+   IF NEW.unit_price < 0 THEN
+       SIGNAL SQLSTATE '45000'
+       SET MESSAGE_TEXT = 'Loi phong thu: Gia san pham khong duoc am!';
+   END IF;
+END$$
+
+CREATE TRIGGER check_product_price_before_update
+BEFORE UPDATE ON productvariants
+FOR EACH ROW
+BEGIN
+   IF NEW.unit_price < 0 THEN
+       SIGNAL SQLSTATE '45000'
+       SET MESSAGE_TEXT = 'Loi phong thu: Gia san pham khong duoc am!';
+   END IF;
+END$$
+
+DELIMITER ;
+
+
+----------7. Chặn giá tinh màu âm
+DELIMITER $$
+
+CREATE TRIGGER check_colorant_price_before_insert
+BEFORE INSERT ON colorants
+FOR EACH ROW
+BEGIN
+   IF NEW.unit_price_per_ml < 0 THEN
+       SIGNAL SQLSTATE '45000'
+       SET MESSAGE_TEXT = 'Loi phong thu: Gia tinh mau khong duoc am!';
+   END IF;
+END$$
+
+CREATE TRIGGER check_colorant_price_before_update
+BEFORE UPDATE ON colorants
+FOR EACH ROW
+BEGIN
+   IF NEW.unit_price_per_ml < 0 THEN
+       SIGNAL SQLSTATE '45000'
+       SET MESSAGE_TEXT = 'Loi phong thu: Gia tinh mau khong duoc am!';
+   END IF;
+END$$
+
+DELIMITER ;
+
+
+----------8. Buộc chiết khấu hãng từ 0 đến 100%
+
+
+DELIMITER $$
+
+CREATE TRIGGER check_brand_discount_before_insert
+BEFORE INSERT ON brands
+FOR EACH ROW
+BEGIN
+   IF NEW.discount_percentage < 0 OR NEW.discount_percentage > 100 THEN
+       SIGNAL SQLSTATE '45000'
+       SET MESSAGE_TEXT = 'Loi phong thu: Chiet khau hang phai nam trong khoang 0 den 100!';
+   END IF;
+END$$
+
+CREATE TRIGGER check_brand_discount_before_update
+BEFORE UPDATE ON brands
+FOR EACH ROW
+BEGIN
+   IF NEW.discount_percentage < 0 OR NEW.discount_percentage > 100 THEN
+       SIGNAL SQLSTATE '45000'
+       SET MESSAGE_TEXT = 'Loi phong thu: Chiet khau hang phai nam trong khoang 0 den 100!';
+   END IF;
+END$$
+
+DELIMITER ;
+
+
+--------9. Chặn lượng tinh màu trong công thức âm
+
+DELIMITER $$
+
+CREATE TRIGGER check_formula_amount_before_insert
+BEFORE INSERT ON colorsystem_colorants
+FOR EACH ROW
+BEGIN
+   IF NEW.amount_ml < 0 THEN
+       SIGNAL SQLSTATE '45000'
+       SET MESSAGE_TEXT = 'Loi phong thu: Luong tinh mau trong cong thuc khong duoc am!';
+   END IF;
+END$$
+
+CREATE TRIGGER check_formula_amount_before_update
+BEFORE UPDATE ON colorsystem_colorants
+FOR EACH ROW
+BEGIN
+   IF NEW.amount_ml < 0 THEN
+       SIGNAL SQLSTATE '45000'
+       SET MESSAGE_TEXT = 'Loi phong thu: Luong tinh mau trong cong thuc khong duoc am!';
+   END IF;
+END$$
+
+DELIMITER ;
+
+
+---------10. Chặn sửa tổng tiền đơn đã giao
+
+DELIMITER $$
+
+CREATE TRIGGER prevent_changing_delivered_order_amount
+BEFORE UPDATE ON orders
+FOR EACH ROW
+BEGIN
+   IF OLD.status = 'đã giao'
+      AND NEW.total_amount <> OLD.total_amount THEN
+       SIGNAL SQLSTATE '45000'
+       SET MESSAGE_TEXT = 'Loi phong thu: Khong duoc thay doi tong tien cua don hang da giao!';
+   END IF;
+END$$
+
+DELIMITER ;
+
+
+---------11. Chặn xóa đơn đã duyệt hoặc đã giao 
+
+
+DELIMITER $$
+
+CREATE TRIGGER prevent_delete_confirmed_order
+BEFORE DELETE ON orders
+FOR EACH ROW
+BEGIN
+   IF OLD.status IN ('đã duyệt', 'đã giao') THEN
+       SIGNAL SQLSTATE '45000'
+       SET MESSAGE_TEXT = 'Loi phong thu: Khong duoc xoa don hang da duyet hoac da giao!';
+   END IF;
+END$$
+
+DELIMITER ;
+
+
+---------12. Hệ thống không có ca qua đêm, nên chặn ca kết thúc trước ca bắt đầu
+
+DELIMITER $$
+
+CREATE TRIGGER check_shift_time_before_insert
+BEFORE INSERT ON shifts
+FOR EACH ROW
+BEGIN
+   IF NEW.start_time >= NEW.end_time THEN
+       SIGNAL SQLSTATE '45000'
+       SET MESSAGE_TEXT = 'Loi phong thu: Gio bat dau ca lam phai nho hon gio ket thuc!';
+   END IF;
+END$$
+
+CREATE TRIGGER check_shift_time_before_update
+BEFORE UPDATE ON shifts
+FOR EACH ROW
+BEGIN
+   IF NEW.start_time >= NEW.end_time THEN
+       SIGNAL SQLSTATE '45000'
+       SET MESSAGE_TEXT = 'Loi phong thu: Gio bat dau ca lam phai nho hon gio ket thuc!';
+   END IF;
+END$$
+
+DELIMITER ;
+
+
+------view1 hiển thị danh sách khách hàng không lộ passhash
+
+CREATE OR REPLACE VIEW v_customers_safe AS
+SELECT
+   customer_id,
+   name,
+   email,
+   phone,
+   street_address,
+   ward_id,
+   credit_limit,
+   current_debt
+FROM customers;
+
+-------view2  hiển thị danh sách nhân viên, không lộ mật khẩu
+
+CREATE OR REPLACE VIEW v_employees_safe AS
+SELECT
+   employee_id,
+   full_name,
+   email,
+   phone,
+   hire_date,
+   job_id,
+   salary,
+   role
+FROM employees;
+
+
+
+------view3   doanh thu, giá vốn và lợi nhuận theo từng đơn.
+
+
+
+CREATE OR REPLACE VIEW v_order_summary AS
+SELECT
+   o.order_id,
+   o.created_at,
+   o.status,
+   c.customer_id,
+   c.name AS customer_name,
+   o.total_amount,
+
+   SUM(od.quantity * od.price_at_sale) AS calculated_revenue,
+   SUM(od.quantity * od.cost_price_at_sale) AS calculated_cost,
+   SUM(od.quantity * (od.price_at_sale - od.cost_price_at_sale)) AS calculated_profit
+FROM orders o
+JOIN customers c ON o.customer_id = c.customer_id
+JOIN orderdetails od ON o.order_id = od.order_id
+GROUP BY
+   o.order_id,
+   o.created_at,
+   o.status,
+   c.customer_id,
+   c.name,
+   o.total_amount;
+
+-----view4 doanh thu theo ngày
+
+CREATE OR REPLACE VIEW v_daily_revenue AS
+SELECT
+   DATE(o.created_at) AS revenue_date,
+   COUNT(DISTINCT o.order_id) AS total_orders,
+   SUM(od.quantity * od.price_at_sale) AS total_revenue,
+   SUM(od.quantity * od.cost_price_at_sale) AS total_cost,
+   SUM(od.quantity * (od.price_at_sale - od.cost_price_at_sale)) AS total_profit
+FROM orders o
+JOIN orderdetails od ON o.order_id = od.order_id
+WHERE o.status IN ('đã duyệt', 'đã giao')
+GROUP BY DATE(o.created_at);
+
+
+------view5 khách hàng vượt ngưỡng công nợ
+
+
+CREATE OR REPLACE VIEW v_customer_debt_status AS
+SELECT
+   customer_id,
+   name,
+   email,
+   phone,
+   credit_limit,
+   current_debt,
+   credit_limit - current_debt AS remaining_credit,
+   CASE
+       WHEN current_debt > credit_limit THEN 'VUOT_HAN_MUC'
+       WHEN current_debt >= credit_limit * 0.8 THEN 'CANH_BAO'
+       ELSE 'BINH_THUONG'
+   END AS debt_status
+FROM customers;
+
+
+
+
